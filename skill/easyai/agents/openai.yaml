@@ -1,0 +1,4 @@
+interface:
+  display_name: EasyAI
+  short_description: Control EasyAI media and infinite canvas workflows
+  default_prompt: Use the EasyAI CLI to inspect or perform the requested EasyAI workflow safely.

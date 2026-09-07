@@ -1,0 +1,271 @@
+openapi: 3.0.3
+info:
+  title: EasyAI CLI Contract Overlay
+  version: 0.1.0
+  description: Missing typed contracts required by the EasyAI CLI. Merge into the server OpenAPI document.
+servers:
+  - url: https://ai.wowidea.top/api
+paths:
+  /auth/cli/authorize:
+    get:
+      operationId: authorizeCli
+      summary: Browser authorization page for a PKCE CLI session
+      parameters:
+        - { name: redirect_uri, in: query, required: true, schema: { type: string, format: uri } }
+        - { name: code_challenge, in: query, required: true, schema: { type: string } }
+        - { name: code_challenge_method, in: query, required: true, schema: { type: string, enum: [S256] } }
+        - { name: state, in: query, required: true, schema: { type: string } }
+        - { name: scope, in: query, required: true, schema: { type: string } }
+      responses:
+        '302': { description: Redirect to the validated loopback URI with a one-time code and state }
+  /auth/cli/token:
+    post:
+      operationId: exchangeCliToken
+      summary: Exchange an authorization code or refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CliTokenRequest' }
+      responses:
+        '200':
+          description: Short-lived delegated CLI session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CliTokenResponse' }
+  /auth/cli/revoke:
+    post:
+      operationId: revokeCliSession
+      summary: Revoke the current delegated CLI session
+      security: [{ bearer: [] }]
+      responses:
+        '204': { description: Revoked }
+  /v1/video/preflight:
+    post:
+      operationId: preflightVideoGeneration
+      summary: Validate and quote a video generation without creating a task
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VideoGenerationRequest' }
+      responses:
+        '200':
+          description: Normalized request and expiring quote
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreflightQuote' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/canvas-workflow/projects/{projectId}/executions/preflight:
+    post:
+      operationId: preflightCanvasExecution
+      summary: Validate and quote a canvas execution without creating a task
+      security: [{ bearer: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CanvasExecutionRequest' }
+      responses:
+        '200':
+          description: Normalized execution and expiring quote
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreflightQuote' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/canvas-workflow/projects/{projectId}/operations:
+    post:
+      operationId: applyCanvasOperationsTyped
+      summary: Atomically apply up to 100 canvas operations
+      security: [{ bearer: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CanvasOperationBatch' }
+      responses:
+        '201':
+          description: Applied mutation and new version
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CanvasMutationResult' }
+        '409':
+          description: baseVersion is stale or the idempotency key conflicts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConflictError' }
+  /v1/canvas-workflow/projects/{projectId}/nodes/{nodeId}/configure:
+    post:
+      operationId: configureCanvasNodeTyped
+      security: [{ bearer: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: nodeId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NodeConfigurationRequest' }
+      responses:
+        '201':
+          description: Updated node configuration
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CanvasMutationResult' }
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    ValidationError:
+      description: Request is invalid or violates provider limits
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+  schemas:
+    CliTokenRequest:
+      type: object
+      required: [grant_type]
+      properties:
+        grant_type: { type: string, enum: [authorization_code, refresh_token] }
+        code: { type: string }
+        redirect_uri: { type: string, format: uri }
+        code_verifier: { type: string }
+        refresh_token: { type: string }
+    CliTokenResponse:
+      type: object
+      required: [access_token, expires_in, token_type, scope]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        expires_in: { type: integer, minimum: 1 }
+        token_type: { type: string, enum: [Bearer] }
+        scope: { type: string }
+    VideoGenerationRequest:
+      type: object
+      required: [model, prompt, duration, aspect_ratio, resolution, audio]
+      properties:
+        model: { type: string }
+        prompt: { type: string, minLength: 1 }
+        duration: { type: integer, minimum: 1 }
+        aspect_ratio: { type: string }
+        resolution: { type: string }
+        audio: { type: boolean }
+        watermark: { type: boolean }
+        mode: { type: string, enum: [text, image, video, audio, first_last_frame, edit, continuation, mixed] }
+        image_urls: { type: array, items: { type: string, format: uri } }
+        video_urls: { type: array, items: { type: string, format: uri } }
+        audio_urls: { type: array, items: { type: string, format: uri } }
+        references:
+          type: array
+          items:
+            type: object
+            required: [type, role, url]
+            properties:
+              type: { type: string, enum: [image, video, audio] }
+              role: { type: string, minLength: 1 }
+              url: { type: string, format: uri }
+        last_frame: { type: boolean }
+      additionalProperties: true
+    CanvasExecutionRequest:
+      type: object
+      oneOf:
+        - required: [nodeId]
+        - required: [groupId]
+        - required: [all]
+      properties:
+        nodeId: { type: string }
+        groupId: { type: string }
+        all: { type: boolean, enum: [true] }
+        inputs: { type: object, additionalProperties: true }
+    PreflightQuote:
+      type: object
+      required: [quoteId, normalizedRequest, payloadHash, estimatedCost, currency, expiresAt, referenceCounts]
+      properties:
+        quoteId: { type: string }
+        normalizedRequest: { type: object, additionalProperties: true }
+        payloadHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        estimatedCost: { type: number, minimum: 0 }
+        currency: { type: string }
+        expiresAt: { type: string, format: date-time }
+        referenceCounts:
+          type: object
+          required: [images, videos, audio]
+          properties:
+            images: { type: integer, minimum: 0 }
+            videos: { type: integer, minimum: 0 }
+            audio: { type: integer, minimum: 0 }
+        providerLimits: { type: object, additionalProperties: true }
+    CanvasOperationBatch:
+      type: object
+      required: [baseVersion, clientMutationId, operations]
+      properties:
+        baseVersion: { type: integer, minimum: 0 }
+        clientMutationId: { type: string, format: uuid }
+        operations:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { $ref: '#/components/schemas/CanvasOperation' }
+    CanvasOperation:
+      type: object
+      required: [type, payload]
+      properties:
+        type:
+          type: string
+          enum: [node.add, node.add.connected, node.remove, node.data.update, node.structure.patch, edge.add, edge.remove, group.create, group.ungroup, graph.batch]
+        payload: { type: object, additionalProperties: true }
+    NodeConfigurationRequest:
+      type: object
+      required: [baseVersion, clientMutationId, configuration]
+      properties:
+        baseVersion: { type: integer, minimum: 0 }
+        clientMutationId: { type: string, format: uuid }
+        configuration: { type: object, additionalProperties: true }
+    CanvasMutationResult:
+      type: object
+      required: [projectId, version, clientMutationId]
+      properties:
+        projectId: { type: string }
+        version: { type: integer }
+        clientMutationId: { type: string }
+        replayed: { type: boolean }
+        statePatch: { type: object, additionalProperties: true }
+    ConflictError:
+      type: object
+      required: [code, message, currentVersion]
+      properties:
+        code: { type: string, enum: [VERSION_CONFLICT, IDEMPOTENCY_CONFLICT] }
+        message: { type: string }
+        currentVersion: { type: integer }
+        clientMutationId: { type: string }
+    ValidationError:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        fieldErrors: { type: array, items: { type: object, additionalProperties: true } }
