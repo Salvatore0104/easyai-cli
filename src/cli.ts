@@ -13,6 +13,7 @@ import { CliError, ExitCode, redact } from "./errors.js";
 import { emit, OutputOptions } from "./output.js";
 import { assertQuote, loadQuote, localQuote, payloadHash, Quote, saveQuote } from "./preflight.js";
 import { approveManifest, creativeHash, readManifest, seedancePayload, uploadReferences, validateManifest } from "./seedance.js";
+import { submitImageWithRecovery } from "./submission.js";
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean }
 const program = new Command();
@@ -71,7 +72,7 @@ function taskCommands(parent: Command, media: "image" | "video") {
   }
 }
 const image = program.command("image");
-dataOptions(image.command("generate")).action(async (o, c) => output(await (await apiFor(c)).post("/v1/images/generations", await jsonInput(o), { "Idempotency-Key": randomUUID() }), c));
+dataOptions(image.command("generate")).action(async (o, c) => { const api = await apiFor(c); const payload = await jsonInput(o); await output(await submitImageWithRecovery(api, payload, randomUUID()), c); });
 taskCommands(image, "image");
 
 async function preflight(api: EasyAiApi, kind: "video" | "canvas", path: string, payload: Record<string, unknown>): Promise<Quote> {
