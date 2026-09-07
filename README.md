@@ -8,7 +8,7 @@ In a Codex terminal, run:
 
 ```bash
 npm install -g @easyai/cli
-easyai auth login
+easyai --help
 ```
 
 Then ask Codex to use the bundled `skill/easyai` instructions, or install the skill into your Codex skills directory:
@@ -22,12 +22,34 @@ Windows PowerShell:
 
 ```powershell
 npm install -g @easyai/cli
-easyai auth login
+easyai --help
 $skill = Join-Path (npm root -g) "@easyai/cli/skill/easyai"
 Copy-Item $skill "$HOME\.codex\skills\easyai" -Recurse -Force
 ```
 
 The browser login uses PKCE and stores credentials in the OS credential manager when `keytar` is available. CI can use `EASYAI_API_KEY` or `easyai auth use-key --key-stdin`.
+
+### 直接使用 API Key（推荐）
+
+不需要执行 `auth login`。单次调用可从标准输入传入：
+
+```bash
+read -s EASYAI_API_KEY
+printf '%s' "$EASYAI_API_KEY" | easyai --api-key-stdin --json models list
+unset EASYAI_API_KEY
+```
+
+连续调用可在当前终端设置环境变量：
+
+```bash
+export EASYAI_API_KEY='只在本机输入，不要提交到 GitHub'
+easyai --json models list
+easyai --json balance
+easyai --json canvas project list
+unset EASYAI_API_KEY
+```
+
+也支持单次显式参数 `--api-key <key>`，但不推荐，因为可能进入 shell 历史。API Key 是账号级权限，请按需创建并可以在网站或 `easyai api-key revoke KEY_ID` 立即撤销。
 
 ## macOS one-command install
 
@@ -37,10 +59,12 @@ Run this from a Codex terminal on macOS. It requires Node.js 20+ and git, clones
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Salvatore0104/easyai-cli/master/scripts/install-macos.sh)"
 ```
 
-Then authenticate:
+然后直接使用 API Key（不需要浏览器登录）：
 
 ```bash
-easyai auth login
+read -s EASYAI_API_KEY
+printf '%s' "$EASYAI_API_KEY" | easyai --api-key-stdin --json models list
+unset EASYAI_API_KEY
 ```
 
 To install a different fork or branch, set `EASYAI_CLI_REPO` and `EASYAI_CLI_REF` before running the same command. This path intentionally builds on the user's Mac instead of downloading a platform-specific binary.

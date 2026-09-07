@@ -15,7 +15,7 @@ import { assertQuote, loadQuote, localQuote, payloadHash, Quote, saveQuote } fro
 import { approveManifest, creativeHash, readManifest, seedancePayload, uploadReferences, validateManifest } from "./seedance.js";
 import { submitAsyncWithRecovery, submitImageWithRecovery } from "./submission.js";
 
-interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean }
+interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
 program.name("easyai").description("Control EasyAI generation and infinite canvas workflows").version("0.1.0")
   .option("--profile <name>", "configuration profile")
@@ -23,6 +23,8 @@ program.name("easyai").description("Control EasyAI generation and infinite canva
   .option("--json", "stable JSON output")
   .option("--jsonl", "one JSON object per line")
   .option("--output <file>", "write large JSON response to a file")
+  .option("--api-key <key>", "use an API key for this invocation; prefer --api-key-stdin")
+  .option("--api-key-stdin", "read an API key from stdin for this invocation")
   .option("--timeout <ms>", "request timeout", "30000")
   .option("--no-color", "disable color output")
   .showHelpAfterError();
@@ -31,7 +33,9 @@ const globals = (cmd: Command): GlobalOptions => cmd.optsWithGlobals() as Global
 const output = (value: unknown, cmd: Command) => { const o = globals(cmd); return emit(value, { json: o.json, jsonl: o.jsonl, output: o.output }); };
 async function apiFor(cmd: Command): Promise<EasyAiApi> {
   const opts = globals(cmd); const profile = await getProfile(opts.profile, opts.baseUrl); const timeoutMs = Number(opts.timeout);
-  return new EasyAiApi({ baseUrl: profile.config.baseUrl, token: await accessToken(profile.name, profile.config.baseUrl, timeoutMs), timeoutMs });
+  const token = opts.apiKeyStdin ? await readStdinApiKey() : opts.apiKey?.trim() || await accessToken(profile.name, profile.config.baseUrl, timeoutMs);
+  if (!token) throw new CliError("API key cannot be empty.", ExitCode.Auth);
+  return new EasyAiApi({ baseUrl: profile.config.baseUrl, token, timeoutMs });
 }
 async function jsonInput(opts: { data?: string; file?: string }): Promise<Record<string, unknown>> {
   if (opts.data && opts.file) throw new CliError("Use either --data or --file, not both.", ExitCode.Usage);
@@ -207,6 +211,8 @@ seedance.command("finalize").argument("<manifest>").requiredOption("--dir <path>
 
 function openExternal(url: string) { const command = process.platform === "win32" ? "cmd" : process.platform === "darwin" ? "open" : "xdg-open"; const args = process.platform === "win32" ? ["/c", "start", "", url] : [url]; spawn(command, args, { detached: true, stdio: "ignore", windowsHide: true }).unref(); }
 async function readStdin(): Promise<string> { const chunks: Buffer[] = []; for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk)); return Buffer.concat(chunks).toString("utf8").trim(); }
+let directApiKeyPromise: Promise<string> | undefined;
+function readStdinApiKey(): Promise<string> { return directApiKeyPromise ||= readStdin(); }
 async function outputApiKeyOnce(value: unknown, cmd: Command): Promise<void> { const options = globals(cmd); if (options.output) throw new CliError("--output is disabled for API key creation because the plaintext is shown only once.", ExitCode.Usage); process.stderr.write("The account-level API key is shown once. Store it in an OS credential manager and revoke it immediately if exposed.\n"); process.stdout.write(JSON.stringify(options.json ? { schemaVersion: "easyai.cli/v1", data: value } : value, null, 2) + "\n"); }
 function findTaskId(value: unknown): string | undefined { if (!value || typeof value !== "object") return; const row = value as Record<string, any>; return row.taskId || row.task_id || row.id || row.data?.taskId || row.data?.task_id || row.data?.id; }
 async function runFfmpeg(args: string[]): Promise<boolean> { return new Promise(resolveResult => { const child = spawn("ffmpeg", args, { stdio: "ignore", windowsHide: true }); child.on("error", () => resolveResult(false)); child.on("exit", code => resolveResult(code === 0)); }); }
