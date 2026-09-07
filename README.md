@@ -29,9 +29,21 @@ Copy-Item $skill "$HOME\.codex\skills\easyai" -Recurse -Force
 
 The browser login uses PKCE and stores credentials in the OS credential manager when `keytar` is available. CI can use `EASYAI_API_KEY` or `easyai auth use-key --key-stdin`.
 
-## Binary releases
+## macOS one-command install
 
-GitHub Actions builds native single-file binaries for Windows, macOS, and Linux on every version tag. Download the artifact for the host platform, put it on `PATH`, and run `easyai --help`.
+Run this from a Codex terminal on macOS. It requires Node.js 20+ and git, clones the repository, builds locally, and registers both CLI aliases globally:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Salvatore0104/easyai-cli/master/scripts/install-macos.sh)"
+```
+
+Then authenticate:
+
+```bash
+easyai auth login
+```
+
+To install a different fork or branch, set `EASYAI_CLI_REPO` and `EASYAI_CLI_REF` before running the same command. This path intentionally builds on the user's Mac instead of downloading a platform-specific binary.
 
 ## Safety model
 
