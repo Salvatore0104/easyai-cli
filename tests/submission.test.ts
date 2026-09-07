@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { CliError, ExitCode } from "../src/errors.js";
-import { submitImageWithRecovery, taskRows } from "../src/submission.js";
+import { submitAsyncWithRecovery, submitImageWithRecovery, taskRows } from "../src/submission.js";
 
 describe("image async submission recovery", () => {
   it.each([
@@ -13,6 +13,15 @@ describe("image async submission recovery", () => {
     expect(await submitImageWithRecovery(api, { prompt: "test" }, "idem-1")).toEqual({ id: "task-1" });
     expect(api.post).toHaveBeenCalledTimes(1); expect(api.post).toHaveBeenCalledWith("/v1/images/generations", { prompt: "test" }, { "Idempotency-Key": "idem-1" });
     expect(api.get).toHaveBeenCalledWith("/v1/tasks?idempotencyKey=idem-1");
+  });
+
+  it("recovers an async video task through the same single-submit path", async () => {
+    const api = { post: vi.fn().mockRejectedValue(new CliError("Request timed out", ExitCode.Service)), get: vi.fn().mockResolvedValue({ items: [{ id: "video-task-1" }] }) } as any;
+    const result = await submitAsyncWithRecovery(api, "/v1/video/generations", { prompt: "test" }, "video-idem", "video");
+    expect(result).toEqual({ id: "video-task-1" });
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledWith("/v1/video/generations", { prompt: "test" }, { "Idempotency-Key": "video-idem" });
+    expect(api.get).toHaveBeenCalledWith("/v1/tasks?idempotencyKey=video-idem");
   });
 
   it("reports uncertain without a duplicate when lookup is empty", async () => {

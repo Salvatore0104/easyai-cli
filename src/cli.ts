@@ -13,7 +13,7 @@ import { CliError, ExitCode, redact } from "./errors.js";
 import { emit, OutputOptions } from "./output.js";
 import { assertQuote, loadQuote, localQuote, payloadHash, Quote, saveQuote } from "./preflight.js";
 import { approveManifest, creativeHash, readManifest, seedancePayload, uploadReferences, validateManifest } from "./seedance.js";
-import { submitImageWithRecovery } from "./submission.js";
+import { submitAsyncWithRecovery, submitImageWithRecovery } from "./submission.js";
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean }
 const program = new Command();
@@ -102,12 +102,8 @@ async function confirmQuote(quote: Quote, opts: { yes?: boolean; maxCost?: strin
 }
 async function submitOnce(api: EasyAiApi, path: string, payload: Record<string, unknown>, quote: Quote): Promise<unknown> {
   const key = randomUUID();
-  try { return await api.post(path, { ...payload, quoteId: quote.serverQuoteId || quote.quoteId }, { "Idempotency-Key": key }); }
-  catch (error) {
-    if (error instanceof CliError && error.exitCode !== ExitCode.Service) throw error;
-    try { const found = await api.get<any>(`/v1/tasks?idempotencyKey=${enc(key)}`); if (Array.isArray(found?.data) && found.data.length) return found.data[0]; } catch { /* retain original uncertain outcome */ }
-    throw new CliError(`Submission outcome is uncertain for idempotency key ${key}; no retry was made. ${(error as Error).message}`, ExitCode.Service);
-  }
+  const kind = path.includes("video") ? "video" : "image";
+  return submitAsyncWithRecovery(api, path, { ...payload, quoteId: quote.serverQuoteId || quote.quoteId }, key, kind);
 }
 const video = program.command("video");
 dataOptions(video.command("preflight")).action(async (o, c) => output(await preflight(await apiFor(c), "video", "/v1/video/preflight", await jsonInput(o)), c));

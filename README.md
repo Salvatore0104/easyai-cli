@@ -51,6 +51,52 @@ Use `--json` for stable machine output and `--output` for large responses. Canva
 
 The server-side preflight and CLI PKCE endpoints are specified in `openapi/easyai-cli-overlay.yaml`; they must be merged into the EasyAI backend before online preflight/login acceptance.
 
+## 在 Codex 中怎么调用
+
+安装并把 `skill/easyai` 放入 Codex skills 目录后，不需要记住所有参数。直接用自然语言说明目标即可，例如：
+
+```text
+使用 EasyAI CLI 列出我的模型和余额，只读操作，返回 JSON。
+```
+
+```text
+使用 EasyAI CLI 查看我的无限画布项目，读取项目 PROJECT_ID 的当前状态，不要修改。
+```
+
+```text
+使用 EasyAI CLI 在项目 PROJECT_ID 中增加一个 text 节点。先读取当前版本，再用乐观锁写入；如果版本冲突就停止，不要覆盖。
+```
+
+也可以显式要求 Codex 使用 Skill：
+
+```text
+$easyai 查看我的 EasyAI 画布项目并汇总节点类型。
+```
+
+Codex 实际执行的就是普通 CLI 命令，例如：
+
+```bash
+easyai --json models list
+easyai --json balance
+easyai --json canvas project list
+```
+
+图片和视频要分开描述。图片可以在你确认费用后直接提交；视频必须先预检：
+
+```text
+使用 EasyAI CLI 预检这个视频请求，先不要提交，告诉我模型、时长、分辨率、音频和预计费用。
+```
+
+得到 quote 后，再明确授权：
+
+```text
+费用在我的预算内，使用刚才的 quote 提交一次视频任务。不要重试，不要创建对比任务，并持续查看这个任务的状态。
+```
+
+非交互自动化必须明确给出 `--yes --max-cost`。网络超时后 CLI 会按幂等键找回已经接受的图片或视频任务；找不到时会报告 `uncertain`，不会再次扣费提交。
+
+这种用法和其他 agent-friendly CLI 一样：自然语言负责表达意图，Codex Skill 负责选择命令，CLI 负责稳定 JSON、认证、幂等和安全边界。不要把私有 HTTP 请求拼接到提示词里。
+
 ## Development
 
 ```bash
