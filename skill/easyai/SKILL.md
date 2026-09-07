@@ -7,6 +7,8 @@ description: Control EasyAI models, media generation, tasks, and infinite-canvas
 
 用户可以直接用自然语言说“使用 EasyAI CLI 查看模型/余额/画布”或显式写 `$easyai`。将意图翻译成 CLI 命令；先做只读发现，再执行用户明确要求的单个写操作。不要要求用户记忆内部 HTTP 路径。
 
+首次安装、API Key 注入和 Codex 提示词模板见 [references/first-run-zh.md](references/first-run-zh.md)。
+
 Use the `easyai` CLI instead of constructing private EasyAI HTTP requests. Start with discovery and precise reads, then perform only the mutation the user requested.
 
 Use `--json` for structured results, `--jsonl` for event streams, and `--output <file>` for large responses. Keep API keys, tokens, signed URLs, and Authorization headers out of messages, logs, manifests, and shell history. Prefer `easyai auth use-key --key-stdin` or environment injection over a literal key argument.

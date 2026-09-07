@@ -2,13 +2,14 @@
 
 Agent-friendly CLI for EasyAI image/video generation and infinite-canvas workflows. It exposes both `easyai` and the compatibility alias `easyai-canvas`.
 
-## Install in Codex
+## 首次在 Codex 中使用
 
 In a Codex terminal, run:
 
+请先阅读 [Codex 首次使用指南](docs/codex-first-run-zh.md)。macOS 用户直接执行：
+
 ```bash
-npm install -g @easyai/cli
-easyai --help
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Salvatore0104/easyai-cli/master/scripts/install-macos.sh)"
 ```
 
 Then ask Codex to use the bundled `skill/easyai` instructions, or install the skill into your Codex skills directory:
@@ -21,13 +22,17 @@ cp -R "$(npm root -g)/@easyai/cli/skill/easyai/." "$HOME/.codex/skills/easyai/"
 Windows PowerShell:
 
 ```powershell
-npm install -g @easyai/cli
+git clone https://github.com/Salvatore0104/easyai-cli.git
+cd easyai-cli
+npm install
+npm run build
+npm install --global .
 easyai --help
 $skill = Join-Path (npm root -g) "@easyai/cli/skill/easyai"
 Copy-Item $skill "$HOME\.codex\skills\easyai" -Recurse -Force
 ```
 
-The browser login uses PKCE and stores credentials in the OS credential manager when `keytar` is available. CI can use `EASYAI_API_KEY` or `easyai auth use-key --key-stdin`.
+浏览器登录是可选的；推荐直接使用账号 API Key，不需要登录验证。完整首次配置和自然语言示例见 [Codex 首次使用指南](docs/codex-first-run-zh.md)。
 
 ### 直接使用 API Key（推荐）
 
