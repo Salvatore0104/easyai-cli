@@ -33,10 +33,10 @@ export function assertQuote(quote: Quote, payload?: unknown): void {
   if (payload && quote.payloadHash !== payloadHash(payload)) throw new CliError("The request changed after preflight; approval is invalid.", ExitCode.Approval);
 }
 
-export const CONFIRM_ABOVE_POINTS = 100;
+export const CONFIRM_ABOVE_POINTS = 200;
 export function requiresConfirmation(quote: Quote, maxCost?: string): boolean {
   assertQuote(quote);
-  if (!["points", "point", "credits", "积分"].includes(quote.currency.toLowerCase())) throw new CliError("The platform must quote in points to apply the 100-point confirmation threshold.", ExitCode.Approval);
+  if (!["points", "point", "credits", "积分"].includes(quote.currency.toLowerCase())) throw new CliError("The platform must quote in points to apply the Seedance 200-point confirmation threshold.", ExitCode.Approval);
   if (maxCost !== undefined) {
     const limit = Number(maxCost);
     if (!maxCost.trim() || !Number.isFinite(limit) || limit < 0) throw new CliError("--max-cost must be a non-negative number.", ExitCode.Usage);

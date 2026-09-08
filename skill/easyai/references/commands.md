@@ -1,6 +1,6 @@
 # Command routing
 
-Version 0.2.1: use the installed wowidea Skill for current commands. A valid points quote at or below 100 needs no confirmation; only above 100 requires --yes --max-cost after user confirmation. Image submissions also require preflight and --idempotency-key. Report pointsUsage after completion.
+Version 0.2.2: use the installed wowidea Skill for current commands. Only Seedance video requires a quote and confirmation above 200 points. Images, MiniMax and other non-Seedance tasks submit directly without automatic cost preflight or confirmation. Keep idempotency, polling and pointsUsage reporting. Historical command notes below defer to the wowidea workflow.
 
 Run `easyai <group> --help` when arguments are uncertain.
 

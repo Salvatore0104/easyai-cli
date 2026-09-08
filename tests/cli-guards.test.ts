@@ -13,12 +13,13 @@ async function run(args: string[], env: Record<string, string>) {
   });
 }
 describe("CLI gates with a mock website", () => {
-  it.each([{ kind: "image", cost: 100, code: 0 }, { kind: "image", cost: 101, code: 6 }, { kind: "video", cost: 100, code: 0 }, { kind: "video", cost: 101, code: 6 }])("$kind at $cost points applies the policy without a human prompt", async ({ kind, cost, code }) => {
-    let submissions = 0;
+  it.each([{ kind: "image", cost: 1000, code: 0 }, { kind: "minimax", cost: 1000, code: 0 }, { kind: "video", cost: 200, code: 0 }, { kind: "video", cost: 201, code: 6 }])("$kind at $cost points applies the policy without a human prompt", async ({ kind, cost, code }) => {
+    let submissions = 0, preflights = 0;
     const catalog = [{ id: "Nano Banana 2", capabilities: { image_generate: {} } }, { id: "豆包Seedance-2.0", capabilities: { omni_video: { supported_modes: ["text_to_video"], duration_range: [4, 15], output_resolutions: ["720p"], aspect_ratio_allowed: ["16:9"], output_audio: true } } }];
+    catalog.push({ ...catalog[1]!, id: "MiniMax-H3" });
     const server = createServer((req, res) => {
       res.setHeader("Content-Type", "application/json");
-      if (req.url?.endsWith("/preflight")) { let body = ""; req.on("data", d => body += d); req.on("end", () => res.end(JSON.stringify({ quoteId: "cost-quote", estimatedCost: cost, currency: "points", expiresAt: new Date(Date.now() + 60000).toISOString(), normalizedRequest: JSON.parse(body) }))); return; }
+      if (req.url?.endsWith("/preflight")) { preflights++; let body = ""; req.on("data", d => body += d); req.on("end", () => res.end(JSON.stringify({ quoteId: "cost-quote", estimatedCost: cost, currency: "points", expiresAt: new Date(Date.now() + 60000).toISOString(), normalizedRequest: JSON.parse(body) }))); return; }
       if (req.method === "POST") { submissions++; res.end(JSON.stringify({ taskId: "job", status: "queued" })); return; }
       if (req.url === "/api/v1/models") { res.end(JSON.stringify({ data: catalog })); return; }
       res.end(JSON.stringify({ taskId: "job", status: "succeeded", billing: { actualPoints: 37.5 } }));
@@ -28,6 +29,7 @@ describe("CLI gates with a mock website", () => {
     const env = { EASYAI_CONFIG_DIR: dir, EASYAI_API_KEY: "mock-account-key", EASYAI_BASE_URL: `http://127.0.0.1:${(server.address() as any).port}` };
     try {
       let args = ["--json", "image", "generate", "--data", '{"prompt":"poster"}', "--idempotency-key", "one"];
+      if (kind === "minimax") args = ["--json", "video", "generate", "--data", JSON.stringify({ model: "MiniMax-H3", prompt: "product", duration: 9, resolution: "720p", aspect_ratio: "16:9", audio: false }), "--idempotency-key", "one"];
       if (kind === "video") {
         const manifest = join(dir, "manifest.json"), request = join(dir, "request.json"), storyboard = join(dir, "shot.png");
         await writeFile(storyboard, "mock storyboard bytes");
@@ -38,10 +40,11 @@ describe("CLI gates with a mock website", () => {
       }
       const result = await run(args, env); expect(result.code, result.err).toBe(code);
       expect(submissions).toBe(code === 0 ? 1 : 0);
+      expect(preflights).toBe(kind === "video" ? 1 : 0);
       if (code === 0) {
-        const watched = await run(["--jsonl", kind, "watch", "job"], env);
+        const watched = await run(["--jsonl", kind === "image" ? "image" : "video", "watch", "job"], env);
         expect(JSON.parse(watched.out).data.pointsUsage).toMatchObject({ actualPoints: 37.5, status: "reported" });
-      } else expect(result.err).toContain("100");
+      } else expect(result.err).toContain("200");
     } finally { await new Promise<void>(r => server.close(() => r())); }
   });
   it("blocks direct Seedance and image-endpoint bypass before network access", async () => {

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: EasyAI CLI Contract Overlay
-  version: 0.2.1
+  version: 0.2.2
   description: Missing typed contracts required by the EasyAI CLI. Merge into the server OpenAPI document.
 servers:
   - url: https://ai.wowidea.top/api
@@ -9,7 +9,7 @@ paths:
   /v1/images/preflight:
     post:
       operationId: preflightImageGeneration
-      description: Side-effect-free quote for the complete image request. Required to determine whether the task exceeds the 100-point confirmation threshold. Bind the quote to the account and exact serialized payload; do not charge or enqueue generation here.
+      description: Optional side-effect-free quote for an explicitly requested image budget. Normal image generation does not call this endpoint or require confirmation. The default cost gate applies only to Seedance video above 200 points. Bind quotes to the account and exact serialized payload; never charge or enqueue generation here.
       security: [{ bearer: [] }]
       requestBody:
         required: true

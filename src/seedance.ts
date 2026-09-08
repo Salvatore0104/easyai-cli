@@ -62,7 +62,7 @@ export async function approveManifest(path: string, confirmation: string): Promi
 
 export async function automaticManifest(m: SeedanceManifest, quote: Quote): Promise<SeedanceManifest> {
   assertQuote(quote, seedancePayload(m));
-  if (requiresConfirmation(quote)) throw new CliError("Seedance above 100 points requires explicit confirmation.", ExitCode.Approval);
+  if (requiresConfirmation(quote)) throw new CliError("Seedance above 200 points requires explicit confirmation.", ExitCode.Approval);
   await validateManifest(m);
   if (!["storyboard_ready", "approved"].includes(m.state)) throw new CliError("Prepare the storyboard manifest first; submitted tasks must be resumed.", ExitCode.Approval);
   const snapshot = structuredClone(m);
@@ -71,7 +71,7 @@ export async function automaticManifest(m: SeedanceManifest, quote: Quote): Prom
     shot.sha256 = createHash("sha256").update(await readFile(shot.image)).digest("hex");
   }
   snapshot.state = "approved";
-  snapshot.approval = { approvedAt: quote.createdAt, creativeHash: creativeHash(snapshot), confirmation: "AUTO_AT_MOST_100_POINTS" };
+  snapshot.approval = { approvedAt: quote.createdAt, creativeHash: creativeHash(snapshot), confirmation: "AUTO_AT_MOST_200_POINTS" };
   await validateManifest(snapshot, true);
   return snapshot;
 }

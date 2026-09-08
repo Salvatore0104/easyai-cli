@@ -19,7 +19,7 @@ import { routeModel, validateCapabilities } from "./models.js";
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Control EasyAI generation and infinite canvas workflows (easyai compatible)").version("0.2.1")
+program.name("wowidea").description("Control EasyAI generation and infinite canvas workflows (easyai compatible)").version("0.2.2")
   .option("--profile <name>", "configuration profile")
   .option("--base-url <url>", "EasyAI server URL")
   .option("--json", "stable JSON output")
@@ -90,9 +90,7 @@ dataOptions(image.command("generate")).requiredOption("--idempotency-key <key>")
   // A repeated invocation recovers before acquiring a different quote or submitting again.
   if ((await listSubmissions(api)).some(r => r.idempotencyKey === o.idempotencyKey)) { await output(withPointsUsage(await recoverSubmission(api, o.idempotencyKey)), c); return; }
   const selected = routeModel(await api.get("/v1/models"), "image", payload.model ? String(payload.model) : (await creativeDefaults()).image); payload.model = selected.model; validateCapabilities(selected, payload);
-  const quote = o.quote ? await loadQuote(o.quote) : await preflight(api, "image", "/v1/images/preflight", payload);
-  assertQuote(quote, payload); await confirmQuote(quote, o);
-  await output(withPointsUsage(await submitOnce(api, "/v1/images/generations", payload, quote, o.idempotencyKey)), c);
+  await output(withPointsUsage(await submitDirect(api, "/v1/images/generations", payload, o)), c);
 });
 taskCommands(image, "image");
 
@@ -121,7 +119,7 @@ async function confirmQuote(quote: Quote, opts: { yes?: boolean; maxCost?: strin
     if (quote.estimatedCost > limit) throw new CliError(`Estimated cost ${quote.estimatedCost} exceeds limit ${opts.maxCost}.`, ExitCode.Budget);
     return;
   }
-  if (!process.stdin.isTTY) throw new CliError(`预计消耗 ${quote.estimatedCost} 积分，超过 100 积分，需要用户确认。确认后使用 --yes --max-cost，并保留报价 ${quote.quoteId}。`, ExitCode.Approval);
+  if (!process.stdin.isTTY) throw new CliError(`Seedance 预计消耗 ${quote.estimatedCost} 积分，超过 200 积分，需要用户确认。确认后使用 --yes --max-cost，并保留报价 ${quote.quoteId}。`, ExitCode.Approval);
   process.stderr.write(`Submit one task for ${quote.estimatedCost ?? "unknown"} ${quote.currency}? Type YES: `);
   const rl = createInterface({ input: process.stdin, output: process.stderr }); const answer = await rl.question(""); rl.close();
   if (answer !== "YES") throw new CliError("Generation was not approved.", ExitCode.Approval);
@@ -133,19 +131,34 @@ async function submitOnce(api: EasyAiApi, path: string, payload: Record<string, 
   return submitAsyncWithRecovery(api, path, { ...payload, quoteId: quote.serverQuoteId || quote.quoteId }, key, kind);
 }
 const video = program.command("video");
+async function submitDirect(api: EasyAiApi, path: string, payload: Record<string, unknown>, opts: { quote?: string; maxCost?: string; idempotencyKey?: string }): Promise<unknown> {
+  const key = opts.idempotencyKey || randomUUID();
+  // No automatic quote or cost confirmation for non-Seedance tasks. Explicit budgets still apply.
+  if (opts.maxCost !== undefined && !opts.quote) throw new CliError("An explicit --max-cost needs --quote; omit both for direct generation.", ExitCode.Usage);
+  if (opts.quote) { const quote = await loadQuote(opts.quote); assertQuote(quote, payload); requiresConfirmation(quote, opts.maxCost); return submitOnce(api, path, payload, quote, key); }
+  return submitAsyncWithRecovery(api, path, payload, key, path.includes("video") ? "video" : "image");
+}
 dataOptions(video.command("preflight")).action(async (o, c) => output(await preflight(await apiFor(c), "video", "/v1/video/preflight", await jsonInput(o)), c));
-dataOptions(video.command("generate")).requiredOption("--quote <id>").requiredOption("--idempotency-key <key>").option("--yes").option("--max-cost <amount>").option("--manifest <path>").action(async (o, c) => {
+dataOptions(video.command("generate")).option("--quote <id>", "required only for Seedance or an explicit cost limit").requiredOption("--idempotency-key <key>").option("--yes").option("--max-cost <amount>").option("--manifest <path>").action(async (o, c) => {
   let payload = await jsonInput(o);
   let manifestPath: string | undefined;
   let approvalKey: string | undefined;
   if (/seedance/i.test(String(payload.model)) && !o.manifest) throw new CliError("Seedance requires an approved --manifest; direct payload submission is disabled.", ExitCode.Approval);
+  if (!o.manifest) {
+    const api = await apiFor(c);
+    const selected = routeModel(await api.get("/v1/models"), "video", String(payload.model || ""));
+    if (selected.approvalRequired) throw new CliError("Seedance requires --manifest and --quote.", ExitCode.Approval);
+    payload.model = selected.model; validateCapabilities(selected, payload);
+    await output(withPointsUsage(await submitDirect(api, "/v1/video/generations", payload, o)), c); return;
+  }
+  if (!o.quote) throw new CliError("Seedance requires --quote to determine whether the task exceeds 200 points.", ExitCode.Approval);
   const quote = await loadQuote(o.quote);
   const manualRequired = requiresConfirmation(quote, o.maxCost);
   let initialCreativeHash: string | undefined;
   if (o.manifest) {
     manifestPath = resolve(o.manifest); const manifest = await readManifest(manifestPath); await validateManifest(manifest, true);
     const prepared = manualRequired ? manifest : await automaticManifest(manifest, quote);
-    if (prepared.state !== "approved" || prepared.approval?.creativeHash !== creativeHash(prepared) || (manualRequired && prepared.approval?.confirmation !== "I APPROVE STORYBOARD")) throw new CliError("Seedance 超过 100 积分，需要用户确认分镜与设置。", ExitCode.Approval);
+    if (prepared.state !== "approved" || prepared.approval?.creativeHash !== creativeHash(prepared) || (manualRequired && prepared.approval?.confirmation !== "I APPROVE STORYBOARD")) throw new CliError("Seedance 超过 200 积分，需要用户确认分镜与设置。", ExitCode.Approval);
     payload = seedancePayload(prepared); initialCreativeHash = creativeHash(prepared);
     approvalKey = manualRequired ? `seedance-${payloadHash(prepared.approval)}` : `seedance-auto-${payloadHash({ path: manifestPath, creativeHash: initialCreativeHash })}`;
   }
@@ -215,10 +228,9 @@ dataOptions(canvas.command("batch")).argument("<projectId>").option("--base-vers
 dataOptions(canvas.command("run")).argument("<projectId>").addOption(new Option("--node <id>").conflicts(["group", "all"])).addOption(new Option("--group <id>").conflicts(["node", "all"])).option("--all").option("--preflight").option("--quote <id>").option("--yes").option("--max-cost <amount>").action(async (p, o, c) => {
   const payload = { ...(await jsonInput(o)), ...(o.node ? { nodeId: o.node } : o.group ? { groupId: o.group } : { all: true }) }; const api = await apiFor(c);
   if (o.preflight) { await output(await preflight(api, "canvas", `/v1/canvas-workflow/projects/${enc(p)}/executions/preflight`, payload), c); return; }
-  if (!o.quote) throw new CliError("Canvas execution requires --quote from --preflight.", ExitCode.Approval); const quote = await loadQuote(o.quote); assertQuote(quote, payload); await confirmQuote(quote, o);
   const state = await api.get(`/v1/canvas-workflow/projects/${enc(p)}/state`);
   if (/seedance/i.test(JSON.stringify(state))) throw new CliError("Canvas containing Seedance must use video generate --manifest; canvas approval bridging is not implemented.", ExitCode.Approval);
-  await output(withPointsUsage(await submitOnce(api, `/v1/canvas-workflow/projects/${enc(p)}/executions`, payload, quote)), c);
+  await output(withPointsUsage(await submitDirect(api, `/v1/canvas-workflow/projects/${enc(p)}/executions`, payload, o)), c);
 });
 const canvasTask = canvas.command("task");
 canvasTask.command("show").argument("<projectId>").argument("<taskId>").action(async (p, t, _o, c) => output(withPointsUsage(await (await apiFor(c)).get(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}`)), c));

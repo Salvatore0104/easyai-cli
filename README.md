@@ -2,7 +2,7 @@
 
 # Wowidea：在 Codex 中创作图片与视频
 
-复制上面的提示词给 Codex 即可开始。版本 0.2.1；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
+复制上面的提示词给 Codex 即可开始。版本 0.2.2；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
 
 ## 安装 / 更新
 
@@ -57,8 +57,7 @@ $wowidea 继续查看刚才的视频任务
 ```text
 wowidea --json models route --kind video --model MiniMax
 wowidea --json image generate --file request.json --idempotency-key <UUID>
-wowidea --json video preflight --file request.json
-wowidea --json video generate --file request.json --quote <quoteId> --yes --max-cost <上限> --idempotency-key <UUID>
+wowidea --json video generate --file minimax-request.json --idempotency-key <UUID>
 wowidea --json tasks list
 wowidea --json tasks resume <幂等键>
 wowidea --json video watch <taskId>
@@ -67,9 +66,9 @@ wowidea --json video download <taskId> --dir <绝对目录>
 
 watch 最长 30 分钟；超时或中断后再次查询同一 ID。下载仅读取结果媒体。大 JSON 使用全局 --output 导出。
 
-图片、视频与画布统一使用积分门槛：预计 **100 积分及以下自动生成，超过 100 积分才确认**。恰好 100 不确认。超过门槛经用户确认后才使用 --yes --max-cost；低价任务不需要这两个参数。未知报价不是低价，需平台先提供有效积分报价。图片会自动调用 /v1/images/preflight；该接口未部署时不能判断门槛，CLI 会报告阻塞。
+费用监控**只针对 Seedance 视频：预计 ≤200 积分直接生成，>200 积分才确认**。恰好 200 不确认。图片、MiniMax、Google Omni、Wan 等其他生成直接提交，不要求预检报价、--yes 或 --max-cost；普通画布任务也不设置费用确认门槛。异步轮询、下载和实际积分报告照常进行。只有用户另行明确设置预算时才使用费用上限参数。
 
-Seedance 仍制作分镜和 --manifest，保持 watermark:false，但 ≤100 不再等待分镜或付费确认；>100 一次确认分镜、设置及费用即可。此规则取代 0.2.0 的每次审批要求。素材或设置变化重新预检；本机并发请求仍防重复提交，跨设备保证需要后端幂等存储。
+Seedance 仍制作分镜和 --manifest，保持 watermark:false，但 ≤200 不等待分镜或付费确认；>200 一次确认分镜、设置及费用即可。此规则取代 0.2.0/0.2.1 策略。仅 Seedance 必须有有效积分报价；费用未知时不能猜测低于门槛。素材或设置变化重新预检；本机并发请求仍防重复提交，跨设备保证需要后端幂等存储。
 
 生成完成后输出“本次实际使用 X 积分”。JSON 的 pointsUsage 包含 actualPoints、status、source；status/watch/download/resume/finalize 都报告。实际积分只读取任务结算字段，未返回则显示“平台未返回本任务实际使用积分”，不把估算、token 数或账户余额差当实扣。
 
@@ -90,7 +89,7 @@ npm run check
 npm pack --dry-run
 ```
 
-[0.2.1 积分门槛与用量报告](docs/wowidea-release-0.2.1.md)及[0.2.0 基础验证](docs/wowidea-release-0.2.0.md)区分实测、模拟测试和未验证项。未新增付费生成，不能把离线测试视为所有模型生成成功。
+[0.2.2 Seedance 专属门槛](docs/wowidea-release-0.2.2.md)及[0.2.0 基础验证](docs/wowidea-release-0.2.0.md)区分实测、模拟测试和未验证项。未新增付费生成，不能把离线测试视为所有模型生成成功。
 
 退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少审批，7 超费用上限。
 
