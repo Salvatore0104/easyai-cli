@@ -13,7 +13,7 @@ async function run(args: string[], env: Record<string, string>) {
   });
 }
 describe("CLI gates with a mock website", () => {
-  it.each([{ kind: "image", cost: 1000, code: 0 }, { kind: "minimax", cost: 1000, code: 0 }, { kind: "video", cost: 200, code: 0 }, { kind: "video", cost: 201, code: 6 }])("$kind at $cost points applies the policy without a human prompt", async ({ kind, cost, code }) => {
+  it.each([{ kind: "image", cost: 1000, code: 0 }, { kind: "minimax", cost: 1000, code: 0 }, { kind: "video", cost: 200, code: 0 }, { kind: "video", cost: 201, code: 6 }])("$kind at $cost points applies the cost policy after required creative approval", async ({ kind, cost, code }) => {
     let submissions = 0, preflights = 0;
     const catalog = [{ id: "Nano Banana 2", capabilities: { image_generate: {} } }, { id: "豆包Seedance-2.0", capabilities: { omni_video: { supported_modes: ["text_to_video"], duration_range: [4, 15], output_resolutions: ["720p"], aspect_ratio_allowed: ["16:9"], output_audio: true } } }];
     catalog.push({ ...catalog[1]!, id: "MiniMax-H3" });
@@ -33,9 +33,10 @@ describe("CLI gates with a mock website", () => {
       if (kind === "video") {
         const manifest = join(dir, "manifest.json"), request = join(dir, "request.json"), storyboard = join(dir, "shot.png");
         await writeFile(storyboard, "mock storyboard bytes");
-        await writeFile(manifest, JSON.stringify({ state: "storyboard_ready", model: "豆包Seedance-2.0", prompt: "shot", duration: 9, resolution: "720p", aspectRatio: "16:9", audio: false, watermark: false, mode: "text", lastFrameRequested: true, storyboard: [{ shot: 1, description: "shot", image: storyboard }], references: [], referenceCounts: { images: 0, videos: 0, audio: 0 } }));
+        await writeFile(manifest, JSON.stringify({ state: "storyboard_ready", model: "豆包Seedance-2.0", prompt: "shot", duration: 9, resolution: "720p", aspectRatio: "16:9", audio: false, watermark: false, mode: "text", lastFrameRequested: true, storyboard: [{ shot: 1, description: "shot", image: storyboard }], storyboardQc: { verdict: "pass", reviewedAt: new Date().toISOString(), hardFailures: [], notes: "Clear subject hierarchy and coherent physical progression across the reviewed storyboard.", aesthetics: { visualHierarchy: 4, temporalContinuity: 4, physicalPlausibility: 4, specificity: 4 } }, references: [], referenceCounts: { images: 0, videos: 0, audio: 0 } }));
         expect((await run(["seedance", "payload", manifest, "--file", request], env)).code).toBe(0);
         expect((await run(["video", "preflight", "--file", request], env)).code).toBe(0);
+        expect((await run(["seedance", "approve", manifest, "--confirmation", "I APPROVE STORYBOARD"], env)).code).toBe(0);
         args = ["--json", "video", "generate", "--manifest", manifest, "--quote", "cost-quote", "--idempotency-key", "one"];
       }
       args.push("--no-wait");

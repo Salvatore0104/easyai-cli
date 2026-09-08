@@ -42,6 +42,13 @@ describe("durable async lifecycle", () => {
     await expect(submitImageWithRecovery(api, { prompt: "changed" }, "key")).rejects.toMatchObject({ exitCode: 4 });
     expect(api.post).toHaveBeenCalledTimes(1); expect(api.get).toHaveBeenCalledTimes(1); expect(api.get).toHaveBeenCalledWith("/v1/tasks");
   });
+  it("blocks an identical payload under a new key unless an explicit reroll is requested", async () => {
+    const api = mock(); api.post.mockResolvedValueOnce({ taskId: "first" }).mockResolvedValueOnce({ taskId: "second" });
+    await expect(submitImageWithRecovery(api, { prompt: "same" }, "first-key")).resolves.toMatchObject({ taskId: "first" });
+    await expect(submitImageWithRecovery(api, { prompt: "same" }, "second-key")).rejects.toMatchObject({ exitCode: 4 });
+    await expect(submitImageWithRecovery(api, { prompt: "same" }, "third-key", { allowDuplicatePayload: true })).resolves.toMatchObject({ taskId: "second" });
+    expect(api.post).toHaveBeenCalledTimes(2);
+  });
   it("handles connection loss during lookup", async () => {
     const api = mock(); api.get.mockRejectedValue(new Error("offline"));
     await expect(submitAsyncWithRecovery(api, "/v1/video/generations", {}, "key", "video")).rejects.toThrow("uncertain"); expect(api.post).toHaveBeenCalledTimes(1);

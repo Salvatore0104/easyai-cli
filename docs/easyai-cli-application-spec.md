@@ -20,7 +20,7 @@
 
 认证与发现：`auth login|logout|status|use-key`、`api-key create|list|revoke`、`models list|show`、`balance`。
 
-生成：`image generate|status|watch|download`；`video preflight|generate|status|watch|cancel|download`。请求体由 `--data` 或 `--file` 提供。图片与非 Seedance 视频默认直接提交、轮询和下载；Seedance 必须引用预检产生的 `--quote`，只有预计超过 200 积分时才要求确认或无人值守的 `--yes --max-cost`。
+生成：`image generate|status|watch|download`；`video preflight|generate|status|watch|cancel|download`。请求体由 `--data` 或 `--file` 提供。图片与非 Seedance 视频默认直接提交、轮询和下载；Seedance 必须先批准分镜并引用预检产生的 `--quote`，只有预计超过 200 积分时才追加费用确认或无人值守的 `--yes --max-cost`。
 
 画布：`canvas project`、`node-types`、`node`、`bind|unbind`、`edge`、`group`、`asset`、`template`、`run`、`task`。`canvas operation` 提供低层原子操作，`canvas batch` 最多提交 100 项。
 
@@ -44,9 +44,9 @@ Seedance：`seedance validate|approve|upload-references` 只管理本地清单�
 
 ## 6. Seedance 安全状态机
 
-状态为 `draft -> storyboard_ready -> approved -> submitted -> completed|failed`。提交前必须存在分镜表和可查看的分镜图。预计费用超过 200 积分时用户需以明确批准语句批准；预计不超过 200 积分时 CLI 可在严格校验后记录自动批准。提示词、模式、参考素材、时长、比例、分辨率、模型或音频变化后批准失效并重新预检。
+状态为 `draft -> storyboard_ready -> approved -> submitted -> completed|failed`。所有 Seedance 提交前必须存在分镜表、可查看分镜图、合格的 `storyboardQc`，并由用户明确批准。费用阈值只控制是否追加费用确认：预计不超过 200 积分不再问费用，超过 200 再确认完整计费设置。提示词、模式、参考素材、分镜、时长、比例、分辨率、模型或音频变化后批准失效并重新预检。
 
-本地参考素材先上传私有 MinIO，再生成并验证短期可读 GET URL；每个参考有唯一角色。UTF-8 manifest 包含完整提示词、全部计费设置、参考角色/数量、尾帧要求和严格的 `watermark: false`。最终 payload 哈希必须与批准后的预检一致。
+本地参考素材上传私有 MinIO，再生成并验证短期可读 GET URL；每个参考有唯一角色。参考模式的每个 storyboard shot 都声明 `sourceRoles`，视觉 QC 对来源构图、地标、透视、色调及审美质量评分。UTF-8 manifest 包含完整提示词、全部计费设置、参考角色/数量、尾帧要求和严格的 `watermark: false`。最终 payload 哈希必须与批准后的预检一致。
 
 每次批准只提交一个任务，不自动重试、重投或生成对比版本。拿到任务 ID 后只轮询该任务。成功后应下载视频和尾帧，并在任务 ledger 记录 task ID、设置、参考数量、manifest、路径和 QC；QC 检查接触表、尾帧和右下角可见水印，不自动重新生成。
 

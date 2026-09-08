@@ -9,7 +9,7 @@ describe("bundled Skill installer", () => {
     const env = { ...process.env, EASYAI_CONFIG_DIR: join(dir, "config"), WOWIDEA_SKILLS_DIR: join(dir, "skills") };
     const run = () => JSON.parse(execFileSync(process.execPath, [resolve("scripts/install-skills.mjs")], { env, encoding: "utf8" }));
     try {
-      expect(run().version).toBe("0.2.3");
+      expect(run().version).toBe("0.2.4");
       const config = join(dir, "config", "config.json"), skill = join(dir, "skills", "wowidea", "SKILL.md");
       await writeFile(config, '{"profiles":{"private":"keep unchanged"}}');
       const before = await readFile(config, "utf8");

@@ -4,13 +4,19 @@ import { basename, dirname, resolve } from "node:path";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { CliError, ExitCode } from "./errors.js";
-import { payloadHash, assertQuote, requiresConfirmation, Quote } from "./preflight.js";
+import { payloadHash } from "./preflight.js";
 
 export interface SeedanceReference { type: "image" | "video" | "audio"; role: string; localPath?: string; url?: string; objectKey?: string; signedUrl?: string; sha256?: string; }
+export interface StoryboardQc {
+  verdict: "pass" | "revise"; reviewedAt: string; hardFailures: string[]; notes: string;
+  sourceFidelity?: { composition: number; landmarks: number; perspective: number; palette: number };
+  aesthetics: { visualHierarchy: number; temporalContinuity: number; physicalPlausibility: number; specificity: number };
+}
 export interface SeedanceManifest {
   state: "draft" | "storyboard_ready" | "approved" | "submitted" | "completed" | "failed";
   prompt: string; model: string; duration: number; aspectRatio: string; resolution: string; audio: boolean; watermark: false;
-  mode: string; lastFrameRequested: boolean; storyboard: Array<{ shot: number; description: string; image: string; sha256?: string }>;
+  mode: string; lastFrameRequested: boolean; storyboard: Array<{ shot: number; description: string; image: string; sourceRoles?: string[]; sha256?: string }>;
+  storyboardQc?: StoryboardQc;
   references: SeedanceReference[]; referenceCounts: { images: number; videos: number; audio: number }; approval?: { approvedAt: string; creativeHash: string; confirmation: string };
   taskId?: string;
 }
@@ -21,7 +27,21 @@ export async function readManifest(path: string): Promise<SeedanceManifest> {
   return m;
 }
 export function creativeHash(m: SeedanceManifest): string {
-  return payloadHash({ prompt: m.prompt, model: m.model, duration: m.duration, aspectRatio: m.aspectRatio, resolution: m.resolution, audio: m.audio, watermark: m.watermark, mode: m.mode, lastFrameRequested: m.lastFrameRequested, storyboard: m.storyboard, referenceCounts: m.referenceCounts, references: m.references.map(({ type, role, localPath, url, signedUrl, objectKey, sha256 }) => ({ type, role, localPath, url, signedUrl, objectKey, sha256 })) });
+  return payloadHash({ prompt: m.prompt, model: m.model, duration: m.duration, aspectRatio: m.aspectRatio, resolution: m.resolution, audio: m.audio, watermark: m.watermark, mode: m.mode, lastFrameRequested: m.lastFrameRequested, storyboard: m.storyboard, storyboardQc: m.storyboardQc, referenceCounts: m.referenceCounts, references: m.references.map(({ type, role, localPath, url, sha256 }) => ({ type, role, localPath, url, sha256 })) });
+}
+export function validateStoryboardQc(m: SeedanceManifest): void {
+  const qc = m.storyboardQc;
+  if (!qc || qc.verdict !== "pass" || !qc.reviewedAt || !Number.isFinite(Date.parse(qc.reviewedAt)) || !qc.notes?.trim()) throw new CliError("Storyboard needs completed visual QC with a pass verdict and reviewer notes.", ExitCode.Approval);
+  if (!Array.isArray(qc.hardFailures) || qc.hardFailures.length) throw new CliError("Storyboard has unresolved hard failures and cannot be approved.", ExitCode.Approval);
+  const aestheticScores = Object.values(qc.aesthetics || {});
+  if (aestheticScores.length !== 4 || aestheticScores.some(score => !Number.isInteger(score) || score < 4 || score > 5)) throw new CliError("Storyboard aesthetic scores must all be 4 or 5 before approval.", ExitCode.Approval);
+  const visualReferences = m.references.filter(ref => ref.type === "image" || ref.type === "video");
+  if (visualReferences.length) {
+    const fidelityScores = Object.values(qc.sourceFidelity || {});
+    if (fidelityScores.length !== 4 || fidelityScores.some(score => !Number.isInteger(score) || score < 4 || score > 5)) throw new CliError("Reference-based storyboards need source-fidelity scores of 4 or 5.", ExitCode.Approval);
+    const roles = new Set(visualReferences.map(ref => ref.role));
+    if (m.storyboard.some(shot => !shot.sourceRoles?.length || shot.sourceRoles.some(role => !roles.has(role)))) throw new CliError("Every reference-based storyboard shot must name its source reference roles.", ExitCode.Approval);
+  }
 }
 export async function validateManifest(m: SeedanceManifest, verifyRemote = false): Promise<void> {
   if (!/seedance/i.test(m.model)) throw new CliError("Manifest model is not Seedance.", ExitCode.Usage);
@@ -41,39 +61,26 @@ export async function validateManifest(m: SeedanceManifest, verifyRemote = false
   const actual = { images: m.references.filter(r => r.type === "image").length, videos: m.references.filter(r => r.type === "video").length, audio: m.references.filter(r => r.type === "audio").length };
   if (!m.referenceCounts || actual.images !== m.referenceCounts.images || actual.videos !== m.referenceCounts.videos || actual.audio !== m.referenceCounts.audio) throw new CliError("Reference counts do not match the manifest references.", ExitCode.Approval);
   for (const ref of m.references) {
-    if (m.state === "approved" && ref.localPath && (!ref.objectKey || !ref.signedUrl || ref.sha256 !== createHash("sha256").update(await readFile(ref.localPath)).digest("hex"))) throw new CliError("Local reference must be uploaded to private MinIO and unchanged after approval.", ExitCode.Approval);
+    if (m.state === "approved" && ref.localPath && ref.sha256 !== createHash("sha256").update(await readFile(ref.localPath)).digest("hex")) throw new CliError("Approved local reference bytes changed; approve again.", ExitCode.Approval);
     if (ref.localPath) await stat(ref.localPath).catch(() => { throw new CliError(`Reference file not found: ${ref.localPath}`, ExitCode.Usage); });
     if (!ref.localPath && !ref.url && !ref.signedUrl) throw new CliError(`Reference ${ref.role} has no media source.`, ExitCode.Usage);
     if (verifyRemote && (ref.signedUrl || ref.url)) { const response = await fetch(ref.signedUrl || ref.url!, { headers: { Range: "bytes=0-0" } }); if (!response.ok && response.status !== 206) throw new CliError(`Reference URL is not readable for role ${ref.role}.`, ExitCode.Service); }
   }
   if (m.state === "approved" && m.approval?.creativeHash !== creativeHash(m)) throw new CliError("Seedance manifest changed after approval; approval is invalid.", ExitCode.Approval);
+  if (m.state === "approved") validateStoryboardQc(m);
 }
 export async function approveManifest(path: string, confirmation: string): Promise<SeedanceManifest> {
   const m = await readManifest(path); await validateManifest(m);
   if (m.state !== "storyboard_ready") throw new CliError("Only a storyboard_ready manifest can be approved.", ExitCode.Approval);
   if (confirmation !== "I APPROVE STORYBOARD") throw new CliError("Exact confirmation required: I APPROVE STORYBOARD", ExitCode.Approval);
+  validateStoryboardQc(m);
   for (const shot of m.storyboard) {
     if (/^https?:\/\//i.test(shot.image)) throw new CliError("Download storyboard images locally before approval so their bytes can be bound.", ExitCode.Approval);
     shot.sha256 = createHash("sha256").update(await readFile(shot.image)).digest("hex");
   }
+  for (const ref of m.references) if (ref.localPath) ref.sha256 = createHash("sha256").update(await readFile(ref.localPath)).digest("hex");
   m.state = "approved"; m.approval = { approvedAt: new Date().toISOString(), creativeHash: creativeHash(m), confirmation };
   await writeFile(path, JSON.stringify(m, null, 2) + "\n", "utf8"); return m;
-}
-
-export async function automaticManifest(m: SeedanceManifest, quote: Quote): Promise<SeedanceManifest> {
-  assertQuote(quote, seedancePayload(m));
-  if (requiresConfirmation(quote)) throw new CliError("Seedance above 200 points requires explicit confirmation.", ExitCode.Approval);
-  await validateManifest(m);
-  if (!["storyboard_ready", "approved"].includes(m.state)) throw new CliError("Prepare the storyboard manifest first; submitted tasks must be resumed.", ExitCode.Approval);
-  const snapshot = structuredClone(m);
-  for (const shot of snapshot.storyboard) {
-    if (/^https?:\/\//i.test(shot.image)) throw new CliError("Storyboard images must be local for byte verification.", ExitCode.Approval);
-    shot.sha256 = createHash("sha256").update(await readFile(shot.image)).digest("hex");
-  }
-  snapshot.state = "approved";
-  snapshot.approval = { approvedAt: quote.createdAt, creativeHash: creativeHash(snapshot), confirmation: "AUTO_AT_MOST_200_POINTS" };
-  await validateManifest(snapshot, true);
-  return snapshot;
 }
 
 export function seedancePayload(m: SeedanceManifest): Record<string, unknown> {
@@ -102,6 +109,6 @@ export async function uploadReferences(path: string): Promise<SeedanceManifest> 
     const response = await fetch(ref.signedUrl, { headers: { Range: "bytes=0-0" } });
     if (!response.ok && response.status !== 206) throw new CliError(`Uploaded reference is not publicly readable: ${ref.role}`, ExitCode.Service);
   }
-  if (m.state === "approved") { m.state = "storyboard_ready"; delete m.approval; }
+  if (m.state === "approved" && m.approval?.creativeHash !== creativeHash(m)) throw new CliError("Reference upload changed the approved creative manifest; approve again.", ExitCode.Approval);
   await writeFile(path, JSON.stringify(m, null, 2) + "\n", "utf8"); return m;
 }

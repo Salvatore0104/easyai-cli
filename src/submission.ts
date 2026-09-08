@@ -79,7 +79,7 @@ export function taskRows(value: unknown): unknown[] {
   return [];
 }
 
-export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payload: Record<string, unknown>, idempotencyKey: string, kind: "image" | "video" = "image", options: { submitTimeoutMs?: number; recoveryWaitMs?: number } = {}): Promise<unknown> {
+export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payload: Record<string, unknown>, idempotencyKey: string, kind: "image" | "video" = "image", options: { submitTimeoutMs?: number; recoveryWaitMs?: number; allowDuplicatePayload?: boolean } = {}): Promise<unknown> {
   if (idempotencyKey.startsWith("seedance-")) {
     const claims = join(configDir(), "approvals"); await mkdir(claims, { recursive: true });
     const claimPath = join(claims, `${payloadHash(idempotencyKey)}.json`);
@@ -93,7 +93,12 @@ export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payl
   }
   await mkdir(recordDir(api), { recursive: true });
   const file = recordPath(api, idempotencyKey);
-  const record = { idempotencyKey, path, kind, payloadHash: payloadHash(payload), state: "preparing", createdAt: new Date().toISOString(), baselineCaptured: false, baselineTaskIds: [] as string[] };
+  const requestHash = payloadHash(payload);
+  if (!options.allowDuplicatePayload) {
+    const duplicate = (await listSubmissions(api)).find(row => row.idempotencyKey !== idempotencyKey && row.path === path && row.payloadHash === requestHash);
+    if (duplicate) throw new CliError(`An identical request already exists under idempotency key ${duplicate.idempotencyKey}${duplicate.taskId ? ` (task ${duplicate.taskId})` : ""}. Resume it instead of submitting again; use --allow-reroll only after the user explicitly requests another generation.`, ExitCode.Conflict);
+  }
+  const record = { idempotencyKey, path, kind, payloadHash: requestHash, state: "preparing", createdAt: new Date().toISOString(), baselineCaptured: false, baselineTaskIds: [] as string[] };
   try { await writeFile(file, JSON.stringify(record), { flag: "wx", mode: 0o600 }); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
@@ -132,7 +137,7 @@ export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payl
   }
 }
 
-export async function submitImageWithRecovery(api: EasyAiApi, payload: Record<string, unknown>, idempotencyKey: string, options?: { submitTimeoutMs?: number; recoveryWaitMs?: number }): Promise<unknown> {
+export async function submitImageWithRecovery(api: EasyAiApi, payload: Record<string, unknown>, idempotencyKey: string, options?: { submitTimeoutMs?: number; recoveryWaitMs?: number; allowDuplicatePayload?: boolean }): Promise<unknown> {
   return submitAsyncWithRecovery(api, "/v1/images/generations", payload, idempotencyKey, "image", options);
 }
 

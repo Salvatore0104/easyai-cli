@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: EasyAI CLI Contract Overlay
-  version: 0.2.3
+  version: 0.2.4
   description: Missing typed contracts required by the EasyAI CLI. Merge into the server OpenAPI document.
 servers:
   - url: https://ai.wowidea.top/api

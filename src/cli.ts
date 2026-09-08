@@ -12,14 +12,14 @@ import { getProfile, creativeDefaults } from "./config.js";
 import { CliError, ExitCode, redact } from "./errors.js";
 import { emit, OutputOptions } from "./output.js";
 import { assertQuote, loadQuote, localQuote, payloadHash, Quote, saveQuote, requiresConfirmation } from "./preflight.js";
-import { approveManifest, automaticManifest, creativeHash, readManifest, seedancePayload, uploadReferences, validateManifest } from "./seedance.js";
+import { approveManifest, creativeHash, readManifest, seedancePayload, uploadReferences, validateManifest, validateStoryboardQc } from "./seedance.js";
 import { pointsUsage, withPointsUsage } from "./usage.js";
 import { submitAsyncWithRecovery, submitImageWithRecovery, listSubmissions, recoverSubmission, taskStatus, taskRows } from "./submission.js";
 import { routeModel, validateCapabilities } from "./models.js";
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Control EasyAI generation and infinite canvas workflows (easyai compatible)").version("0.2.3")
+program.name("wowidea").description("Control EasyAI generation and infinite canvas workflows (easyai compatible)").version("0.2.4")
   .option("--profile <name>", "configuration profile")
   .option("--base-url <url>", "EasyAI server URL")
   .option("--json", "stable JSON output")
@@ -83,7 +83,7 @@ function taskCommands(parent: Command, media: "image" | "video") {
 }
 const image = program.command("image");
 dataOptions(image.command("preflight")).action(async (o, c) => output(await preflight(await apiFor(c), "image", "/v1/images/preflight", await jsonInput(o)), c));
-dataOptions(image.command("generate")).requiredOption("--idempotency-key <key>").option("--quote <id>").option("--yes").option("--max-cost <amount>").option("--dir <path>", "download directory", "wowidea-output").option("--no-wait", "return after task acceptance without polling or download").action(async (o, c) => {
+dataOptions(image.command("generate")).requiredOption("--idempotency-key <key>").option("--quote <id>").option("--yes").option("--max-cost <amount>").option("--dir <path>", "download directory", "wowidea-output").option("--no-wait", "return after task acceptance without polling or download").option("--allow-reroll", "allow an identical payload only after explicit user intent").action(async (o, c) => {
   const payload = await jsonInput(o);
   if (/seedance/i.test(String(payload.model))) throw new CliError("Seedance requires video generate --manifest.", ExitCode.Approval);
   const api = await apiFor(c);
@@ -125,23 +125,23 @@ async function confirmQuote(quote: Quote, opts: { yes?: boolean; maxCost?: strin
   const rl = createInterface({ input: process.stdin, output: process.stderr }); const answer = await rl.question(""); rl.close();
   if (answer !== "YES") throw new CliError("Generation was not approved.", ExitCode.Approval);
 }
-async function submitOnce(api: EasyAiApi, path: string, payload: Record<string, unknown>, quote: Quote, key = quote.quoteId): Promise<unknown> {
+async function submitOnce(api: EasyAiApi, path: string, payload: Record<string, unknown>, quote: Quote, key = quote.quoteId, allowDuplicatePayload = false): Promise<unknown> {
   if (quote.scope !== api.scope) throw new CliError("Quote belongs to another server or credential; preflight again.", ExitCode.Approval);
   if (quote.submissionPath !== path) throw new CliError("Quote belongs to another execution endpoint.", ExitCode.Approval);
   const kind = path.includes("video") ? "video" : "image";
-  return submitAsyncWithRecovery(api, path, { ...payload, quoteId: quote.serverQuoteId || quote.quoteId }, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : 60_000, recoveryWaitMs: 90_000 });
+  return submitAsyncWithRecovery(api, path, { ...payload, quoteId: quote.serverQuoteId || quote.quoteId }, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : 60_000, recoveryWaitMs: 90_000, allowDuplicatePayload });
 }
 const video = program.command("video");
-async function submitDirect(api: EasyAiApi, path: string, payload: Record<string, unknown>, opts: { quote?: string; maxCost?: string; idempotencyKey?: string }): Promise<unknown> {
+async function submitDirect(api: EasyAiApi, path: string, payload: Record<string, unknown>, opts: { quote?: string; maxCost?: string; idempotencyKey?: string; allowReroll?: boolean }): Promise<unknown> {
   const key = opts.idempotencyKey || randomUUID();
   // No automatic quote or cost confirmation for non-Seedance tasks. Explicit budgets still apply.
   if (opts.maxCost !== undefined && !opts.quote) throw new CliError("An explicit --max-cost needs --quote; omit both for direct generation.", ExitCode.Usage);
-  if (opts.quote) { const quote = await loadQuote(opts.quote); assertQuote(quote, payload); requiresConfirmation(quote, opts.maxCost); return submitOnce(api, path, payload, quote, key); }
+  if (opts.quote) { const quote = await loadQuote(opts.quote); assertQuote(quote, payload); requiresConfirmation(quote, opts.maxCost); return submitOnce(api, path, payload, quote, key, opts.allowReroll); }
   const kind = path.includes("video") ? "video" : "image";
-  return submitAsyncWithRecovery(api, path, payload, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : 60_000, recoveryWaitMs: 90_000 });
+  return submitAsyncWithRecovery(api, path, payload, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : 60_000, recoveryWaitMs: 90_000, allowDuplicatePayload: opts.allowReroll });
 }
 dataOptions(video.command("preflight")).action(async (o, c) => output(await preflight(await apiFor(c), "video", "/v1/video/preflight", await jsonInput(o)), c));
-dataOptions(video.command("generate")).option("--quote <id>", "required only for Seedance or an explicit cost limit").requiredOption("--idempotency-key <key>").option("--yes").option("--max-cost <amount>").option("--manifest <path>").option("--dir <path>", "download directory", "wowidea-output").option("--no-wait", "return after task acceptance without polling or download").action(async (o, c) => {
+dataOptions(video.command("generate")).option("--quote <id>", "required only for Seedance or an explicit cost limit").requiredOption("--idempotency-key <key>").option("--yes").option("--max-cost <amount>").option("--manifest <path>").option("--dir <path>", "download directory", "wowidea-output").option("--no-wait", "return after task acceptance without polling or download").option("--allow-reroll", "allow an identical non-Seedance payload only after explicit user intent").action(async (o, c) => {
   let payload = await jsonInput(o);
   let manifestPath: string | undefined;
   let approvalKey: string | undefined;
@@ -156,21 +156,20 @@ dataOptions(video.command("generate")).option("--quote <id>", "required only for
   }
   if (!o.quote) throw new CliError("Seedance requires --quote to determine whether the task exceeds 200 points.", ExitCode.Approval);
   const quote = await loadQuote(o.quote);
-  const manualRequired = requiresConfirmation(quote, o.maxCost);
   let initialCreativeHash: string | undefined;
   if (o.manifest) {
     manifestPath = resolve(o.manifest); const manifest = await readManifest(manifestPath); await validateManifest(manifest, true);
-    const prepared = manualRequired ? manifest : await automaticManifest(manifest, quote);
-    if (prepared.state !== "approved" || prepared.approval?.creativeHash !== creativeHash(prepared) || (manualRequired && prepared.approval?.confirmation !== "I APPROVE STORYBOARD")) throw new CliError("Seedance 超过 200 积分，需要用户确认分镜与设置。", ExitCode.Approval);
+    const prepared = manifest;
+    if (prepared.state !== "approved" || prepared.approval?.creativeHash !== creativeHash(prepared) || prepared.approval?.confirmation !== "I APPROVE STORYBOARD") throw new CliError("Seedance requires the user to explicitly approve the reviewed storyboard before generation.", ExitCode.Approval);
     payload = seedancePayload(prepared); initialCreativeHash = creativeHash(prepared);
-    approvalKey = manualRequired ? `seedance-${payloadHash(prepared.approval)}` : `seedance-auto-${payloadHash({ path: manifestPath, creativeHash: initialCreativeHash })}`;
+    approvalKey = `seedance-${payloadHash(prepared.approval)}`;
   }
   const api = await apiFor(c);
   const selected = routeModel(await api.get("/v1/models"), "video", String(payload.model || ""));
   validateCapabilities(selected, payload);
   if (selected.approvalRequired && !manifestPath) throw new CliError("Seedance requires an approved manifest.", ExitCode.Approval);
   assertQuote(quote, payload); await confirmQuote(quote, o);
-  if (manifestPath) { const read = await readManifest(manifestPath); const latest = manualRequired ? read : await automaticManifest(read, quote); await validateManifest(latest, true); if (latest.state !== "approved" || creativeHash(latest) !== initialCreativeHash || (manualRequired && `seedance-${payloadHash(latest.approval)}` !== approvalKey) || payloadHash(seedancePayload(latest)) !== payloadHash(payload)) throw new CliError("Manifest changed during preflight; prepare the revised request again.", ExitCode.Approval); }
+  if (manifestPath) { const latest = await readManifest(manifestPath); await validateManifest(latest, true); if (latest.state !== "approved" || creativeHash(latest) !== initialCreativeHash || `seedance-${payloadHash(latest.approval)}` !== approvalKey || payloadHash(seedancePayload(latest)) !== payloadHash(payload)) throw new CliError("Manifest changed during preflight; prepare the revised request and obtain storyboard approval again.", ExitCode.Approval); }
   const result = await submitOnce(api, "/v1/video/generations", payload, quote, approvalKey || o.idempotencyKey);
   if (manifestPath) {
     const manifest = await readManifest(manifestPath); const taskId = findTaskId(result);
@@ -265,7 +264,7 @@ canvasTask.command("cancel").argument("<projectId>").argument("<taskId>").action
 
 const seedance = program.command("seedance").description("Validate and approve Seedance manifests without submitting paid tasks");
 seedance.command("payload").argument("<manifest>").requiredOption("--file <path>").action(async (p, o, c) => { const m = await readManifest(resolve(p)); await validateManifest(m, true); const path = resolve(o.file); await writeFile(path, JSON.stringify(seedancePayload(m), null, 2), { mode: 0o600 }); await output({ path }, c); });
-seedance.command("validate").argument("<manifest>").option("--verify-remote").action(async (p, o, c) => { const m = await readManifest(resolve(p)); await validateManifest(m, o.verifyRemote); await output({ valid: true, state: m.state, creativeHash: creativeHash(m), referenceCount: m.references.length, watermark: m.watermark }, c); });
+seedance.command("validate").argument("<manifest>").option("--verify-remote").option("--for-approval", "require completed storyboard visual QC").action(async (p, o, c) => { const m = await readManifest(resolve(p)); await validateManifest(m, o.verifyRemote); if (o.forApproval) validateStoryboardQc(m); await output({ valid: true, approvalReady: Boolean(o.forApproval), state: m.state, creativeHash: creativeHash(m), referenceCount: m.references.length, storyboardQc: m.storyboardQc, watermark: m.watermark }, c); });
 seedance.command("approve").argument("<manifest>").requiredOption("--confirmation <text>").action(async (p, o, c) => output(await approveManifest(resolve(p), o.confirmation), c));
 seedance.command("upload-references").argument("<manifest>").action(async (p, _o, c) => output(await uploadReferences(resolve(p)), c));
 seedance.command("finalize").argument("<manifest>").requiredOption("--dir <path>").description("Download the submitted task and create ledger and QC artifacts").action(async (p, o, c) => {

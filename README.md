@@ -2,7 +2,7 @@
 
 # Wowidea：在 Codex 中创作图片与视频
 
-复制上面的提示词给 Codex 即可开始。版本 0.2.3；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
+复制上面的提示词给 Codex 即可开始。版本 0.2.4；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
 
 ## 安装 / 更新
 
@@ -52,7 +52,7 @@ $wowidea 继续查看刚才的视频任务
 
 ## 异步任务与费用控制
 
-图片和视频都按“准备 → 提交一次 → 保存 ID → 轮询 → 下载”处理。`image generate` 和 `video generate` 默认等待完成并下载到 `--dir`（默认 `wowidea-output`），JSON 返回可直接展示的绝对 `paths`；只有明确需要后台提交时才使用 `--no-wait`。提交前保存幂等键、请求 hash 和任务快照；断网、超时或重启只恢复查询。旧服务器不返回幂等键时，仅在快照中恰好出现一个时间和媒体类型匹配的新任务才恢复，绝不取列表第一项或再次 POST。
+图片和视频都按“准备 → 提交一次 → 保存 ID → 轮询 → 下载”处理。`image generate` 和 `video generate` 默认等待完成并下载到 `--dir`（默认 `wowidea-output`），JSON 返回可直接展示的绝对 `paths`；只有明确需要后台提交时才使用 `--no-wait`。提交前保存幂等键、请求 hash 和任务快照；断网、超时或重启只恢复查询。旧服务器不返回幂等键时，仅在快照中恰好出现一个时间和媒体类型匹配的新任务才恢复，绝不取列表第一项或再次 POST。相同 payload 即使换新键也会被阻止；只有用户明确要求另一版时才能使用 `--allow-reroll`。
 
 ```text
 wowidea --json models route --kind video --model MiniMax
@@ -66,9 +66,9 @@ wowidea --json video download <taskId> --dir <绝对目录>
 
 watch 最长 30 分钟；超时或中断后再次查询同一 ID。下载仅读取结果媒体。大 JSON 使用全局 --output 导出。
 
-费用监控**只针对 Seedance 视频：预计 ≤200 积分直接生成，>200 积分才确认**。恰好 200 不确认。图片、MiniMax、Google Omni、Wan 等其他生成直接提交，不要求预检报价、--yes 或 --max-cost；普通画布任务也不设置费用确认门槛。异步轮询、下载和实际积分报告照常进行。只有用户另行明确设置预算时才使用费用上限参数。
+费用监控**只针对 Seedance 视频：预计 ≤200 积分不追加费用确认，>200 积分才确认费用**。恰好 200 不做费用确认。图片、MiniMax、Google Omni、Wan 等其他生成直接提交，不要求预检报价、--yes 或 --max-cost；普通画布任务也不设置费用确认门槛。异步轮询、下载和实际积分报告照常进行。只有用户另行明确设置预算时才使用费用上限参数。
 
-Seedance 仍制作分镜和 --manifest，保持 watermark:false，但 ≤200 不等待分镜或付费确认；>200 一次确认分镜、设置及费用即可。此规则取代 0.2.0/0.2.1 策略。仅 Seedance 必须有有效积分报价；费用未知时不能猜测低于门槛。素材或设置变化重新预检；本机并发请求仍防重复提交，跨设备保证需要后端幂等存储。
+所有 Seedance 都必须先展示经过实际看图与主观审美检查的分镜，由用户明确批准。参考模式下每个分镜镜头必须绑定实际 reference role；分镜图不会自动充当视频输入。批准后仍保持 `watermark:false`：预计 ≤200 不再问费用，>200 再确认模型、时长、比例、分辨率、声音、参考数量和费用。素材、分镜或设置变化会使批准失效。
 
 生成完成后输出“本次实际使用 X 积分”。JSON 的 pointsUsage 包含 actualPoints、status、source；status/watch/download/resume/finalize 都报告。实际积分只读取任务结算字段，未返回则显示“平台未返回本任务实际使用积分”，不把估算、token 数或账户余额差当实扣。
 
@@ -89,7 +89,7 @@ npm run check
 npm pack --dry-run
 ```
 
-[0.2.3 异步结果恢复修复](docs/wowidea-release-0.2.3.md)、[0.2.2 Seedance 专属门槛](docs/wowidea-release-0.2.2.md)及[0.2.0 基础验证](docs/wowidea-release-0.2.0.md)区分实测、模拟测试和未验证项。0.2.3 未新增付费生成，不能把离线测试视为所有模型生成成功。
+[0.2.4 分镜审美与来源绑定](docs/wowidea-release-0.2.4.md)、[0.2.3 异步结果恢复修复](docs/wowidea-release-0.2.3.md)及[0.2.2 Seedance 费用门槛](docs/wowidea-release-0.2.2.md)区分实测、模拟测试和未验证项。本次未新增付费生成，不能把离线测试视为所有模型生成成功。
 
 退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少审批，7 超费用上限。
 

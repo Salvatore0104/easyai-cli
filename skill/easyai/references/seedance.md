@@ -1,6 +1,6 @@
 # Seedance gate
 
-Historical 0.2.0 guidance below is superseded by wowidea/references/seedance-gate.md in 0.2.2: only Seedance video has a cost gate. At or below 200 quoted points, prepare the manifest and generate without asking; only above 200 ask once for storyboard/settings/cost confirmation. Other models submit directly. Report actual points after completion. Preserve technical validation and no-retry rules.
+Current guidance is in wowidea/references/seedance-gate.md. Every Seedance request requires explicit user approval of a visually reviewed storyboard. The 200-point threshold controls only the additional cost confirmation: at or below 200 do not ask about cost again; above 200 summarize billable settings and obtain cost confirmation. Other models submit directly. Report actual points after completion. Preserve technical validation and no-retry rules.
 
 Prepare a storyboard and storyboard images first and show them for review. Approval requires an explicit user statement approving those images for generation; questions, revisions, silence, or ambiguous language are not approval.
 
