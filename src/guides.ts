@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CliError, ExitCode } from "./errors.js";
 
-export const guideVersion = "0.4.0";
+export const guideVersion = "0.4.2";
 export const guideRegistry = [
   ["design-tasks", "Design task routing"],
   ["production-rounds", "Creative rounds"], ["recipe-authoring", "Recipe authoring"],

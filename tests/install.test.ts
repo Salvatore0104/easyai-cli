@@ -10,7 +10,7 @@ describe("bundled Skill installer", () => {
     const run = () => JSON.parse(execFileSync(process.execPath, [resolve("scripts/install-skills.mjs")], { env, encoding: "utf8" }));
     try {
       const first = run();
-      expect(first.version).toBe("0.4.0");
+      expect(first.version).toBe("0.4.2");
       expect(first.installedSkills).toHaveLength(2);
       for (const name of first.installedSkills) {
         expect(await readFile(join(dir, "skills", name, "SKILL.md"), "utf8")).toBe(await readFile(resolve("skill", name, "SKILL.md"), "utf8"));

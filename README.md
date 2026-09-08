@@ -2,7 +2,7 @@
 
 # Wowidea：Codex 驱动的专业视觉 Agent
 
-复制上面的提示词给 Codex 即可开始。版本 0.4.0；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
+复制上面的提示词给 Codex 即可开始。版本 0.4.2；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
 
 面向海报、品牌、产品、电商、插画、空间概念、视频及舞台等视觉设计。Codex 按交付用途选择创作方法、参考策略和评审标准；CLI 负责执行、恢复与交付。舞台是按需加载的专门分支，审美和流程随任务调整。
 
