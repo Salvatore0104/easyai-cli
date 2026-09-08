@@ -17,17 +17,17 @@ Ongoing projects use accepted [preferences and records](references/project-workf
 
 Run models route --kind image|video, with --model when specified. Preserve the requested model. Defaults are Nano Banana 2 for images and Seedance 2.0 for video, subject to live availability. Unsupported work stays planning-only; do not silently switch model, mode or references.
 
-Read only the relevant guide. Five independent prompt Skills are installed alongside Wowidea:
+Read only the relevant guide. Model prompt methods are bundled as internal Wowidea references and are selected by the single `$wowidea` entry:
 
 | Model | Prompt Skill | Guide |
 | --- | --- | --- |
-| MiniMax H3 / H3-Max | $wowidea-h3-prompt | [H3](references/minimax-h3.md) |
-| Seedance 2.0 family | $wowidea-seedance-20-prompt | [2.0](references/seedance-20.md) |
-| Seedance 2.5 | $wowidea-seedance-25-prompt | [2.5](references/seedance-25.md) |
-| GPT Image 2 | $wowidea-gpt-image-prompt | [GPT Image](references/gpt-image.md) |
-| Nano Banana family | $wowidea-nano-banana-prompt | [Nano Banana](references/nano-banana.md) |
+| MiniMax H3 / H3-Max | [H3](references/minimax-h3.md) |
+| Seedance 2.0 family | [2.0](references/seedance-20.md) |
+| Seedance 2.5 | [2.5](references/seedance-25.md) |
+| GPT Image 2 | [GPT Image](references/gpt-image.md) |
+| Nano Banana family | [Nano Banana](references/nano-banana.md) |
 
-Other routes: [Google Omni](references/google-omni.md), [Wan](references/wan.md). guides list/show and models route guideInfo expose package resource paths and promptSkillPath for these five guides. Prompt-only requests make no paid call. Check API capability independently from official creative guidance.
+Other routes: [Google Omni](references/google-omni.md), [Wan](references/wan.md). Use `wowidea guides list|show` to locate bundled references. Prompt-only requests make no paid call. Check API capability independently from official creative guidance.
 
 Inspect references and define [roles/order](references/reference-planning.md). Use [case methods](references/image-case-index.md) only when helpful. Keep exact copy, labels and approved constraints intact. Choose proportions from the task; supported 3:4/2K is only a fallback for an unspecified single poster.
 
@@ -35,7 +35,7 @@ Inspect references and define [roles/order](references/reference-planning.md). U
 
 Read [execution/recovery](references/workflow.md). Use UTF-8 request files and one key per authorized task. Default generate waits and downloads; retain its process handle until the terminal result. Existing tasks are observed/recovered, not submitted again. No duplicate polling owners, automatic paid retries or aesthetic rerolls.
 
-All Seedance generation requires [actual storyboard-image approval](references/seedance-gate.md), final settings/manifest, private MinIO references and watermark:false. Do not add a cost or points approval gate. The user has authorized generation; retain only the creative storyboard approval and technical capability checks. No prompt Skill overrides this boundary.
+All Seedance generation requires [actual storyboard-image approval](references/seedance-gate.md), final settings/manifest and `watermark:false`. Use stable public reference URLs directly in the platform CLI request whenever available. MinIO is only an optional compatibility adapter for a platform operation that explicitly requires a signed upload; it is never a default prerequisite. Do not add a cost or points approval gate. The user has authorized generation; retain only the creative storyboard approval and technical capability checks.
 
 ## Review and deliver
 
