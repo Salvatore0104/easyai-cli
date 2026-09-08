@@ -1,11 +1,54 @@
 openapi: 3.0.3
 info:
   title: EasyAI CLI Contract Overlay
-  version: 0.2.0
+  version: 0.2.1
   description: Missing typed contracts required by the EasyAI CLI. Merge into the server OpenAPI document.
 servers:
   - url: https://ai.wowidea.top/api
 paths:
+  /v1/images/preflight:
+    post:
+      operationId: preflightImageGeneration
+      description: Side-effect-free quote for the complete image request. Required to determine whether the task exceeds the 100-point confirmation threshold. Bind the quote to the account and exact serialized payload; do not charge or enqueue generation here.
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, prompt]
+              properties:
+                model: { type: string }
+                prompt: { type: string }
+              additionalProperties: true
+      responses:
+        '200':
+          description: Account-bound quote in points, including all images in this task
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreflightQuote' }
+  /v1/tasks/{taskId}:
+    get:
+      operationId: getTaskWithSettlement
+      security: [{ bearer: [] }]
+      parameters:
+        - { name: taskId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Task status and actual task-scoped settled points; omit or return null until known. Do not return estimated cost as actualPoints.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taskId: { type: string }
+                  status: { type: string }
+                  billing:
+                    type: object
+                    properties:
+                      actualPoints: { type: number, minimum: 0, nullable: true }
+                additionalProperties: true
   /v1/tasks:
     get:
       operationId: recoverTaskByIdempotencyKey

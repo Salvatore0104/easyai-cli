@@ -11,14 +11,15 @@ import { applyCanvasBatch, applyCanvasOperation, canvasMutationEnvelope } from "
 import { getProfile, creativeDefaults } from "./config.js";
 import { CliError, ExitCode, redact } from "./errors.js";
 import { emit, OutputOptions } from "./output.js";
-import { assertQuote, loadQuote, localQuote, payloadHash, Quote, saveQuote } from "./preflight.js";
-import { approveManifest, creativeHash, readManifest, seedancePayload, uploadReferences, validateManifest } from "./seedance.js";
+import { assertQuote, loadQuote, localQuote, payloadHash, Quote, saveQuote, requiresConfirmation } from "./preflight.js";
+import { approveManifest, automaticManifest, creativeHash, readManifest, seedancePayload, uploadReferences, validateManifest } from "./seedance.js";
+import { pointsUsage, withPointsUsage } from "./usage.js";
 import { submitAsyncWithRecovery, submitImageWithRecovery, listSubmissions, recoverSubmission, taskStatus, taskRows } from "./submission.js";
 import { routeModel, validateCapabilities } from "./models.js";
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Control EasyAI generation and infinite canvas workflows (easyai compatible)").version("0.2.0")
+program.name("wowidea").description("Control EasyAI generation and infinite canvas workflows (easyai compatible)").version("0.2.1")
   .option("--profile <name>", "configuration profile")
   .option("--base-url <url>", "EasyAI server URL")
   .option("--json", "stable JSON output")
@@ -69,22 +70,34 @@ models.command("show").argument("<id>").action(async id => { const result = awai
 models.command("route").requiredOption("--kind <image|video>").option("--model <name>").action(async (o, c) => { const defaults = await creativeDefaults(); await output(routeModel(await (await apiFor(c)).get("/v1/models"), o.kind, o.model || defaults[o.kind as "image" | "video"]), c); });
 const tasks = program.command("tasks").description("Persisted submissions; recovery never submits another task");
 tasks.command("list").action(async (_o, c) => output(await listSubmissions(await apiFor(c)), c));
-tasks.command("resume").argument("<idempotencyKey>").action(async (key, _o, c) => output(await recoverSubmission(await apiFor(c), key), c));
+tasks.command("resume").argument("<idempotencyKey>").action(async (key, _o, c) => output(withPointsUsage(await recoverSubmission(await apiFor(c), key)), c));
 program.command("balance").action(async (_o, c) => output(await (await apiFor(c)).get("/v1/balance"), c));
 
 function taskCommands(parent: Command, media: "image" | "video") {
-  parent.command("status").argument("<taskId>").action(async (id, _o, c) => output(await (await apiFor(c)).get(`/v1/tasks/${enc(id)}`), c));
-  parent.command("download").argument("<taskId>").option("--dir <path>", "download directory", ".").action(async (id, o, c) => { const value = await (await apiFor(c)).get(`/v1/tasks/${enc(id)}`); await output({ taskId: id, paths: await downloadUrls(findUrls(value), resolve(o.dir)) }, c); });
+  parent.command("status").argument("<taskId>").action(async (id, _o, c) => output(withPointsUsage(await (await apiFor(c)).get(`/v1/tasks/${enc(id)}`)), c));
+  parent.command("download").argument("<taskId>").option("--dir <path>", "download directory", ".").action(async (id, o, c) => { const value = await (await apiFor(c)).get(`/v1/tasks/${enc(id)}`); await output({ taskId: id, paths: await downloadUrls(findUrls(value), resolve(o.dir)), pointsUsage: pointsUsage(value) }, c); });
   parent.command("watch").argument("<taskId>").option("--interval <ms>", "poll interval", "2000").action(async (id, o, c) => watchTask(await apiFor(c), id, Number(o.interval), c));
   if (media === "video") {
     parent.command("cancel").argument("<taskId>").action(async (id, _o, c) => output(await (await apiFor(c)).post(`/v1/tasks/${enc(id)}/cancel`), c));
   }
 }
 const image = program.command("image");
-dataOptions(image.command("generate")).requiredOption("--idempotency-key <key>").action(async (o, c) => { const payload = await jsonInput(o); if (/seedance/i.test(String(payload.model))) throw new CliError("Seedance requires video generate --manifest.", ExitCode.Approval); const api = await apiFor(c); const selected = routeModel(await api.get("/v1/models"), "image", payload.model ? String(payload.model) : (await creativeDefaults()).image); payload.model = selected.model; validateCapabilities(selected, payload); await output(await submitImageWithRecovery(api, payload, o.idempotencyKey), c); });
+dataOptions(image.command("preflight")).action(async (o, c) => output(await preflight(await apiFor(c), "image", "/v1/images/preflight", await jsonInput(o)), c));
+dataOptions(image.command("generate")).requiredOption("--idempotency-key <key>").option("--quote <id>").option("--yes").option("--max-cost <amount>").action(async (o, c) => {
+  const payload = await jsonInput(o);
+  if (/seedance/i.test(String(payload.model))) throw new CliError("Seedance requires video generate --manifest.", ExitCode.Approval);
+  const api = await apiFor(c);
+  // A repeated invocation recovers before acquiring a different quote or submitting again.
+  if ((await listSubmissions(api)).some(r => r.idempotencyKey === o.idempotencyKey)) { await output(withPointsUsage(await recoverSubmission(api, o.idempotencyKey)), c); return; }
+  const selected = routeModel(await api.get("/v1/models"), "image", payload.model ? String(payload.model) : (await creativeDefaults()).image); payload.model = selected.model; validateCapabilities(selected, payload);
+  const quote = o.quote ? await loadQuote(o.quote) : await preflight(api, "image", "/v1/images/preflight", payload);
+  assertQuote(quote, payload); await confirmQuote(quote, o);
+  await output(withPointsUsage(await submitOnce(api, "/v1/images/generations", payload, quote, o.idempotencyKey)), c);
+});
 taskCommands(image, "image");
 
-async function preflight(api: EasyAiApi, kind: "video" | "canvas", path: string, payload: Record<string, unknown>): Promise<Quote> {
+async function preflight(api: EasyAiApi, kind: Quote["kind"], path: string, payload: Record<string, unknown>): Promise<Quote> {
+  if (kind === "image") { const selected = routeModel(await api.get("/v1/models"), "image", payload.model ? String(payload.model) : (await creativeDefaults()).image); payload.model = selected.model; validateCapabilities(selected, payload); }
   if (kind === "video") validateCapabilities(routeModel(await api.get("/v1/models"), "video", String(payload.model || "")), payload);
   try {
     const response = await api.post<any>(path, payload);
@@ -93,7 +106,7 @@ async function preflight(api: EasyAiApi, kind: "video" | "canvas", path: string,
     if (!server.quoteId || !server.expiresAt || !Number.isFinite(Date.parse(server.expiresAt)) || (server.payloadHash && server.payloadHash !== computedHash)) throw new CliError("Server returned an invalid preflight quote.", ExitCode.Service);
     const quote: Quote = { quoteId: String(server.quoteId), serverQuoteId: String(server.quoteId), kind, payloadHash: computedHash, payload: normalized, estimatedCost: server.estimatedCost ?? null, currency: server.currency || "points", createdAt: new Date().toISOString(), expiresAt: server.expiresAt, source: "server" };
     quote.scope = api.scope;
-    quote.submissionPath = kind === "video" ? "/v1/video/generations" : path.replace(/\/preflight$/, "");
+    quote.submissionPath = kind === "video" ? "/v1/video/generations" : kind === "image" ? "/v1/images/generations" : path.replace(/\/preflight$/, "");
     await saveQuote(quote); return quote;
   } catch (error) {
     if (!(error instanceof CliError) || !/HTTP 404/.test(error.message)) throw error;
@@ -101,14 +114,14 @@ async function preflight(api: EasyAiApi, kind: "video" | "canvas", path: string,
   }
 }
 async function confirmQuote(quote: Quote, opts: { yes?: boolean; maxCost?: string }): Promise<void> {
-  assertQuote(quote);
+  if (!requiresConfirmation(quote, opts.maxCost)) return;
   if (opts.yes) {
     const limit = Number(opts.maxCost);
     if (opts.maxCost === undefined || !Number.isFinite(limit) || limit < 0 || quote.estimatedCost === null) throw new CliError("Non-interactive generation requires a non-negative --max-cost and a server cost estimate.", ExitCode.Approval);
     if (quote.estimatedCost > limit) throw new CliError(`Estimated cost ${quote.estimatedCost} exceeds limit ${opts.maxCost}.`, ExitCode.Budget);
     return;
   }
-  if (!process.stdin.isTTY) throw new CliError("Interactive approval is unavailable; use --yes --max-cost with a server quote.", ExitCode.Approval);
+  if (!process.stdin.isTTY) throw new CliError(`预计消耗 ${quote.estimatedCost} 积分，超过 100 积分，需要用户确认。确认后使用 --yes --max-cost，并保留报价 ${quote.quoteId}。`, ExitCode.Approval);
   process.stderr.write(`Submit one task for ${quote.estimatedCost ?? "unknown"} ${quote.currency}? Type YES: `);
   const rl = createInterface({ input: process.stdin, output: process.stderr }); const answer = await rl.question(""); rl.close();
   if (answer !== "YES") throw new CliError("Generation was not approved.", ExitCode.Approval);
@@ -126,25 +139,29 @@ dataOptions(video.command("generate")).requiredOption("--quote <id>").requiredOp
   let manifestPath: string | undefined;
   let approvalKey: string | undefined;
   if (/seedance/i.test(String(payload.model)) && !o.manifest) throw new CliError("Seedance requires an approved --manifest; direct payload submission is disabled.", ExitCode.Approval);
+  const quote = await loadQuote(o.quote);
+  const manualRequired = requiresConfirmation(quote, o.maxCost);
+  let initialCreativeHash: string | undefined;
   if (o.manifest) {
     manifestPath = resolve(o.manifest); const manifest = await readManifest(manifestPath); await validateManifest(manifest, true);
-    if (manifest.state !== "approved" || manifest.approval?.creativeHash !== creativeHash(manifest)) throw new CliError("Seedance storyboard is not currently approved.", ExitCode.Approval);
-    payload = seedancePayload(manifest);
-    approvalKey = `seedance-${payloadHash(manifest.approval)}`;
+    const prepared = manualRequired ? manifest : await automaticManifest(manifest, quote);
+    if (prepared.state !== "approved" || prepared.approval?.creativeHash !== creativeHash(prepared) || (manualRequired && prepared.approval?.confirmation !== "I APPROVE STORYBOARD")) throw new CliError("Seedance 超过 100 积分，需要用户确认分镜与设置。", ExitCode.Approval);
+    payload = seedancePayload(prepared); initialCreativeHash = creativeHash(prepared);
+    approvalKey = manualRequired ? `seedance-${payloadHash(prepared.approval)}` : `seedance-auto-${payloadHash({ path: manifestPath, creativeHash: initialCreativeHash })}`;
   }
   const api = await apiFor(c);
   const selected = routeModel(await api.get("/v1/models"), "video", String(payload.model || ""));
   validateCapabilities(selected, payload);
   if (selected.approvalRequired && !manifestPath) throw new CliError("Seedance requires an approved manifest.", ExitCode.Approval);
-  const quote = await loadQuote(o.quote); assertQuote(quote, payload); await confirmQuote(quote, o);
-  if (manifestPath) { const latest = await readManifest(manifestPath); await validateManifest(latest, true); if (latest.state !== "approved" || `seedance-${payloadHash(latest.approval)}` !== approvalKey || payloadHash(seedancePayload(latest)) !== payloadHash(payload)) throw new CliError("Manifest changed during preflight; approval is invalid.", ExitCode.Approval); }
+  assertQuote(quote, payload); await confirmQuote(quote, o);
+  if (manifestPath) { const read = await readManifest(manifestPath); const latest = manualRequired ? read : await automaticManifest(read, quote); await validateManifest(latest, true); if (latest.state !== "approved" || creativeHash(latest) !== initialCreativeHash || (manualRequired && `seedance-${payloadHash(latest.approval)}` !== approvalKey) || payloadHash(seedancePayload(latest)) !== payloadHash(payload)) throw new CliError("Manifest changed during preflight; prepare the revised request again.", ExitCode.Approval); }
   const result = await submitOnce(api, "/v1/video/generations", payload, quote, approvalKey || o.idempotencyKey);
   if (manifestPath) {
     const manifest = await readManifest(manifestPath); const taskId = findTaskId(result);
     if (!taskId) throw new CliError("Submission returned no task ID; the manifest was not advanced and no retry was made.", ExitCode.Service);
     manifest.state = "submitted"; manifest.taskId = taskId; await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
   }
-  await output(result, c);
+  await output(withPointsUsage(result), c);
 });
 taskCommands(video, "video");
 
@@ -154,8 +171,9 @@ async function watchTask(api: EasyAiApi, id: string, interval: number, cmd: Comm
   let cursor = "";
   while (Date.now() < deadline) {
     const task = await api.get<any>(`/v1/tasks/${enc(id)}`); const status = taskStatus(task);
-    if (globals(cmd).jsonl) await output({ taskId: id, status, cursor }, cmd);
-    if (["completed", "succeeded", "success", "failed", "error", "cancelled", "canceled"].includes(status)) { if (!globals(cmd).jsonl) await output(task, cmd); return; }
+    const terminal = ["completed", "succeeded", "success", "failed", "error", "cancelled", "canceled"].includes(status);
+    if (globals(cmd).jsonl) await output({ taskId: id, status, cursor, ...(terminal ? { pointsUsage: pointsUsage(task) } : {}) }, cmd);
+    if (terminal) { if (!globals(cmd).jsonl) await output(withPointsUsage(task), cmd); return; }
     await new Promise(r => setTimeout(r, Math.max(250, interval)));
   }
   throw new CliError(`Watch deadline reached; resume status/watch for task ${id}. No new task was submitted.`, ExitCode.Service);
@@ -200,10 +218,10 @@ dataOptions(canvas.command("run")).argument("<projectId>").addOption(new Option(
   if (!o.quote) throw new CliError("Canvas execution requires --quote from --preflight.", ExitCode.Approval); const quote = await loadQuote(o.quote); assertQuote(quote, payload); await confirmQuote(quote, o);
   const state = await api.get(`/v1/canvas-workflow/projects/${enc(p)}/state`);
   if (/seedance/i.test(JSON.stringify(state))) throw new CliError("Canvas containing Seedance must use video generate --manifest; canvas approval bridging is not implemented.", ExitCode.Approval);
-  await output(await submitOnce(api, `/v1/canvas-workflow/projects/${enc(p)}/executions`, payload, quote), c);
+  await output(withPointsUsage(await submitOnce(api, `/v1/canvas-workflow/projects/${enc(p)}/executions`, payload, quote)), c);
 });
 const canvasTask = canvas.command("task");
-canvasTask.command("show").argument("<projectId>").argument("<taskId>").action(async (p, t, _o, c) => output(await (await apiFor(c)).get(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}`), c));
+canvasTask.command("show").argument("<projectId>").argument("<taskId>").action(async (p, t, _o, c) => output(withPointsUsage(await (await apiFor(c)).get(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}`)), c));
 canvasTask.command("events").argument("<projectId>").argument("<taskId>").option("--cursor <cursor>").action(async (p, t, o, c) => output(await (await apiFor(c)).get(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}/events${o.cursor ? `?cursor=${enc(o.cursor)}` : ""}`), c));
 canvasTask.command("watch").argument("<projectId>").argument("<taskId>").option("--interval <ms>", "poll interval", "2000").action(async (_p, t, o, c) => watchTask(await apiFor(c), t, Number(o.interval), c));
 canvasTask.command("cancel").argument("<projectId>").argument("<taskId>").action(async (p, t, _o, c) => output(await (await apiFor(c)).post(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}/cancel`), c));
@@ -231,7 +249,7 @@ seedance.command("finalize").argument("<manifest>").requiredOption("--dir <path>
   } else if (["failed", "cancelled", "canceled"].includes(status)) manifest.state = "failed";
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
   const ledger = { schemaVersion: "easyai.seedance-ledger/v1", taskId: manifest.taskId, status, model: manifest.model, duration: manifest.duration, aspectRatio: manifest.aspectRatio, resolution: manifest.resolution, audio: manifest.audio, watermark: false, mode: manifest.mode, lastFrameRequested: manifest.lastFrameRequested, referenceCounts: manifest.referenceCounts, references: manifest.references.map(r => ({ type: r.type, role: r.role, localPath: r.localPath, objectKey: r.objectKey, sha256: r.sha256 })), prompt: manifest.prompt, manifestPath, paths, qc, recordedAt: new Date().toISOString() };
-  const ledgerPath = resolve(outDir, "task-ledger.json"); await writeFile(ledgerPath, JSON.stringify(ledger, null, 2) + "\n", "utf8"); await output({ taskId: manifest.taskId, status, paths, ledgerPath, qc }, c);
+  const ledgerPath = resolve(outDir, "task-ledger.json"); await writeFile(ledgerPath, JSON.stringify({ ...ledger, pointsUsage: pointsUsage(task) }, null, 2) + "\n", "utf8"); await output({ taskId: manifest.taskId, status, paths, ledgerPath, qc, pointsUsage: pointsUsage(task) }, c);
 });
 
 function openExternal(url: string) { const command = process.platform === "win32" ? "cmd" : process.platform === "darwin" ? "open" : "xdg-open"; const args = process.platform === "win32" ? ["/c", "start", "", url] : [url]; spawn(command, args, { detached: true, stdio: "ignore", windowsHide: true }).unref(); }

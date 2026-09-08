@@ -5,7 +5,7 @@ import { configDir } from "./config.js";
 import { CliError, ExitCode } from "./errors.js";
 
 export interface Quote {
-  quoteId: string; kind: "video" | "canvas"; payloadHash: string; payload: Record<string, unknown>;
+  quoteId: string; kind: "image" | "video" | "canvas"; payloadHash: string; payload: Record<string, unknown>;
   estimatedCost: number | null; currency: string; createdAt: string; expiresAt: string; source: "server" | "local";
   serverQuoteId?: string; scope?: string; submissionPath?: string;
 }
@@ -31,4 +31,16 @@ export function assertQuote(quote: Quote, payload?: unknown): void {
   if (quote.source !== "server" || !quote.serverQuoteId || !Number.isFinite(quote.estimatedCost) || Number(quote.estimatedCost) < 0 || !Number.isFinite(Date.parse(quote.expiresAt))) throw new CliError("A valid server cost quote is required. The preflight backend must be deployed before paid submission.", ExitCode.Approval);
   if (Date.parse(quote.expiresAt) <= Date.now()) throw new CliError("The preflight quote has expired; run preflight again.", ExitCode.Approval);
   if (payload && quote.payloadHash !== payloadHash(payload)) throw new CliError("The request changed after preflight; approval is invalid.", ExitCode.Approval);
+}
+
+export const CONFIRM_ABOVE_POINTS = 100;
+export function requiresConfirmation(quote: Quote, maxCost?: string): boolean {
+  assertQuote(quote);
+  if (!["points", "point", "credits", "积分"].includes(quote.currency.toLowerCase())) throw new CliError("The platform must quote in points to apply the 100-point confirmation threshold.", ExitCode.Approval);
+  if (maxCost !== undefined) {
+    const limit = Number(maxCost);
+    if (!maxCost.trim() || !Number.isFinite(limit) || limit < 0) throw new CliError("--max-cost must be a non-negative number.", ExitCode.Usage);
+    if (quote.estimatedCost! > limit) throw new CliError(`Estimated cost ${quote.estimatedCost} exceeds limit ${limit}.`, ExitCode.Budget);
+  }
+  return quote.estimatedCost! > CONFIRM_ABOVE_POINTS;
 }

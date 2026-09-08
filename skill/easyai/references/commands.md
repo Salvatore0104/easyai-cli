@@ -1,5 +1,7 @@
 # Command routing
 
+Version 0.2.1: use the installed wowidea Skill for current commands. A valid points quote at or below 100 needs no confirmation; only above 100 requires --yes --max-cost after user confirmation. Image submissions also require preflight and --idempotency-key. Report pointsUsage after completion.
+
 Run `easyai <group> --help` when arguments are uncertain.
 
 - Authentication: `auth status|login|logout|use-key`; account keys: `api-key create|list|revoke`.

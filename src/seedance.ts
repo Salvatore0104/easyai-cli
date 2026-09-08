@@ -4,7 +4,7 @@ import { basename, dirname, resolve } from "node:path";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { CliError, ExitCode } from "./errors.js";
-import { payloadHash } from "./preflight.js";
+import { payloadHash, assertQuote, requiresConfirmation, Quote } from "./preflight.js";
 
 export interface SeedanceReference { type: "image" | "video" | "audio"; role: string; localPath?: string; url?: string; objectKey?: string; signedUrl?: string; sha256?: string; }
 export interface SeedanceManifest {
@@ -58,6 +58,22 @@ export async function approveManifest(path: string, confirmation: string): Promi
   }
   m.state = "approved"; m.approval = { approvedAt: new Date().toISOString(), creativeHash: creativeHash(m), confirmation };
   await writeFile(path, JSON.stringify(m, null, 2) + "\n", "utf8"); return m;
+}
+
+export async function automaticManifest(m: SeedanceManifest, quote: Quote): Promise<SeedanceManifest> {
+  assertQuote(quote, seedancePayload(m));
+  if (requiresConfirmation(quote)) throw new CliError("Seedance above 100 points requires explicit confirmation.", ExitCode.Approval);
+  await validateManifest(m);
+  if (!["storyboard_ready", "approved"].includes(m.state)) throw new CliError("Prepare the storyboard manifest first; submitted tasks must be resumed.", ExitCode.Approval);
+  const snapshot = structuredClone(m);
+  for (const shot of snapshot.storyboard) {
+    if (/^https?:\/\//i.test(shot.image)) throw new CliError("Storyboard images must be local for byte verification.", ExitCode.Approval);
+    shot.sha256 = createHash("sha256").update(await readFile(shot.image)).digest("hex");
+  }
+  snapshot.state = "approved";
+  snapshot.approval = { approvedAt: quote.createdAt, creativeHash: creativeHash(snapshot), confirmation: "AUTO_AT_MOST_100_POINTS" };
+  await validateManifest(snapshot, true);
+  return snapshot;
 }
 
 export function seedancePayload(m: SeedanceManifest): Record<string, unknown> {

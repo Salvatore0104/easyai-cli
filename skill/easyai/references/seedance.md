@@ -1,5 +1,7 @@
 # Seedance gate
 
+Historical 0.2.0 guidance below is superseded by wowidea/references/seedance-gate.md in 0.2.1: at or below 100 quoted points, prepare the manifest and generate without asking; only above 100 ask once for storyboard/settings/cost confirmation. Report actual points after completion. Preserve the technical validation and no-retry rules.
+
 Prepare a storyboard and storyboard images first and show them for review. Approval requires an explicit user statement approving those images for generation; questions, revisions, silence, or ambiguous language are not approval.
 
 Before asking for paid approval:

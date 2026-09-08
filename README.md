@@ -2,7 +2,7 @@
 
 # Wowidea：在 Codex 中创作图片与视频
 
-复制上面的提示词给 Codex 即可开始。版本 0.2.0；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
+复制上面的提示词给 Codex 即可开始。版本 0.2.1；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
 
 ## 安装 / 更新
 
@@ -67,7 +67,11 @@ wowidea --json video download <taskId> --dir <绝对目录>
 
 watch 最长 30 分钟；超时或中断后再次查询同一 ID。下载仅读取结果媒体。大 JSON 使用全局 --output 导出。
 
-所有 Seedance 版本必须先制作、展示分镜图并得到明确批准，再确认模型、时长、比例、分辨率、音频和引用。CLI 要求 --manifest、watermark:false、有效服务器报价及费用上限。素材字节或创作设置改变会使批准失效；本机并发调用同一批准最多提交一次。跨设备的全局单任务保证仍需要后端幂等存储。
+图片、视频与画布统一使用积分门槛：预计 **100 积分及以下自动生成，超过 100 积分才确认**。恰好 100 不确认。超过门槛经用户确认后才使用 --yes --max-cost；低价任务不需要这两个参数。未知报价不是低价，需平台先提供有效积分报价。图片会自动调用 /v1/images/preflight；该接口未部署时不能判断门槛，CLI 会报告阻塞。
+
+Seedance 仍制作分镜和 --manifest，保持 watermark:false，但 ≤100 不再等待分镜或付费确认；>100 一次确认分镜、设置及费用即可。此规则取代 0.2.0 的每次审批要求。素材或设置变化重新预检；本机并发请求仍防重复提交，跨设备保证需要后端幂等存储。
+
+生成完成后输出“本次实际使用 X 积分”。JSON 的 pointsUsage 包含 actualPoints、status、source；status/watch/download/resume/finalize 都报告。实际积分只读取任务结算字段，未返回则显示“平台未返回本任务实际使用积分”，不把估算、token 数或账户余额差当实扣。
 
 [Seedance 操作规范](skill/wowidea/references/seedance-gate.md)包含私有 MinIO、manifest、预检、下载及 QC。未知报价不能提交；报价后端未部署时只完成创作准备并报告阻塞。包含 Seedance 的画布执行目前阻止直提，需走 video generate --manifest。
 
@@ -86,7 +90,7 @@ npm run check
 npm pack --dry-run
 ```
 
-[本次发布验证与后端依赖](docs/wowidea-release-0.2.0.md)区分实测、模拟测试和未验证项。未新增付费生成，不能把离线测试视为所有模型生成成功。
+[0.2.1 积分门槛与用量报告](docs/wowidea-release-0.2.1.md)及[0.2.0 基础验证](docs/wowidea-release-0.2.0.md)区分实测、模拟测试和未验证项。未新增付费生成，不能把离线测试视为所有模型生成成功。
 
 退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少审批，7 超费用上限。
 
