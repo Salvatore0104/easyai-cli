@@ -2,17 +2,18 @@
 
 # Wowidea：Codex 驱动的专业视觉 Agent
 
-复制上面的提示词给 Codex 即可开始。版本 0.3.1；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
+复制上面的提示词给 Codex 即可开始。版本 0.3.2；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
 
-面向设计公司的 VJ、舞台主视觉和节目视觉创作。Codex 负责节目理解、美术方向、参考分析、模型专用提示词和审美判断；CLI 负责执行、恢复与交付。支持超现实、强冲击和实验性视觉，审美随节目调整。
+面向海报、品牌、产品、电商、插画、空间概念、视频及舞台等视觉设计。Codex 按交付用途选择创作方法、参考策略和评审标准；CLI 负责执行、恢复与交付。舞台是按需加载的专门分支，审美和流程随任务调整。
 
 ```text
-$wowidea 为这个节目的开场设计超现实 VJ 视觉，按当前节目目录保存风格
+$wowidea 为这款咖啡做新品海报，保留包装上的准确文字
+$wowidea 把这张角色插画改成水彩质感，保留人物身份
 $wowidea 用 H3 做全能参考提示词：图1提供主体，视频1只提供运动
-$wowidea 按刚才认可的节目风格继续设计第二段，先给分镜
+$wowidea 为演出开场设计 VJ 视觉，先给分镜
 ```
 
-节目档案保存在指定目录的 `.wowidea/project.json`，试验稿不会自动覆盖已认可风格。六类内置方法覆盖抽象运动、主视觉、超现实空间、节奏递进、循环构思、角色／物体变形。阶段性审美评审强调创新、冲击力、远距离可读性和节目意图，实际输出必须看过再评价。
+持续项目可在指定目录保存 `.wowidea/project.json`；单次设计无需建档，试验稿不会自动覆盖已认可风格。通用入口按用途分流，六类VJ方法仅用于舞台分支。海报看文案层级，产品图看商品保真，插画看造型和情绪，视频看声画与连续性；实际输出必须看过再评价。
 
 ```text
 wowidea --json project init --dir <节目目录> --name <节目名>
@@ -110,7 +111,7 @@ npm run check
 npm pack --dry-run
 ```
 
-[0.3.1 创作配方与轮次](docs/wowidea-release-0.3.1.md)、[0.3.0 专业视觉 Agent](docs/wowidea-release-0.3.0.md)、[0.2.4 分镜审美与来源绑定](docs/wowidea-release-0.2.4.md)、[0.2.3 异步结果恢复修复](docs/wowidea-release-0.2.3.md)及[0.2.2 Seedance 费用门槛](docs/wowidea-release-0.2.2.md)区分实测、模拟测试和未验证项。本次已完成GPT Image 2及H3文本／单图全能参考付费冒烟，详见[真实实测记录](docs/live-smoke-20260908.md)；不能扩大为所有模型和模式已验收。
+[0.3.2 通用设计分流](docs/wowidea-release-0.3.2.md)、[0.3.1 创作配方与轮次](docs/wowidea-release-0.3.1.md)、[0.3.0 专业视觉 Agent](docs/wowidea-release-0.3.0.md)、[0.2.4 分镜审美与来源绑定](docs/wowidea-release-0.2.4.md)、[0.2.3 异步结果恢复修复](docs/wowidea-release-0.2.3.md)及[0.2.2 Seedance 费用门槛](docs/wowidea-release-0.2.2.md)区分实测、模拟测试和未验证项。本次已完成GPT Image 2及H3文本／单图全能参考付费冒烟，详见[真实实测记录](docs/live-smoke-20260908.md)；不能扩大为所有模型和模式已验收。
 
 退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少审批，7 超费用上限。
 
