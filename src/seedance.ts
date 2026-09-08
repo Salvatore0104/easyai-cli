@@ -91,7 +91,8 @@ export function seedancePayload(m: SeedanceManifest): Record<string, unknown> {
   const imageUrls = urls("image"), videoUrls = urls("video"), audioUrls = urls("audio");
   if (imageUrls.length !== m.referenceCounts.images || videoUrls.length !== m.referenceCounts.videos || audioUrls.length !== m.referenceCounts.audio) throw new CliError("Approved references are not fully uploaded or addressable.", ExitCode.Approval);
   const modes: Record<string, string> = { text: "text_to_video", image: "image_reference", video: "video_reference", audio: "audio_reference", "first-last": "first_last_frame", edit: "video_edit", continuation: "continuation" };
-  return { prompt: m.prompt, model: m.model, duration: m.duration, aspect_ratio: m.aspectRatio, resolution: m.resolution, audio: m.audio, watermark: false, mode: modes[m.mode], last_frame: m.lastFrameRequested,
+  const content = [{ type: "text", text: m.prompt }, ...imageUrls.map(url => ({ type: "image_url", role: "reference_image", image_url: { url } }))];
+  return { prompt: m.prompt, model: m.model, duration: m.duration, aspect_ratio: m.aspectRatio, resolution: m.resolution, audio: m.audio, watermark: false, mode: modes[m.mode], last_frame: m.lastFrameRequested, content,
     ...(imageUrls.length ? { image_urls: imageUrls } : {}), ...(videoUrls.length ? { video_urls: videoUrls } : {}), ...(audioUrls.length ? { audio_urls: audioUrls } : {}), references: m.references.map(r => ({ type: r.type, role: r.role, url: r.signedUrl || r.url })) };
 }
 export async function uploadReferences(path: string): Promise<SeedanceManifest> {
