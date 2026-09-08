@@ -26,7 +26,12 @@ async function sync(source, target) {
     await copyFile(from, to); hashes[to] = digest(incoming);
   }
 }
-for (const name of ['wowidea', 'easyai']) await sync(join(root, 'skill', name), join(destination, name));
+const installedSkills = [];
+for (const entry of await readdir(join(root, 'skill'), { withFileTypes: true })) {
+  if (!entry.isDirectory() || !await readFile(join(root, 'skill', entry.name, 'SKILL.md')).then(() => true).catch(() => false)) continue;
+  await sync(join(root, 'skill', entry.name), join(destination, entry.name));
+  installedSkills.push(entry.name);
+}
 const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
-await writeFile(statePath, JSON.stringify({ ...previous, version: pkg.version, installedAt: new Date().toISOString(), defaults: previous.defaults || { image: 'Nano Banana 2', video: '豆包Seedance-2.0' }, destination, hashes, preserved }, null, 2));
-console.log(JSON.stringify({ installed: destination, version: pkg.version, preserved, message: 'Wowidea Skill 已安装；下一轮对话使用 $wowidea。更新保留了用户修改，待合并版本在配置目录 skill-updates。' }));
+await writeFile(statePath, JSON.stringify({ ...previous, version: pkg.version, installedAt: new Date().toISOString(), defaults: previous.defaults || { image: 'Nano Banana 2', video: '豆包Seedance-2.0' }, destination, installedSkills, hashes, preserved }, null, 2));
+console.log(JSON.stringify({ installed: destination, version: pkg.version, installedSkills, preserved, message: 'Wowidea Skill 已安装；下一轮对话使用 $wowidea。更新保留了用户修改，待合并版本在配置目录 skill-updates。' }));

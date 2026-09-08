@@ -1,61 +1,16 @@
-# VJ 与舞台创作参考
+# Stage and VJ recipes
 
-六类方法均为项目原创，可组合、可反转。先定义节目意图，再取用方法；不把示例用色、密度或镜头当固定风格。模型参数由实时目录决定。
+Load only for explicit performance/VJ/stage work or user-requested stage methods. These original methods are combinable, not fixed colours or universal aesthetics. Validate generation settings separately.
 
-## 1. VJ 抽象运动
+| Method | Visible mechanism | Review |
+| --- | --- | --- |
+| Abstract motion | Growth/contraction, rotation/return, aggregation/breakup or wave propagation, with subordinate delays | Main direction is legible, not uniform screensaver motion |
+| Stage key visual | One symbolic silhouette related to performer/main/side screens; texture follows composition | Anchor survives distance, seams and obstruction |
+| Surreal space | Establish a spatial rule then break a selected dimension | Anomaly reads as intentional |
+| Energy progression | Accumulation, release and afterglow through density, speed, scale or light | Peak has contrast; no music means no claimed beat sync |
+| Loop concept | Periodic motion, camera return, occlusion or shape cycle | Actual tail/head position, velocity, phase and audio checked |
+| Transformation | Define start, end, identity anchors and change path | Intermediate change is visible, not abrupt replacement |
 
-适合空间、粒子、几何与材质驱动的段落。先确定运动的规则：生长／收缩、旋转／回流、聚合／崩解、相位差或波传播，再选择载体和空间。定义一层主运动与从属延迟，避免所有元素同速同向造成屏保感。
+Example: a folded chrome wall compresses a central void, then front layers open with rear layers following in sequence; a large ring expands toward the audience. Adapt materials, energy and camera to the actual show. Dark metal is not a default.
 
-提示骨架：`[空间与主轮廓]；[材料] 按 [运动规则] 变化，[局部运动] 比主运动延迟；[镜头与背景关系]；段落由 [状态A] 进入 [状态B]；保留 [识别锚点]。`
-
-原创例：黑色空间里，一面折叠的铬色潮汐墙沿水平方向隆起，最前层宽阔反光带向两侧张开，后方薄层依次延迟翻折；固定正视构图，中部保留一道深黑纵向裂隙，越接近高潮裂隙越窄，最终爆开为向观众推进的大尺度环形波。
-
-评审：缩小画面仍读得出运动方向吗？局部细节是否吞掉主节奏？非周期随机抖动是否符合意图？
-
-## 2. 舞台主视觉
-
-从节目命题提炼一个主形象，明确它与演员／主屏／侧屏的关系。主体比例、轮廓和留空先行，质感细节其次。标题或标识必须使用用户准确文案，不自动添加。
-
-提示骨架：`[主形象与象征] 位于 [构图位置]，占画面 [相对尺度]；[前中后景]；[光色对比]；[安全区／留空意图]；[细节密度分配]。`
-
-原创例：一枚由透明火山玻璃组成的巨型种子悬在裂开的赤色岩层上，内部有缓慢聚合的蓝白液态核心；主体占中上部，底部保持大面积暗色留空；左右岩层向外展开，形成舞台宽度感。不是固定推荐色板，按节目重写。
-
-评审：主形象能否一句话描述？远看是否仍有记忆点？生成图中的文字与物体是否落入真实屏幕接缝？
-
-## 3. 超现实空间
-
-选择一个明确的世界规则异常，例如内外翻转、无穷嵌套、重力偏转、尺度逆转。让其他空间线索足够一致，观众才读得懂异常；若节目要求混沌，则明确混沌在何时出现。
-
-提示骨架：`[可信空间锚点]，但 [一个主导异常]；镜头从 [入口] 穿越至 [空间揭示]；保持 [重复锚点]，光线随 [空间关系] 变化。`
-
-原创例：镜头向一扇门缓慢推进，门内是倒置的海面，门外的建筑逐层折入海面，直到整座大厅变成悬在空中的水滴。门框比例贯穿变形过程，作为尺度锚点。
-
-评审：空间翻转是否有明确路径？需要连续时是否被随机切镜打断？不可解释的透视错乱是设计还是失控？
-
-## 4. 节奏递进
-
-把段落写成“蓄能—扩张—释放—余波”等状态，不默认每个节目都必须四段。改变尺度、密度、速度、亮度中的主要变量，让其他维度保留对比空间。
-
-提示骨架：`[开始状态] → [蓄能机制] → [主变化] → [结束状态]；在 [音乐／动作触发] 发生 [变化]。`
-
-Seedance 2.0 用镜头顺序和相对节奏；2.5 可用连续整数秒区间；H3 切镜按官方时间格式。无真实音频时只能写期望节奏，不能宣称逐拍同步。
-
-评审：高潮前是否已有对比？是否从头到尾都满屏高密度，导致没有递进？
-
-## 5. 循环构思
-
-先选闭合机制：周期运动、镜头回位、遮挡衔接或形态闭环。起止需匹配构图、运动相位、速度、曝光与声场；相似首尾图不等于无缝循环。
-
-提示骨架：`[周期主体] 完成 [闭合运动]，镜头 [固定／回到起点]，结尾回到 [起始位置与运动方向]；全过程 [连续规则]。`
-
-交付标签默认“循环候选，接缝待检查”。没有实际检查尾首连续播放、速度和音频接缝，不写“无缝”。本版不自动拼接、倒放或调用另一生成任务修尾。
-
-## 6. 角色／物体变形
-
-定义起态、终态、保留身份锚点、变形路径及材料运动。超现实变化可以突破现实物理，但需符合用户选择的视觉规则；不要用通用“无变形”负向词抵消目标。
-
-提示骨架：`[起态] 的 [局部] 先发生 [变化]，变化沿 [方向] 传播，最终形成 [终态]；全程保留 [身份／轮廓／色彩锚点]；镜头 [观察方式]。`
-
-原创例：舞者的长袖从腕部逐渐展开成发光建筑骨架，骨架沿挥臂轨迹扩展成巨型穹顶，面部与身体轮廓保持可辨，最后穹顶从袖口脱离悬浮；变形是叙事目标，不判作解剖失真。
-
-评审：观众能否理解变化从哪里发生？身份保留范围是否符合约定？模型是否跳过中间过程直接换物？
+Stage visuals may dominate or support attention according to the brief. Separate screen specifications from model dimensions. Loop candidates need real seam checks; screen mapping and assembly require actual post-production verification. Do not automatically generate tail repairs or extra takes.

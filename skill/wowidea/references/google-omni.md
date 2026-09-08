@@ -1,4 +1,3 @@
 # Google Omni
-项目自有平台指南。Google Omni 是平台标识，不能据名称推断具体上游模型。
-围绕主体、可见动作、场景、镜头、物理光照、节奏、声音和终点写清拍摄要求。参考素材分别指定身份、风格、运动或声音角色。
-只使用实时目录提供的模式、时长、比例、音频与参考限额；不能沿用 Veo 等其他产品文档中的参数。
+
+A platform identifier, not proof of a specific upstream model. Write subject, visible change, setting, camera, light, sound and endpoint. Assign reference roles. Check exact live modes, duration, ratio, audio and limits; do not copy Veo or Flova settings by analogy. Use [execution](workflow.md) only for authorized generation.

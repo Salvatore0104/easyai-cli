@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { guideRegistry, guideInfo, showGuide } from "../src/guides.js";
+import { guideRegistry, guideInfo, showGuide, promptSkills } from "../src/guides.js";
+import { readFile } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 import { routeModel } from "../src/models.js";
 
@@ -16,6 +17,15 @@ describe("installed creative resources", () => {
     const routed = routeModel([{ id: "MiniMax-H3" }], "video", "MiniMax");
     expect(routed.guide).toBe("references/minimax-h3.md");
     expect(routed.guideInfo.id).toBe("minimax-h3");
-    expect(routed.guideInfo.version).toBe("0.3.2");
+    expect(routed.guideInfo.version).toBe("0.4.0");
   });
+});
+
+it("resolves all model prompt entries from package metadata", async () => {
+  for (const [id, name] of Object.entries(promptSkills)) {
+    const info = guideInfo(id);
+    expect(info.promptSkill).toBe(name);
+    expect(isAbsolute(info.promptSkillPath!)).toBe(true);
+    expect(await readFile(info.promptSkillPath!, "utf8")).toContain(`name: ${name}`);
+  }
 });

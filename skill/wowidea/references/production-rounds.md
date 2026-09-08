@@ -1,42 +1,13 @@
-# 按创作轮次推进设计项目
+# Bounded creative rounds
 
-用于多镜头、系列续作或需要阶段评审的工作。单张图直接进入已授权生成，不强制建立完整制作流水线。方法参考 Flova 的项目生命周期，执行主体是 Codex 与 Wowidea CLI；不依赖 Flova 后端。
+Adapted from Flova's lifecycle for Codex decisions and EasyAI execution. Use for staged or continuing work; a single image or edit may proceed directly to the authorized action.
 
-## 选择本轮交付
+Choose the current output: standalone asset, design plan, or user-gated stage. Generated shots are not an assembled film. Continue from the same project's accepted facts, creation records and task index. Each stores different facts; do not invent a competing project database. Read only what the next decision needs.
 
-- 单项素材：只产出用户要的图、镜头或提示词，不附加配乐、剪辑或成片任务。
-- 复杂设计方案：Codex组织方向、分镜与素材依赖；只执行已授权且EasyAI有验证映射的生成步骤。多段素材不自动等于已拼装的成片。
-- 分阶段制作：用户要求先看方向／分镜，或Seedance有明确审核门槛时，停在实际约定的阶段；其他已授权步骤不重复询问。
+For complex work state deliverable, accepted material, retained properties, visible change and reason, dependencies/review gate, and completion evidence. This is a compact direction, not a form for the user. Keep IDs and signed URLs in execution records; use natural asset names in conversation while preserving model labels in prompts.
 
-## 继续时先定位事实
+Example: a bag-background edit retains geometry, label and crop, replacing the background and necessary contact shadow. Completion evidence is the edited image compared with the source, not a new storyboard or product film.
 
-项目资料记录确认的方向与交付规格（舞台任务才含屏幕规格）；单次创作记录保存提示词、实际设置、素材映射、任务与QC；CLI任务索引负责查询与恢复。三者职责不同，不另建一份会漂移的“当前项目数据库”。发生冲突时核对用户最新明确纠正、对应记录及平台实际结果，不用旧草稿覆盖已认可版本。
+Keep the default CLI process attached until its final envelope. If the host returns a session handle, read that process. One process owns polling. Quiet output or completion notifications are not final results. After interruption, recover the existing task before any resend decision.
 
-读取下一步用得到的事实即可。用户说“继续刚才的视频”，先定位在途或已完成任务；不能把“继续”自动解释为延长或再生成。只有无法唯一确定目标时才问。
-
-## 每轮给出具体制作指令
-
-复杂任务用简短轮次卡，已有信息直接填入，不把卡片变成询问清单：
-
-| 项 | 要表达的决定 |
-| --- | --- |
-| 交付目标 | 这轮生成什么、属于哪个设计交付物或视频段落 |
-| 已有依据 | 使用哪份已确认方向、哪些素材版本；未知项标明 |
-| 保留项 | 不能因这次修改丢失的造型、构图、身份或节奏关系 |
-| 本轮变化 | 描述可看见的变化，说明原因及作用范围 |
-| 依赖与检查点 | 哪项素材或批准必须先存在，当前可继续到哪里 |
-| 完成证据 | 哪些实际文件和画面观察才足以判定本轮完成 |
-
-用户交流用“已确认的主视觉”“第二镜头尾帧”等自然称呼；任务ID、签名URL留在执行记录中。模型提示词仍必须使用模型规定的素材标签，并与数组对应，不能因自然语言简化而丢失绑定。
-
-舞台参考例，仅适用于相应任务：用户已授权H3单图参考，表示“原图保留，只让晶体明显展开”。本轮保留黑色环形骨架、蓝色中轴与下方表演留空；改变红色晶体朝外转动的幅度和展开顺序；参考仍是同一张主视觉，采用普通参考而非强制首帧。完成时比较早、中、晚帧的晶体朝向和中心开口变化。此例不是一个通用修复偏好，也不是额外付费授权。
-
-## 运行到可交付状态
-
-使用CLI默认等待与下载；执行工具返回会话句柄时保存句柄并读取该进程的后续输出，让一个进程负责查询。安静、后台化或通知“运行结束”都不能替代最终JSON。不要同时另起watch循环，也不要因为等待而再次提交。
-
-进程确实退出后，按[执行与恢复](workflow.md)查询原任务。向用户报告任务接受、输出可用、下载完成、检查结论等有意义的变化。部分镜头成功时交付已成功项并标清失败／待处理项，不宣布整组或整片完成。
-
-实际打开媒体后用“观察 → 判断 → 下一步”反馈：例如“首尾采样中晶体角度变化很小 → 参考保真通过、展开强度未达目标 → 下一版可只强化展开幅度”。质检建议不触发自动付费重生成。没能查看的媒体照常交付并标明未审，不编造视觉证据。
-
-交付包含可用文件、真实任务结果、QC和实际积分状态。舞台多屏、编码转换、音画同步、无缝循环、最终拼装若未执行验证，只列准备说明；EasyAI素材下载不能冒充Flova的成片导出能力。
+Present usable outputs and meaningful status changes. Partial success is not full completion. Review before recommending another round; QC never authorizes paid regeneration. Deliver files, status, QC and points. State unfinished assembly or format requirements without pretending media downloads are final exports. See [execution](workflow.md).

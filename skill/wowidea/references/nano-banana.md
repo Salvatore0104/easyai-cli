@@ -1,19 +1,47 @@
-# Nano Banana 系列
+# Nano Banana prompt writing
 
-项目原创创作指南；社区来源主要展示 Nano Banana / Pro 编辑案例，不据此宣称 Nano Banana 2 / Lite 已验证所有能力。运行时精确选择 Nano Banana 2、Pro、2 Lite，能力来自 EasyAI models route。
+Use for Nano Banana 2, Pro or 2 Lite generation and edits, choosing the exact live model. Selected restoration rules adapt the locally installed MIT Nano Banana Skill by Salvatore0104; see [notice](nano-banana-MIT.txt) and [sources](sources.md). Its GRSAI scripts, credentials, fixed limits and deterministic prompt appending are not part of this workflow.
 
-## 生成与参考编辑
+## Choose generation, edit or restoration
 
-无素材时按主体／任务、构图与空间、材质与光线、文字、输出用途、边界来写。参考编辑先查看来源，列出保留维度和允许变化，再把实际素材放入平台支持的 image_urls，不用文字复述代替图片输入。
+- Generation: establish subject, purpose, composition, medium, material-scale behavior, light and exact text when needed. Avoid decorative repetition only when unwanted; never remove authored patterns by default.
+- Edit: state the precise target and change. Preserve unrequested content within the agreed scope. Read the image first and distinguish observed facts from user descriptions.
+- Restoration: identify actual unwanted artifacts, retain identity and composition, then repair tone/detail without redrawing content. Do not classify all textures as damage or promise recovered historical detail not present in the source.
 
-多图融合按角色分工：图1形状、图2材质、图3空间。标注局部与整体参考范围。改变风格时明确哪些轮廓／身份仍不变；需要大幅变形时不要加入通用“禁止变形”抵消目标。用“金属薄膜有横向拉伸的高光，背光边缘透出紫色”替代泛泛的“高级质感”。
+## Reference strategy
 
-通用图像骨架：`[主体／视觉隐喻]，从[视角]观察，占据[画面区域]；[前后层次]；[材料与光线行为]；[与用途相关的文案区域或留白，如需]；参考图1仅保留[维度]，允许[变化]；[准确文字或明确无需文字]。`
+Give each image explicit authority: product identity, pose, palette, background, material or layout. For example, Image 1 supplies the bottle geometry; Image 2 supplies frosted-glass texture, not its bottle shape or label. Keep order consistent with image_urls. A style reference is not a first-frame lock. Do not add extra inputs without a clear role and user-authorized input plan.
 
-生成分镜时，先决定哪些图是源参考、哪些是审核图、哪些将作为正式输入；保持人物／物体身份不等于必须复制背景。多格审核板使用已生成单帧本地排版，不让一次多格生成冒充连续性证明。
+## Prompt patterns
 
-## 社区方法按用途迁移
+Generation: `[subject and purpose]; [framing, arrangement and depth]; [medium, material behavior and lighting]; [exact text if needed]; [channel-specific constraints].`
 
-材质贴图案例启发“材质有明确行为”；巨大生物案例启发尺度对比；电影分镜案例启发镜头职责分工。不是照抄画面，见 [精选案例](image-case-index.md)。按实际使用尺度查看构图与细节；只有舞台任务才用远观标准，电商图优先核对产品细节与参考保真。
+Edit: `In Image 1, change only [target] to [new state]. Preserve [identity, geometry, label, crop and other relevant anchors]. Match [necessary local shadow/reflection].`
 
-当前 EasyAI 仅在目录支持 image_generate/image_edit 和对应图片数量、比例、分辨率时调用。不推定支持透明输出、遮罩或无限多图。默认2K／海报3:4只用于支持该规格的海报，不用于舞台默认尺寸。评审见 [视觉评审](visual-review.md)。
+Restoration: `Repair the observed [artifact] in [region/material]. Preserve [content anchors]. Restore tonal continuity and restrained detail without invented texture, plastic smoothing or sharpening halos. Keep the intentional [weave/scales/grain] intact.`
+
+Do not blanket-ban deformation when the user requests a transformation. Do not append every anti-artifact term to every image. Moire, fish-scale-like periodic patterns, banding and honeycomb microtexture are descriptions of observations, not model parameters.
+
+## Complete original examples
+
+Illustration generation:
+
+```text
+An illustrated cover showing a curious fox sorting fallen leaves into a spiral on a forest floor. View from slightly above, with the fox on the lower left and the spiral leading toward a quiet title area at the top. Use translucent watercolour washes and irregular pencil outlines; orange fur contrasts with blue-green shadows. Preserve the handmade variation of the paper and brush marks. No added text.
+```
+
+Two-image material transfer:
+
+```text
+Use Image 1 for the chair's exact silhouette, leg angles and camera perspective. Use Image 2 only for the woven fabric's colour and coarse thread scale. Replace the chair upholstery with that fabric, following the existing seat curvature and seams. Preserve the frame, background and crop from Image 1. Do not transfer any objects or logos from Image 2.
+```
+
+Restoration with confirmed moire:
+
+```text
+Remove the unintended broad moire bands from the photographed jacket in Image 1. Preserve the person's identity, pose, jacket seams, real fabric weave, framing, light direction and colour relationships. Recover a continuous tonal surface without blurring the seam edges or inventing fine threads. Do not change other regions.
+```
+
+## Execution and QC
+
+Only use modes, counts, ratio and resolution verified in EasyAI. Prompt exclusions belong in the supported prompt field unless a separate negative field is explicitly mapped. Do not reuse GRSAI's Base64 path or its six-image ceiling. Review intended changes and protected details side by side; material restoration is not a licence to change identity. Use [execution](workflow.md) for authorized calls, never auto-reroll a failed aesthetic check.

@@ -2,7 +2,7 @@
 
 # Wowidea：Codex 驱动的专业视觉 Agent
 
-复制上面的提示词给 Codex 即可开始。版本 0.3.2；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
+复制上面的提示词给 Codex 即可开始。版本 0.4.0；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
 
 面向海报、品牌、产品、电商、插画、空间概念、视频及舞台等视觉设计。Codex 按交付用途选择创作方法、参考策略和评审标准；CLI 负责执行、恢复与交付。舞台是按需加载的专门分支，审美和流程随任务调整。
 
@@ -24,7 +24,19 @@ wowidea --json guides list
 wowidea --json guides show minimax-h3
 ```
 
-以上命令可离线运行，无需账号 Key。`models route` 保留旧 guide 字段并新增 guideInfo（含实际包内路径与版本）。[节目与资源使用说明](docs/visual-agent-v1.md)包含记录格式、模型边界和更新方法；[离线节目示例](docs/examples/vj-programme/project.json)可复制到节目目录的 `.wowidea/project.json`。
+以上命令可离线运行，无需账号 Key。`models route` 保留旧 guide 字段并新增 guideInfo（含实际包内路径与版本）。[项目与资源使用说明](docs/usage.md)包含记录格式、模型边界和更新方法；[离线节目示例](docs/examples/vj-programme/project.json)可复制到节目目录的 `.wowidea/project.json`。
+
+## 模型提示词 Skill
+
+以下入口与 `$wowidea` 一起安装，指令为英文，交流和准确文案仍保留用户语言：
+
+- `$wowidea-h3-prompt`：H3三段／六段结构、关键帧与全能参考。
+- `$wowidea-seedance-20-prompt`：2.0镜头、动作、音频与多模态引用。
+- `$wowidea-seedance-25-prompt`：2.5整数时间轴、关键帧、白模、编辑与延长。
+- `$wowidea-gpt-image-prompt`：构图、文字层级和局部编辑。
+- `$wowidea-nano-banana-prompt`：生成、参考编辑、材质迁移和修复。
+
+只写提示词不会调用付费生成。可用 `wowidea --json guides list` 查看本地资源及 `promptSkillPath`。更新后新对话可发现这些入口，不覆盖本机原有同类Skill。
 
 ## 安装 / 更新
 
@@ -111,10 +123,10 @@ npm run check
 npm pack --dry-run
 ```
 
-[0.3.2 通用设计分流](docs/wowidea-release-0.3.2.md)、[0.3.1 创作配方与轮次](docs/wowidea-release-0.3.1.md)、[0.3.0 专业视觉 Agent](docs/wowidea-release-0.3.0.md)、[0.2.4 分镜审美与来源绑定](docs/wowidea-release-0.2.4.md)、[0.2.3 异步结果恢复修复](docs/wowidea-release-0.2.3.md)及[0.2.2 Seedance 费用门槛](docs/wowidea-release-0.2.2.md)区分实测、模拟测试和未验证项。本次已完成GPT Image 2及H3文本／单图全能参考付费冒烟，详见[真实实测记录](docs/live-smoke-20260908.md)；不能扩大为所有模型和模式已验收。
+当前发布只保留[使用与维护](docs/usage.md)、[验证范围](docs/validation.md)和必要示例。英文Skill与五个独立模型提示词入口随包安装；既有实测不扩大为所有模型或模式均已验收。
 
 退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少审批，7 超费用上限。
 
 ## 卸载
 
-`npm uninstall -g @easyai/cli` 删除三个 CLI 命令。需要移除 Skill 时，让 Codex 只删除实际安装目录中的 wowidea/easyai 两个目录；先保留自定义修改。凭据和任务索引默认不删除。撤销账号 Key 是独立操作，需用户明确要求。
+`npm uninstall -g @easyai/cli` 删除三个 CLI 命令。需要移除 Skill 时，让 Codex 只删除实际安装目录中的 安装记录 installedSkills 列出的本包目录；先保留自定义修改。凭据和任务索引默认不删除。撤销账号 Key 是独立操作，需用户明确要求。

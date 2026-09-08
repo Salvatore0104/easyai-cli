@@ -1,19 +1,42 @@
-# GPT Image 2
+# GPT Image 2 prompt writing
 
-本指南为项目适配，社区案例不是官方 API 能力文档。精确调用当前账户模型，不采用社区推荐的供应商、价格或安装脚本。
+Use for generation, layout, typography, reference editing and visual concept work. These are original task-specific methods informed by the curated community library and Flova's separation of planning, reference use and prompt writing. See [sources](sources.md); examples are not provider capability guarantees.
 
-## 组织提示词
+## Select the task before the prose
 
-按任务选择构图、空间、主体、材质、光线、文字与约束。需要字体作为主体时精确提供文字，并设计字形如何构成空间；不需要文字的舞台画面明确说明不添加标题／logo。图像界面模型不等于真实网站或舞台播放工程。
+For a new image, specify purpose, subject, composition, materials/light, exact text and output constraints. For an edit, lead with the requested change and lock only the properties the user wants retained. A short local edit should not become an elaborate scene rewrite. For a series, carry accepted identity/layout rules into each image rather than merely repeating a style adjective.
 
-先确定用途／模板类别，再找风格与场景标签、最近案例。不要加载数百案例。可参考随包 [MIT精选元数据](image-style-selection.json)：空间、艺术材质、场景叙事、概念字体四类。上游建议里的克制配色不是本项目通用要求，任务意图优先。
+Plan information hierarchy before ornamental style: headline, secondary copy, product/character and supporting details. Specify relationships such as aligned left edges, quiet space around a title or a foreground object occluding a frame. Do not invent pixel coordinates, mask tokens or annotation IDs. Preserve supplied text verbatim and make text ownership explicit (printed product label versus added headline).
 
-原创构图骨架：`用途[海报/产品图/插画/空间概念等]；核心形象[形状与比例]；构图[机位、层次、视觉重心]；材料[反射/透射/纹理行为]；光色[关系和节奏]；准确文字[逐字]；参考[保留/改变]；交付[渠道规格与实际模型规格分别说明]。`
+## Prompt pattern
 
-舞台任务专用例（其他用途不套用演员留空和暗背景）：一个向外翻折的圆形剧场悬在黑暗中，看台层层变成半透明的红色晶体叶片，中央是一条纵向深蓝通道；低机位正视，主轮廓大而明确，细纹只集中在晶体边缘，中下部保留演员轮廓的暗色空间，无附加文字。需要更混沌或更明亮的节目按用户方向重写。
+```text
+Create [deliverable] for [use and audience].
+Subject and composition: [visible subject, placement, scale, perspective and hierarchy].
+Visual treatment: [medium, palette relationships, material and light behavior].
+Text: [exact strings, ordering, placement and contrast], or explicitly no added text when appropriate.
+References: Image 1 controls [dimensions]; Image 2 controls [dimensions]. Preserve [anchors], change [requested scope].
+Output intent: [channel/crop/empty regions]. Actual file settings are supplied separately through supported API fields.
+```
 
-编辑任务中明确目标变化及保留项，参考顺序与实际image_urls一致。后续修订复用已接受的主视觉规则，每次记录主要变化，不以试验稿自动改长期偏好。
+Use only relevant lines. Do not impose cinematic lighting, stage negative space, realism or minimalism on every design. Choose a small number of relevant [case methods](image-case-index.md), not the entire library.
 
-## 当前 EasyAI 能力
+## Complete original examples
 
-按 models route 返回的 image_generate/image_edit 校验素材数量、比例与分辨率。社区宣传的透明度、多轮编辑、遮罩或尺寸不是本平台保证；未暴露参数时说明缺口。结果实际查看文字、轮廓、空间与约定参考维度，见 [视觉评审](visual-review.md)。
+Poster without references:
+
+```text
+Create a square editorial poster for a neighbourhood repair workshop. A single oversized red thread passes through a blue ceramic cup's repaired crack and forms a loose circle around the title. Use cut-paper shapes with visible fibrous edges on warm off-white stock. Place the exact headline "MAKE IT LAST" at the upper left in large dark-blue lettering, and "Saturday · 10 AM" below it in a smaller, clear line. Keep the cup in the lower right; the thread connects the information and object without crossing the letters. No additional words or logos.
+```
+
+Reference edit (Image 1 must be the actual source):
+
+```text
+In Image 1, replace only the background with a warm grey paper sweep. Preserve the bag's shape, handles, seam placement, colour, printed label and viewing angle. Adjust only the contact shadow needed to seat it on the new surface. Do not add objects, change the crop or rewrite the label.
+```
+
+Typography as structure: describe how the exact words form the composition while retaining their reading order. For packaging or UI concepts, name visible surfaces/states; never promise editable vectors, print-ready dielines or executable interfaces from a raster result.
+
+## Pre-submit and review
+
+Keep final prompt reference order identical to image_urls. Check model ID, image_generate/image_edit, image limits, resolution and ratio in `models route`; do not import Flova's aspect list or another API's transparency/mask fields. Evaluate actual text spelling, object identity, hierarchy, crop and intentional changes at the target display scale. Report unresolved text/artifacts without automatic regeneration. Prompt-only requests do not call an API; authorized generation uses [Wowidea execution](workflow.md).

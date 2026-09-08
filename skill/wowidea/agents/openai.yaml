@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wowidea Visual Agent"
+  short_description: "Visual design and reliable media workflows"
+  default_prompt: "Use $wowidea to complete my visual design task."

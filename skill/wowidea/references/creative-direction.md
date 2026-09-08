@@ -1,25 +1,11 @@
-# 设计意图与美术方向
+# Creative direction
 
-用于需要探索方向的设计任务。先按[任务分流](design-tasks.md)确定用途；简单图像和局部编辑直接处理，不必走完整访谈。
+Use when a design needs a direction, not for every local edit. Read the brief and actual material. Establish only facts needed now: purpose, audience, exact copy, required anchors and delivery format. See [task routing](design-tasks.md).
 
-先读本项目已确认资料和用户素材。只有影响方案的信息缺失才问：用途、受众、准确文案、必须保留的元素或交付规格。屏幕布局与音乐节奏仅用于相关演出／视频任务。
+Translate adjectives into visible mechanisms: impact may come from scale imbalance or a density shift; trust may come from clear hierarchy and product fidelity. Choose a mechanism for the task, preserving the user's chosen complexity or restraint.
 
-将抽象形容词转成可执行决策：例如“冲击力”可以来自尺度失衡、负空间突然收紧、材料突变、镜头穿越、密度跃迁或明暗反转。根据设计目标选一种主导机制，其他手法服务它。用户要求复杂、爆裂、绚丽时充分展开，不能自动改成极简、低饱和或写实。
+A direction card can state the central idea, memorable image/message, composition, palette relationships, material/light logic and reference scope. Add motion and an energy curve only for dynamic work. Give one considered direction when clear; a few alternatives only for meaningful tradeoffs. Text alternatives do not authorize multiple paid candidates.
 
-## 美术方向卡
+For stage work only, consider distant silhouettes, performer obstruction, screen seams and musical energy. Do not invent screen dimensions, viewing distance or beat timing. Stage specifications and model output settings remain separate. Other tasks use their own display scale.
 
-输出简短方向卡：核心视觉隐喻；一个受众能记住的形象／信息；空间与构图；色彩关系；材质与光线逻辑；需要动态时的运动语法与能量变化；参考使用范围；需要避开的非预期结果。
-
-方向明确时给一个有判断力的方案；只有确有不同取舍或用户要求探索时，给 2–3 个文字方向。列举方向不授权生成多个收费候选。避免将所有流行元素堆到同一个方案里。
-
-## 舞台设计专用判断
-
-仅在明确演出或VJ任务时应用以下内容。
-
-- 远距离：用主体轮廓、色块、前后层次判断，而非只看近距离纹理。重要轮廓是否被舞台中线、分屏接缝或表演者遮挡？
-- 多屏：分别说明主屏、侧屏的叙事职责和接缝，不把多屏图当成一个模型已支持的输出格式。
-- 与演出关系：视觉可当主角或背景，按节目选择；不能默认所有 VJ 都要退让，也不能默认都要占满注意力。
-- 时间：根据已提供的音乐／段落描述能量曲线。没有音频只能提供节奏假设，不宣称精确卡点。
-- 交付：舞台原生像素、帧率、codec、alpha、播放服务器要求与模型输出能力分别列出，缺少支持的部分标为后期需求。
-
-节目认可的方向可保存；一次“试试金属风”属于试验，不能代替长期风格确认。评审见 [视觉评审](visual-review.md)，其他用途按[任务分流](design-tasks.md)选择方法；舞台任务可读[VJ 创作参考](vj-recipes.md)。
+Record accepted directions only after explicit endorsement. A material experiment does not replace persistent preferences. See [records](project-workflow.md) and [review](visual-review.md).

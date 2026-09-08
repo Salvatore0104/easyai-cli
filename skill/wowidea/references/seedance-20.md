@@ -1,26 +1,52 @@
-# Seedance 2.0 / fast / mini
+# Seedance 2.0 prompt writing
 
-项目原创适配摘要，以 [火山官方 2.0 指南](https://ark.volcengine.com/region:cn-beijing/docs/82379/2222480?lang=zh) 为主，核验 2026-09-08。不是官方 Skill 原文。版本见 [来源记录](sources.md)。fast/mini 的运行限制分别读平台目录。
+For 2.0 and separately routed fast/mini variants. Official creative guidance takes precedence over community surface assumptions. Selected craft rules adapt the installed MIT Seedance prompt Skill by Iamemily2050; retain [its notice](seedance-MIT.txt). See [source snapshots](sources.md). This is not the 2.5 guide.
 
-## 官方创作方法
+## Compile a shooting brief
 
-先区分全模态参考、编辑、延长。参考从素材取指定元素生成新内容；编辑改变原视频约定部分；延长从原视频前／后继续。编辑／延长直接指明操作视频，不用“参考视频”模糊替代目标。
+Choose the operation and visible intention first. Use **Subject + Action + Scene + Camera + Lighting/Style + Audio + Constraints** as a flexible container, not compulsory decoration. Put the subject and principal change early. Let camera, performance, light and sound serve the intent. For reference images, avoid redundantly rewriting the still; specify the dynamics and allowed changes it cannot show.
 
-为主体分配稳定标签，说明来自图片／视频哪个对象、保留哪2–3个辨识特征。主体、场景、运动、音色分工；素材编号按上传顺序。动作参考不自动带入原视频角色、风格或声音。多素材同主体说明各素材分别提供什么。
+A useful action chain is initial state → trigger → visible change → response → follow-through → endpoint. Separate object, actor, camera and environment movement. Describe delayed fabric motion or inertia when relevant, not as a universal realism requirement. Intentional surreal deformation remains valid.
 
-复杂内容按“镜头1／镜头2……”组织，写清运镜、动作表情、空间变化和音频；精确秒数支持不稳定，不承诺0–3秒准确发生。一个镜头优先一个主运镜，复杂动作保留用户意图并说明惯性、触发和衔接。
+## Operation-specific writing
 
-人物身份要求高时，独立清晰面部图与全身图通常比多视图拼图易辨识；这不应阻止VJ中的分身设计。重要素材前置，避免堆满参考造成冲突。
+| Operation | Write | Avoid |
+| --- | --- | --- |
+| Text-only | Establish subject, setting, action and resulting state | A stack of unrelated events |
+| Strict first frame | Begin at the actual image state; describe motion and continuity locks | Rebuilding the image as a different composition |
+| First/last frames | Identify both endpoints and the continuous path between them | Treating the last frame as mood only |
+| Multimodal reference | Assign identity, motion, camera, environment, style and audio roles explicitly | Importing the source actor or soundtrack from a motion-only video |
+| Edit | Identify the source video, affected region/time and A→B change; preserve the rest | Calling an edit merely a reference generation |
+| Extend | Specify prepend/append, the observed boundary state and the new event | Inventing the previous ending or repeating a completed action |
 
-## 可填充骨架
+Assign stable subject descriptions and two or three useful identity anchors. Each controlled dimension needs an unambiguous reference authority. Resolve conflicting references; do not silently drop an approved asset. Keep image/video/audio numbering aligned with the approved arrays. Use the exact binding syntax verified for the current EasyAI route; community `@Image1` and Flova `<<<image_1>>>` are not universal API tokens.
 
-- 参考：`图片1提供[主体]，视频1仅提供[动作／运镜]，音频1提供[音色／节奏]。镜头1：[空间、动作、镜头、声音]。镜头2：[变化及承接]。全片保持[设计规则]。`
-- 编辑：`严格编辑视频1，仅把[范围]的[原属性]改为[新属性]；保留[其他维度]。`
-- 延长：`向后延长视频1，从[末态与方向]继续，[新事件]，保持[身份／空间／声场]。`
-- 声音：音乐、音效、台词、字幕分别说明；台词保留原文，字幕仅按用户要求添加。
+For complex clips use ordered shots. State each cut's reason and spatial/action handoff. Do not promise precise second-by-second timing for 2.0. A short clip usually benefits from one readable change; this is guidance, not a restriction against user-requested complex choreography.
 
-## 当前 EasyAI 可执行能力
+## Audio and text
 
-运行 models route 获取精确版本的账户能力。manifest 的 text/image/video/audio/first-last/edit/continuation 转换为平台模式后，仍须校验 supported_modes、数量／时长和音频限制。未验证模式只完成策划，不删引用、换模式或切换服务绕过。
+Separate dialogue, ambience, physical effects and score. Identify who speaks and preserve exact dialogue in its original language. Describe a visible gesture and vocal delivery instead of an abstract emotion alone. Reference audio controls only its approved role. Lyrics do not authorize captions; visible text must be explicitly specified. A prompt asking for silence is not a verified audio parameter.
 
-所有生成先走 [分镜与审批](seedance-gate.md)，素材组织见 [参考计划](reference-planning.md)。分镜图不默认成为输入，watermark:false；错误后不自动生成另一任务。
+## Original prompt examples
+
+Text-only character vignette:
+
+```text
+A small clay robot pauses beside a seedling on a kitchen windowsill. It tilts a ceramic watering jug until one drop lands in the soil, then leans closer as the seedling's leaves lift. The camera holds a medium close view with a gentle final push toward the leaves. Soft morning side light reveals fingerprints in the clay. Sound: a tiny water drop, a soft ceramic tap and quiet room ambience. Keep the robot's single round eye and asymmetric arms consistent; no added text.
+```
+
+Image and motion reference planning example (requires verified input mapping before use):
+
+```text
+Image 1 supplies only the performer's identity and costume. Video 1 supplies only the shoulder turn and arm movement; do not transfer its actor, setting or soundtrack. Shot 1: in the new scene, the performer turns toward camera, raises the right arm, then allows the sleeve to settle after the wrist stops. Keep the face and costume from Image 1. The camera remains a fixed medium shot. Sound: soft fabric movement, no dialogue or score.
+```
+
+Edit skeleton: `Edit the approved source video only: change [target] from [A] to [B] during [scope]. Preserve [identity, framing, camera, timing, other layers].`
+
+Continuation skeleton: `Append to the approved source video from its observed [position, pose, motion direction, light and sound]. Continue [new action] toward [endpoint], preserving [anchors]. Do not repeat [completed beat].`
+
+## Revision and execution
+
+Compress duplicate adjectives, generic quality boosters and already visible background details before removing reference roles or action causality. Report mode, reference plan, final prompt and capability gaps. Prompts may be English or another user-requested language; do not translate binding tokens or supplied text.
+
+Official editing/extension availability does not prove an EasyAI mapping. Check exact model, supported modes, reference limits, audio combinations and duration in the live catalogue and adapter. All paid Seedance generation follows [storyboard approval](seedance-gate.md), private MinIO, final manifest and watermark:false. A prompt-writing request alone makes no paid call.

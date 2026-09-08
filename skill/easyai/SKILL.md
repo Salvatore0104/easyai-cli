@@ -1,9 +1,8 @@
 ---
 name: easyai
-description: EasyAI CLI 的兼容入口，用于已有 EasyAI 账号自动化、媒体任务和无限画布请求；创作统一交给随包安装的 wowidea Skill。
+description: Compatibility entry for EasyAI account, media tasks and infinite canvas through the installed Wowidea CLI. Creative image and video work uses the bundled Wowidea Skill.
 ---
 
-# EasyAI 兼容入口
+# EasyAI compatibility entry
 
-读取同一安装根目录中的 [Wowidea 主 Skill](../wowidea/SKILL.md)，按其模型路由、API Key、异步恢复与 Seedance 审批规则执行。`easyai`、`easyai-canvas` 和 `wowidea` 是同一个 CLI 的别名。
-若 Wowidea 缺失，重新运行本仓库安装器完成配套安装，不临时下载其他模型 Skill。
+Use easyai or wowidea with the same account and contract. For creation read [Wowidea](../wowidea/SKILL.md); for CLI routing read [commands](references/commands.md). Do not establish a second creative workflow or provider account. Reply in the user's language.

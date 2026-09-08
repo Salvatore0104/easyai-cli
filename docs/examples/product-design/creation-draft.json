@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "wowidea.creation/v1",
+  "id": "product-001-draft",
+  "prompt": "Replace only the background in Image 1 with a warm grey paper sweep. Preserve the product shape, label and crop.",
+  "model": "GPT Image 2",
+  "mode": "image_edit",
+  "settings": {
+    "verification": "Illustrative draft; inspect source and live capabilities before execution"
+  },
+  "references": [
+    {
+      "type": "image",
+      "role": "product_identity",
+      "source": "assets/product.png",
+      "scope": "Product and label",
+      "preserve": [
+        "geometry",
+        "label",
+        "crop"
+      ],
+      "change": [
+        "background",
+        "contact shadow"
+      ]
+    }
+  ],
+  "taskId": null,
+  "outputs": [],
+  "qc": {
+    "verdict": "not_reviewed",
+    "evidence": []
+  }
+}

@@ -1,21 +1,11 @@
-# 按任务意图进行视觉评审
+# Review against the actual purpose
 
-实际打开图片；视频检查接触表、关键时点、尾帧、运动连续片段和必要音频后再判断。接触表只能证明静帧内容，不能证明运动顺畅、卡点或无缝循环。未看／未听的项标为未验证。
+Open the actual image before judging pixels. For video inspect sampled frames, final frame, continuous motion where possible, and audio when judging sound. A contact sheet proves static content, not smooth motion, beat sync or a seamless loop. State which checks remain unperformed.
 
-先复述本次已接受的方向，再给出“可交付／可用但有缺口／需修订”判断，附具体画面证据。审美不等于写实：夸张、塑料、炫光、颗粒、饱和色、极端密度或非现实变形都可能是设计目标。只有与本次设计意图冲突、层次失控或出现非预期缺陷时才提出修复。
+Restate the objective, then give a verdict: deliverable, usable with gaps, or revise. Support it with observations, their effect on the intended use, and a focused next change. Do not merely repeat the prompt or invent scores.
 
-按任务选择评审项，不机械逐项打分：
+Select relevant criteria: graphic/brand work needs exact copy, hierarchy and recognition; product/editing needs geometry, colour, labels and protected-region fidelity; illustration/space needs silhouette, emotion and chosen world rules; video needs progression, causality, continuity and sound. Stage alone adds distant readability, energy contrast, performer space and screen seams.
 
-- 用途与受众：是否准确传达信息、品牌或叙事目标？需要独创性时，具体记忆点是什么？
-- 平面／品牌：准确文案、阅读层级、标识一致性、实际显示尺度下的可读性。
-- 产品／编辑：产品形状、颜色、标签和指定保留区域是否变化，是否出现虚构细节？
-- 插画／空间：造型、情绪、空间关系与选定画法是否服务意图？
-- 舞台专用的冲击与远距离可读性：主轮廓和空间层次是否清晰，密度变化是否产生有效对比？
-- 视频的时间与节奏：动作是否有发展，变化是否有触发和过渡，高潮是否被重复运动稀释？
-- 材质与光线：是否符合本次世界规则，合成感是有意美术还是非预期缺陷？
-- 参考忠实度：只检查约定保留的维度，允许用户要求的构图、颜色、材质和身份变化。
-- 舞台交付：画幅、安全区、分屏接缝、文字可读性；缺少舞台布局时不冒充现场验收。
+Judge reference fidelity within agreed roles. Surreal deformation, saturated light or irregular perspective can be intentional. Seedance physicalPlausibility means coherence with the selected world rules; sourceFidelity scores the agreed preserved dimensions.
 
-记录格式：观察到的事实 → 对本次用途的影响 → 一项优先修复建议。不得为了让工作流继续而虚构评分。用户未要求另一版时，报告缺陷与建议并停止，不自动重生成。
-
-兼容 Seedance `physicalPlausibility` 字段：评估动作／材质是否服从本片选定的物理或超现实规则，不能把违背现实本身当失败。`sourceFidelity` 按素材角色的保留范围评分，notes 明确哪些变化是有意的。
+QC does not authorize a paid reroll. Deliver evidence and recommendations, then follow the user's next instruction. API success, asset quality and production readiness are different conclusions.

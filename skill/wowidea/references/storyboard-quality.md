@@ -1,51 +1,11 @@
-# 分镜审美与参考忠实度
+# Storyboard quality and reference fidelity
 
-在制作或评审 Seedance 分镜时使用。目标不是证明“文件被传入”，而是判断画面是否真的值得交给视频模型。
+Inspect actual selected sources. Record identity, geometry, landmarks, composition, perspective, palette and material anchors within agreed reference scopes.
 
-## 先锁定来源
+For an explicitly approved strict opening use the actual source image bytes, not a redraw. Style/material/identity references do not lock the full composition. Generate later keyframes independently through verified reference/edit inputs. Assemble review contact sheets locally. A newly generated multi-panel image is not continuity evidence and is not automatically video input.
 
-先查看用户选定的实际图片/视频，记录每个 reference role 及其不可丢失的视觉锚点：主体和地标的位置、地平线与透视、镜头高度和焦段感、明暗方向、色彩与材质。图片参考分镜必须走平台确认支持的图像编辑/参考模式，请求中包含已选素材 URL；不能仅在提示词里描述原图。
+Compare source and board visually. Revise on unapproved identity/landmark or composition changes, failed strict opening alignment, discontinuity, unwanted text/watermarks, unreadable action or conflict with design intent. Intentional surreal change is not itself failure.
 
-仅当用户确定以原图为开场／首帧或要求严格延续原构图时，第一格直接使用用户选定的原图字节，不让图片模型重新绘制。仅作材质、风格、动作或主体参考时，按约定范围设计第一格，不能强制沿用来源构图。需要表现后续变化时，生成独立关键帧并保留来源角色；若要 2×2 contact sheet，在本地把原图和真实关键帧排版组合。不要要求模型一次生成整张多格板来证明连续性，这容易重构机位、地标和构图。contact sheet 只用于审阅，除非用户明确指定，不得把整张分镜板当作最终视频的首帧或唯一参考。
+Manifest storyboardQc needs verdict, reviewedAt, hardFailures and specific notes, plus aesthetics.visualHierarchy, temporalContinuity, physicalPlausibility and specificity. With references include sourceFidelity.composition, landmarks, perspective and palette. Scores are 1–5; approval needs applicable values >=4 and actual sourceRoles bindings. Never inflate scores; uncertainty means revise. Interpret physicalPlausibility within the chosen world rules.
 
-## 实际看图后评审
-
-把来源图和候选分镜同时打开，逐项写出观察，不能只复述提示词或声称“保持一致”。以下任一项出现即 `verdict: revise`：
-
-- 约定必须保留的主体、建筑、产品、人物身份或地标未经授权被改变；
-- 镜头位置、地平线、透视或构图关系明显改变，而用户没有批准改变；
-- 已约定首帧延续却不能接上来源图，或已约定连续的分镜出现非预期跳变；
-- 出现提示词禁止的文字、标签、水印、边框、人物、物件或视觉风格；
-- 关键动作读不清，时间推进重复，因果顺序错误，或特效遮蔽了叙事主体；
-- 画面虽技术正确但违背本片设计意图，或出现非预期的层次失控、模板化与无意义重复。
-
-超现实、塑料、炫光、密集图案、变形可以是设计目标。参见 [按任务意图评审](visual-review.md)：physicalPlausibility 按本片世界规则评分；sourceFidelity 仅衡量素材角色中要求保留的维度，notes 写明允许变化。
-
-通过候选在 manifest 写入 `storyboardQc`：
-
-```json
-{
-  "verdict": "pass",
-  "reviewedAt": "ISO-8601",
-  "hardFailures": [],
-  "notes": "具体说明为什么这版值得继续，不能写空泛的‘效果很好’",
-  "sourceFidelity": {
-    "composition": 4,
-    "landmarks": 4,
-    "perspective": 4,
-    "palette": 4
-  },
-  "aesthetics": {
-    "visualHierarchy": 4,
-    "temporalContinuity": 4,
-    "physicalPlausibility": 4,
-    "specificity": 4
-  }
-}
-```
-
-分数只允许 1-5。批准要求所有适用项至少 4；有参考素材时必须填写 `sourceFidelity`，每个 storyboard shot 必须用 `sourceRoles` 指向 manifest 中的实际参考角色。不要为了通过校验虚高打分；不确定就判 revise。
-
-## 主观判断与停止条件
-
-评审结论必须包含一句明确主观判断，例如“我不会把这版交给视频模型，因为房屋和机位已经改变”。不合格时展示候选和具体差异，停止在分镜阶段；用户未明确要求重新生成前，不得创建第二个图片任务。用户同意修改后，先改变一个主要变量，再以新的请求和单个幂等键生成；不要自动连抽多版。
+Give an explicit subjective judgment supported by visible evidence. If unsuitable, show differences and stop at review. A repair suggestion does not authorize another paid image/video task. Programme-specific repair preferences stay local. See [review](visual-review.md).

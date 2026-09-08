@@ -1,30 +1,48 @@
-# Seedance 2.5
+# Seedance 2.5 prompt writing
 
-依据 [官方2.5提示词指南](https://ark.volcengine.com/region:cn-beijing/docs/82379/2607689?lang=zh) 编写的原创适配摘要，核验2026-09-08。官方页面推荐 sd25-pe；本次公开分发入口未能取得可核验 Skill 文件，因此不声称捆绑 sd25-pe 原包。本指南依据已读取的官方页面，见 [来源记录](sources.md)。
+This independent guide adapts the verified [official 2.5 guide](https://ark.volcengine.com/region:cn-beijing/docs/82379/2607689?lang=zh). The official page recommends sd25-pe, but its original Skill distribution was not obtained; do not claim to bundle it. Flova is a workflow reference, not the EasyAI capability authority.
 
-## 独立版本能力
+## Write in four layers
 
-官方描述单段最长30秒、最多50份混合参考（图片30、视频10、音频10；视频和音频各自总长不超过30秒）。这是官方快照，不能覆盖 EasyAI 当前账户限制。2.5支持整数秒区间与多关键帧，不将其倒推给2.0。
+1. Define the actual input order, subjects and per-asset role. Multiple views may define one subject; explain which view supplies which evidence.
+2. Give a short premise: subject, place, event and visual treatment.
+3. Write consecutive integer-second ranges or ordered shots. Each range describes action, spatial change, camera, dialogue and effects. Use purposeful transitions and avoid accidental gaps. Reduce excess events rather than increasing billable duration without approval.
+4. State global continuity and audio rules. Keep locked identity, materials and world rules distinct from the properties intended to change.
 
-先写素材编号与具体用途，再用一句话概述主体、地点、事件与题材；按连续时间段或镜头写动作、空间、运镜、台词及音效；末尾补全片规则。时间段不留无意空隙，不用时间戳控制每秒动作次数。信息过密时减少事件，不自行增加计费时长。
+Integer time ranges are creative guidance, not a guarantee of frame-exact editing or a fixed number of actions every second. Unlike 2.0, the official 2.5 guide explicitly describes integer timelines and multiple keyframes. Do not transfer its limits to another model version.
 
-精准素材可直接指代，减少冗长复述造成冲突。多主体逐一关联形象、音色、动作与场景；多视角可服务同一主体，须写清关系。
+## References, frames and parameter locks
 
-## 任务区分
-
-| 任务 | 写法 | 官方参数语义 |
+| Official operation | Prompt responsibility | Official semantics; not EasyAI request fields |
 | --- | --- | --- |
-| 全模态参考 | 明确各素材的主体／动作／风格／声音角色 | 语义参考，不锁定输出比例与时长 |
-| 独立关键帧 | 开头声明图片顺序，逐段写衔接 | reference_image 不同于严格首尾帧 |
-| 多宫格故事板 | 格序、剧情及运动／声音 | 提供大致剧情，不保证逐格复刻；精确画面对齐选独立关键帧 |
-| 严格首帧／首尾帧 | 明确 first_frame／last_frame 角色 | ratio=adaptive，锁定首帧比例，时长可选 |
-| 编辑 | 待编辑视频、时间范围、A→B与保留项 | ratio=adaptive、duration=-1，时长跟随素材 |
-| 延长 | 指定源视频、向前／向后及衔接事件 | ratio=adaptive，时长可选；官方建议MOV保障衔接 |
+| Multimodal reference | Assign identity, movement, camera, style and sound roles | Semantic reference does not lock output ratio/duration |
+| Independent keyframes | Declare frame order and the path between anchors | Reference images differ from strict endpoint roles |
+| Storyboard grid | Identify panel order, shot mapping and movement | Approximate narrative guide, not guaranteed panel reproduction |
+| Strict first/last frame | Declare actual first_frame/last_frame roles | Adaptive ratio follows the first frame; duration selectable |
+| Edit | Source video, time scope, A→B target and preserved layers | Adaptive ratio and automatic source duration (Ark duration=-1) |
+| Prepend/append | Source, extension direction and boundary action | Adaptive ratio; selectable extension duration; official MOV guidance |
 
-**上述为官方语义，不直接把 Ark 字段放入 EasyAI 请求。** 若平台未暴露 adaptive、自动时长、素材 role 或MOV，说明对应接口缺口，不能静默降为普通图参考。编辑由提示意图触发，普通参考任务不应误写“严格编辑”。
+The official snapshot describes up to 30 seconds, 30 images, 10 videos and 10 audio assets, 50 combined; video/audio totals each at most 30 seconds. These are not account entitlements or locally verified EasyAI limits. Do not submit Ark field names, auto-duration or MOV assumptions unless the concrete EasyAI adapter supports them. Do not substitute ordinary reference for a locked edit or endpoint request.
 
-白模参考明确要继承轨迹、机位、镜头节奏还是光照；把角色图映射到白模主体。坐标轴和轨迹辅助线不属于目标场景；不可用材质升级掩盖四肢运动缺失。故事板推荐简洁清晰，细节对齐需求采用独立关键帧。
+## White-model and storyboard references
 
-## 当前 EasyAI 执行
+Specify whether a blockout controls body trajectory, object placement, camera, timing or light. Map the intended character image to the blockout subject. Exclude axes, rig handles and path guides from the output. Improved materials cannot compensate for missing action. Prefer separate clean keyframes when exact visual alignment matters; a grid serves review unless explicitly approved as input.
 
-先 models route 校验 supported_modes／mode_constraints 和引用组合；官方存在不等于当前接口已接通。循环／续写按 [VJ方法](vj-recipes.md) 构思，结果仍需实看片。全部任务遵守 [Seedance门禁](seedance-gate.md)，watermark:false。
+## Complete original example
+
+Eight-second product-film concept; use only if this duration and reference mode are supported. Image 1 must show the actual product; Image 2 is optional material/lighting guidance only when approved.
+
+```text
+Image 1 defines the perfume bottle's silhouette, cap and exact printed label. Image 2 provides only the diffuse side-light relationship and pale stone surface; do not copy its objects or text.
+A restrained product reveal in which the bottle emerges from a moving shadow.
+0–3 seconds: A fixed frontal close view shows the bottle on the stone surface. A broad shadow slides away from left to right, gradually revealing the label. The bottle stays still.
+3–6 seconds: The camera moves in a shallow arc to the right, revealing the side thickness while keeping the front label legible. The cap remains aligned with the bottle.
+6–8 seconds: The camera settles. A soft highlight travels along the shoulder and fades, ending on a stable three-quarter view.
+Preserve the bottle's proportions and exact label throughout. Sound: quiet room ambience and one soft glass resonance as the highlight appears. No speech, captions or background score.
+```
+
+For edit, replace the premise with a precise source edit and write only affected intervals plus preservation. For continuation, inspect the actual boundary frame/motion and write the new interval from that state. Do not copy the source's action twice. Preserve original dialogue and visible text; retain only approved reference labels.
+
+## Execution and review
+
+Route the exact 2.5 ID; validate mode, roles, counts, duration, resolution, ratio and audio combinations against EasyAI. Unsupported modes remain prompt-only. Follow [Seedance approval](seedance-gate.md). Inspect actual continuity and any requested timing; a successful task does not prove accurate keyframe alignment, seamless looping or final assembly.

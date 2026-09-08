@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "wowidea.project/v1",
+  "name": "Product study",
+  "theme": "Product background edit",
+  "audience": "Online customers",
+  "stage": {
+    "screens": [],
+    "viewingDistance": "",
+    "deliveryNotes": ""
+  },
+  "preferences": {
+    "styles": [],
+    "preserve": [],
+    "avoid": [],
+    "approvedDirections": []
+  }
+}

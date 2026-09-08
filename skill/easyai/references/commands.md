@@ -1,16 +1,5 @@
 # Command routing
 
-Version 0.2.4: use the installed wowidea Skill for current commands. Every Seedance video requires an explicitly approved, visually reviewed storyboard; only Seedance above 200 points requires an additional cost confirmation. Images, MiniMax and other non-Seedance tasks submit directly without automatic cost preflight or confirmation. Keep idempotency, polling and pointsUsage reporting. Historical command notes below defer to the wowidea workflow.
+Use CLI help for exact arguments. Authentication uses auth status and hidden auth use-key --prompt, not browser login. Discovery uses models list/show/route, balance and canvas project reads. Media execution, costs and recovery follow [the shared workflow](../../wowidea/references/workflow.md).
 
-Run `easyai <group> --help` when arguments are uncertain.
-
-- Authentication: `auth status|login|logout|use-key`; account keys: `api-key create|list|revoke`.
-- Discovery: `models list|show`, `balance`, `canvas project list|show`, `canvas node-types list|show|options`.
-- Images: `image generate --file request.json`, then `image status` and `image download`.
-- Videos: `video preflight --file request.json`; review quote; submit the same payload with `video generate --file request.json --quote ID`. Add `--yes --max-cost N` only after explicit approval in non-interactive work.
-- Canvas edits: node, bind, edge, group, asset, and template subcommands. Use `canvas operation` for one low-level operation and `canvas batch` for up to 100 operations.
-- Canvas execution: `canvas run PROJECT --node|--group|--all --preflight`, then repeat without `--preflight` using the quote and identical payload.
-- Task observation does not authorize cancellation. Treat cancellation, deletion, key management, mutation, and generation as separate user actions.
-- After an approved Seedance task finishes, use `seedance finalize MANIFEST --dir OUTPUT` to download outputs and create the ledger and QC artifacts. Inspect them manually; this command never regenerates.
-
-Exit codes: 2 usage, 3 auth, 4 conflict, 5 service, 6 approval, 7 budget. A network error after submission has an uncertain outcome; query by the reported idempotency key and do not resubmit.
+Canvas edits require current project state and version checks. Seedance cannot bypass its manifest through canvas execution. Observation does not authorize cancellation. Large output supports --output. Exit codes: 2 usage, 3 auth, 4 conflict, 5 service/uncertain, 6 approval, 7 budget.

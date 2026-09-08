@@ -1,58 +1,93 @@
-# MiniMax H3 / H3-Max
+# MiniMax H3 prompt writing
 
-依据 [MiniMax官方H3提示词Skill](https://github.com/MiniMax-AI/MiniMax-H3/tree/main/skills/h3-prompt-writing) 的 base-en.txt 与 ref-en.txt 编写的项目适配摘要，非原Skill拷贝。已核实官方仓库提供可供Codex使用的提示词Skill，旧版“没有官方H3规范”已过时。版本与许可状态见 [来源记录](sources.md)。
+Use this guide for H3/H3-Max prompts, not as a provider API schema. It adapts the official H3 prompt specification; attribution and snapshots are in [sources](sources.md). Communicate in the user's language. Write the model's structured prompt in English, preserving dialogue, lyrics and visible text verbatim.
 
-## 模式选择
+## Choose the creative mode
 
-| 模式 | 意图 | 提示方法 |
+| Mode | Intent | Prompt structure |
 | --- | --- | --- |
-| T2VA | 纯文本 | 构建完整声画时间线 |
-| I2VA | 严格首帧 | 从图中状态向前发展 |
-| FL2VA | 严格首尾帧 | 起态→连续变化→终态，不只复述静态图 |
-| L2VA | 严格尾帧 | 设计前态并在结束时落到尾帧 |
-| Ref2VA | 全能参考 | 定义各内容单元、参考关系及实际作用 |
+| T2VA | Build an audiovisual shot from text | Three fields |
+| I2VA | Begin at a strict first frame | Alignment line, then three fields |
+| FL2VA | Travel continuously between strict first and last frames | Alignment line, then three fields |
+| L2VA | Converge to a strict last frame | Alignment line, then three fields |
+| Ref2VA | Reuse selected identity, environment, motion, style or sound | Six fields |
 
-这些不是 EasyAI mode 别名。不可把 L2VA 当 I2VA，不可把普通图参考当严格首帧。官方开源变体4–15秒、Ref2VA 9图／3视频／3音频及总12文件的规格不自动等于H3-Max或平台限制。
+These names are creative modes, not EasyAI mode aliases. Ordinary image reference does not lock a first frame. Define references using [reference planning](reference-planning.md) before composing the prompt.
 
-## 文本／关键帧：三段结构
+## Text and keyframe structure
 
-字段按顺序：integrated_multimodal_description、overall_soundscape、non_diegetic_music。正文英文；台词、歌词、画面文字保留用户原文。静音声音字段写 N/A；若平台不能关音频，先说明，不用提示词冒充参数支持。
-
-关键帧模式在三段之前写图像对齐指令。I2VA：`For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.`
-FL2VA：`How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot N) aligns with the S.SS-second mark of the target video.`
-L2VA：`How the reference pictures align with the target video — <Picture 1> (from [Shot N]) aligns with the S.SS-second mark of the target video.`
-用实际末镜编号替换N，S.SS为总时长两位小数，对齐行后空一行。不是 API 字段。
-
-项目原创8秒静音示例（执行前校验能力）：
+Use these fields in this order, separated by blank lines:
 
 ```text
-integrated_multimodal_description: [Shot 1] A wide frontal view reveals a floating black prism above a reflective floor. Its planes peel outward into broad crimson ribbons while the camera holds a static shot. The ribbons keep the central void readable. [Shot 2] At 00:05.000, the camera cuts to a low-angle view as the ribbons fold into a luminous arch, preserving the dark opening at its centre.
+integrated_multimodal_description: [Shot 1] Establish the visual style, framing, subjects and current state, then describe action, camera, sound and the resulting state.
 
-overall_soundscape: N/A
+overall_soundscape: Describe environmental and physical sounds across the clip.
+
+non_diegetic_music: Describe music heard only by the audience, or N/A when no score is wanted.
+```
+
+For I2VA, prepend exactly:
+`For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.`
+
+For FL2VA, prepend:
+`How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot N) aligns with the S.SS-second mark of the target video.`
+
+For L2VA, prepend:
+`How the reference pictures align with the target video — <Picture 1> (from [Shot N]) aligns with the S.SS-second mark of the target video.`
+
+Replace N with the actual last shot and S.SS with the duration to two decimals. Leave a blank line after alignment. I2VA develops from the observed image; FL2VA describes the intermediate path, not two unrelated pictures; L2VA designs an opening that can plausibly reach the target. Never invent unobserved source details.
+
+## Shot and audio grammar
+
+- The opening `[Shot 1]` has no timestamp. Subsequent cuts use `[Shot N] At MM:SS.mmm, ...`, increasing and inside the requested duration. Do not write more action than the clip can communicate.
+- Write camera motion in natural language, with direction, scale and endpoint when useful. Keep performance, object motion, camera motion and environmental motion distinguishable.
+- Give vocal sources stable `(S1)`, `(S2)` IDs; silent characters do not need speaker IDs. Establish voice identity and delivery outside the dialogue tag. Use `<d>[Language] exact words</d>` without translating supplied text.
+- For voiceover use `says in an off-screen voiceover`; when referring to an on-screen speaker, state after the dialogue that their lips remain closed.
+- A line crossing a cut uses `<scenetrans>` at both connecting points and explicit continuous-audio prose. Use `<cutoff>` for speech deliberately cut off by the end.
+- Put visible text in English double quotes, preserving its original spelling. Do not invent captions because speech exists.
+- `overall_soundscape` describes ambience, impacts, breathing and other physical sounds; do not repeat dialogue or diegetic music already placed in the timeline. Use N/A for full silence only when requested. Prompt silence cannot override a platform that always outputs audio.
+
+## Ref2VA: six fields
+
+1. `subject_definitions`: one line per content entity. `<Subject N>` denotes reusable visible content, including people, objects, scenes, style or action. Cite the source `<Picture N>` or `<Video N>`. An entity may draw appearance and motion from different sources. A source-only picture need not have a separate definition; define it separately when it serves as a frame/composition/storyboard anchor. `<Video N>` identifies source editing, continuation or temporal structure. `<Audio N>` identifies an explicitly enabled audio signal. Keep its speaker ID consistent with the global speaker order.
+2. `summary`: begin with the applicable bracketed task types: `reference generation`, `keyframe completion`, `video editing`, `video continuation`, `audio reuse`, `audio reference`; combine with ` + `. Mere media presence does not imply editing or reuse. For an edit begin the body with `The target video is an edited version of <Video 1>.`
+3. `retention_analysis`: give each tracked entity its shot/scope and retention marker. Visual: `fully_preserved`, `partially_preserved`, `attribute_transfer`, `weak_reference`. Audio: `fully_copy`, `partially_copy`, `reference`, `weak_reference`. Judge fidelity within the defined role; a new background is not identity loss when only identity was locked.
+4. `detailed_description`: establish style before `[Shot 1]`; describe each shot's composition, appearance, position, environment, light, action, camera, sound and state change. Insert labels where their role actually takes effect. Do not substitute a list of references for a shootable scene.
+5. `overall_soundscape`: environmental and physical audio, including relevant audio references.
+6. `non_diegetic_music`: audience-only score, or N/A.
+
+Image/video/audio indices are independent. A video's soundtrack is not an audio reference unless explicitly enabled. Do not emit undefined labels or Flova `<<<image_N>>>` tokens as H3's native grammar.
+
+## Complete original examples
+
+Text-only product vignette, four-second concept:
+
+```text
+integrated_multimodal_description: [Shot 1] A frontal close view of an unbranded ceramic cup on a pale oak table. A thin ribbon of steam rises and bends toward an open window on the left. The camera slowly moves closer, ending with the cup rim and steam in focus. The cup and table remain still; morning window light reveals the glaze's slight unevenness.
+
+overall_soundscape: Quiet room tone and distant leaves moving outside the window.
 
 non_diegetic_music: N/A
 ```
 
-第一镜不加时间戳；后续切镜用递增 `[Shot N] At MM:SS.mmm`，小于总时长。运镜用自然动作，必要时给幅度和速度；区分推镜与变焦。对白主体稳定编号(S1)/(S2)，用 `<d>[Chinese] 原文台词</d>`；声线、表情写标签外。画面文字用英文双引号包裹原文。环境／动作声音和背景配乐分段，不重复台词。
+Single-image ordinary reference, four-second concept (Picture 1 must actually contain the described bag):
 
-## 全能参考：六段结构
+```text
+subject_definitions: <Subject 1> is the canvas bag from <Picture 1>, retaining its silhouette, handles, stitched pocket and printed label.
 
-全部段落按以下顺序用英文，细节应足以指导画面，不仅列素材关系：
+summary: [reference generation] Present <Subject 1> on a warm grey tabletop while moving from a frontal to a slight three-quarter view.
 
-1. subject_definitions：`<Subject N>` 为主体、场景、动作或风格内容；`<Picture N>` 为图源／帧锚点；`<Video N>` 为编辑、延长或时间结构来源；`<Audio N>` 为明确启用的声音来源。一个内容实体可由多份素材定义。
-2. summary：方括号任务类型从 reference generation、video editing、video continuation、keyframe completion、audio reuse、audio reference 选择实际适用项，可用 ` + ` 组合。
-3. retention_analysis：逐标签解释出现镜头与保留维度。视觉标记为 fully_preserved / partially_preserved / attribute_transfer / weak_reference；声音标记为 fully_copy / partially_copy / reference / weak_reference。
-4. detailed_description：按播放顺序写构图、主体状态、环境光线、动作、镜头与声音，在实际生效处使用标签。
-5. overall_soundscape：全片环境及动作声音。
-6. non_diegetic_music：仅观众听到的非场内配乐；无配乐写N/A。
+retention_analysis: <Subject 1> (appears in [Shot 1]): fully_preserved - preserve bag identity and label; replace the source background and allow the viewing angle to change.
 
-音视频标签独立编号；视频含音轨不等于批准参考声音。fully_preserved 只针对定义的参考维度，新增背景不必然降低主体身份保真。禁止未定义标签；参考来源和模型标签映射参见 [素材计划](reference-planning.md)。
+detailed_description: A tactile product film with broad soft window light. [Shot 1] <Subject 1> stands upright at centre. The camera makes a shallow arc to the right, revealing the side seam while keeping the printed label readable. The handles settle slightly; the bag does not rotate independently. The shot ends in a stable three-quarter composition.
 
-## 当前 EasyAI 适配
+overall_soundscape: Quiet room tone with a faint cloth rustle as the handles settle.
 
-只使用账号目录内精确H3/H3-Max ID与已验证supported_modes、mode_constraints。全参考、尾帧或音频复用未被验证时，只交付提示词与缺口，不切换供应商。官方H3-Regenerate-2K是另一阶段，不自动增加第二个付费任务。执行遵守 [异步恢复](workflow.md)。
+non_diegetic_music: N/A
+```
 
+## EasyAI execution boundary
 
-CLI 已核验纯文本的 `prompt → content[type=text]` 映射，以及图片参考的 `mode:image_reference → videoGenerateMode:omni_reference` 映射。图片按 `image_urls` 顺序写入 `content`，每项为 `type:image_url`、`role:reference_image` 和 `image_url:{url}`；提示词的 `<Picture N>` 必须使用同一顺序。这是 Ref2VA 普通参考，不是严格首帧。重复图片会使上游去重后编号变化，因此提交前拒绝重复 URL。
+Run `models route --kind video --model MiniMax-H3` (or the exact H3-Max ID). Current verified adapters cover text-only and image-only reference. Text becomes `content:[{type:"text",text:prompt}]`. `mode:image_reference` becomes `videoGenerateMode:omni_reference`; ordered images become `type:image_url`, `role:reference_image`, `image_url:{url}` entries. Retain the same image array order and reject duplicates or conflicting native content.
 
-此适配器暂限纯文本和仅图片参考：图参考必须有图，不接受偷偷加入音视频或与原生 content／mode 冲突的参数。视频、音频混合全能参考及严格关键帧的原生提交仍需独立契约验证，不能凭本次图片测试宣称全部模式通过。实时目录仍负责数量、时长、分辨率及音频能力校验。
+Image-only live validation used 4 seconds, 720p, 16:9, audio:true, watermark:false. This is evidence, not a universal default: the returned dimensions/duration differed slightly from the request. H3-Max, mixed video/audio, strict keyframes, edit and continuation still require their own verified platform mapping. A catalogue listing alone does not prove the native request adapter. Write their prompts but stop unsupported submission. Never silently map 720p to Flova's 768p or launch an H3 regeneration/upscale paid stage. Follow [execution](workflow.md).

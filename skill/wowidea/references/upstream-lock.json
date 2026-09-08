@@ -175,7 +175,7 @@
       "applicableModels": [
         "model-independent creative workflow"
       ],
-      "summary": "Studied locally installed Flova SKILL.md and Skill Builder: project lifecycle, decision-focused rules and module separation. Public site is attribution only, not a verified Skill download. No local licence file found; no original text, configuration, credentials or media redistributed. Adapted for Codex decisions and EasyAI execution.",
+      "summary": "Studied locally installed Flova SKILL.md and Skill Builder: project lifecycle, decision-focused rules and module separation. Public site is attribution only, not a verified Skill download. No local licence file found; no original text, configuration, credentials or media redistributed. Adapted for Codex decisions and EasyAI execution. Model Knowledge inspected for task separation, concise edit prompts and capability boundaries. Flova tags, model defaults and limits deliberately not ported.",
       "files": [
         {
           "path": "SKILL.md",
@@ -184,6 +184,85 @@
         {
           "path": "references/skill-builder.md",
           "sha256": "102f96ab5b76c77cfc51bdf49f5bcaf24a18a502b707a1c7292332f74f01b5e5"
+        },
+        {
+          "path": "references/model-knowledge.md",
+          "sha256": "07f199baa3132188344ea5b7fed8bd70799b43b862084b66dd6ecf3c61028b2f"
+        }
+      ]
+    },
+    {
+      "id": "seedance-local-prompt",
+      "url": "https://github.com/Emily2040/seedance-2.0",
+      "revision": "local installed snapshot; upstream commit not independently established",
+      "verifiedAt": "2026-09-08",
+      "license": "MIT",
+      "strategy": "selected-method-adaptation-with-notice",
+      "applicableModels": [
+        "Seedance 2.0"
+      ],
+      "summary": "Selected director formula, reference authority and compression methods adapted with attribution; no platform scripts or universal safety/approval gates copied.",
+      "files": [
+        {
+          "path": "skills/seedance-prompt/SKILL.md",
+          "sha256": "6e37f1cd3a93b66b74048c979baf42765240239a83c04e1c0675b8a031c28364"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "c84a6216f6e006b4e4a65e9d056837a61ee9c4ca79f43f386df2992bc690a7f6"
+        }
+      ]
+    },
+    {
+      "id": "nano-banana-local",
+      "url": "https://github.com/Salvatore0104",
+      "revision": "local installed snapshot; upstream commit not independently established",
+      "verifiedAt": "2026-09-08",
+      "license": "MIT",
+      "strategy": "selected-method-adaptation-with-notice",
+      "applicableModels": [
+        "Nano Banana family"
+      ],
+      "summary": "Local MIT Skill by Salvatore0104; selected edit/restoration methods adapted, credentials, GRSAI code and fixed limits excluded. URL identifies author only; distribution repository not established.",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "d997a355ef17a6ab42d55b17b922a74ead4c2541ca619b6dbb9c5ca6792fb1be"
+        },
+        {
+          "path": "references/prompt-optimization.md",
+          "sha256": "2c1253e9994bc09bab5be9d963406024bf66bb38d54ce523df10743d923fb878"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "85bd9b7deaf2c54bc4d96af571e43d519e0892880c1740c4d97741f5bce64a62"
+        }
+      ]
+    },
+    {
+      "id": "h3-local-prompt",
+      "url": "https://github.com/MiniMax-AI/MiniMax-H3",
+      "revision": "local installed snapshot; upstream commit not independently established",
+      "verifiedAt": "2026-09-08",
+      "license": null,
+      "strategy": "original-summary-and-required-syntax",
+      "applicableModels": [
+        "MiniMax-H3",
+        "MiniMax-H3-Max"
+      ],
+      "summary": "Local official-structure guide inspected; original summary and necessary syntax only, no full unlicensed source redistribution.",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "a7000443588ca3f145e3b3fd8900f14e0325dc460bd811268fac89a9dc8e56d0"
+        },
+        {
+          "path": "references/base-en.txt",
+          "sha256": "2cfebc096a6e08370f288d468d90b60f7f9bcb938f94bf090816e910e48e75fc"
+        },
+        {
+          "path": "references/ref-en.txt",
+          "sha256": "1e574f356716ad55612247ffb7bbccbcdb484ad96599d63c7dca1af186b1fab7"
         }
       ]
     }

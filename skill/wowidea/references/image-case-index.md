@@ -1,16 +1,16 @@
-# 精选案例索引
+# Curated image methods
 
-用途是提取设计方法，不直接复刻社区作品或宣称在本平台已复现。上游图片不随包下载；随包包含原创方法和小型可检索元数据，联网不可用仍可创作。具体来源提交与文件摘要见 [upstream-lock.json](upstream-lock.json)。
+Use cases for methods, not imitation or API claims. No upstream example media is bundled. Revisions and digests are in [upstream-lock.json](upstream-lock.json).
 
-| 来源／案例 | 借鉴问题 | 按设计用途改写 |
-| --- | --- | --- |
-| [PicoTrex](https://github.com/PicoTrex/Awesome-Nano-Banana-images) Pro例9：生成材质贴图（@someidesign） | 怎样具体定义材料而非堆质感形容词 | 把反射、透射、颗粒尺度分配到主轮廓和细节区域 |
-| 同库Pro例10：为城市图片添加巨大生物（@AI_GIRL_DESIGN） | 如何用尺度失衡制造超现实 | 保留尺度锚点，让主形象与所在空间形成反差 |
-| 同库Pro例27：电影分镜制作（@jamesyeung18） | 每个关键帧是否带来新信息 | 先明确镜头职责，再独立生成并审阅 |
-| [EvoLinkAI](https://github.com/EvoLinkAI/awesome-gpt-image-2-API-and-Prompts) Case2：9-Panel Product TVC Storyboard（@Magncsans） | 系列镜头如何共享形象与材质 | 借鉴视觉一致性，不照搬九格数量或把审核板当唯一输入 |
-| [freestylefly](https://github.com/freestylefly/awesome-gpt-image-2) architecture-space，例331/11 | 视角、尺度、空间职责 | 用于建筑、展陈或超现实空间概念，允许有意透视异常 |
-| 同库 illustration-art-style，例346/6 | 材质与构图如何相互支撑 | 按本次设计方向进行材质实验 |
-| 同库 scene-storytelling，例330 | 环境细节是否推动事件 | 用于叙事的状态递进与世界规则 |
-| 同库 conceptual-typography-poster，例355 | 字体如何成为主结构 | 用于海报、封面等需要文字构成主形象的任务 |
+| Source | Method |
+| --- | --- |
+| [PicoTrex](https://github.com/PicoTrex/Awesome-Nano-Banana-images), Pro 9, @someidesign | Material-scale reflection, transmission and texture |
+| Same source, Pro 10, @AI_GIRL_DESIGN | Surreal scale with environmental anchors |
+| Same source, Pro 27, @jamesyeung18 | Distinct shot duties |
+| [EvoLinkAI](https://github.com/EvoLinkAI/awesome-gpt-image-2-API-and-Prompts), Case 2, @Magncsans | Product identity across commercial shots |
+| [freestylefly](https://github.com/freestylefly/awesome-gpt-image-2), architecture-space | Viewpoint, scale and hierarchy |
+| Same source, illustration-art-style | Medium and composition |
+| Same source, scene-storytelling | Environment advancing an event |
+| Same source, conceptual-typography-poster | Exact text as image structure |
 
-只有最后四类模板的精简元数据按MIT随包，保留 [许可证](freestylefly-MIT.txt)。PicoTrex README徽标与LICENSE存在差异，其他社区图片也含第三方作者；本包不复制这些示例媒体或完整提示词。
+Four small MIT entries are in [image-style-selection.json](image-style-selection.json), with [notice](freestylefly-MIT.txt). Other content is indexed or originally summarized; repository licensing does not establish rights to every contributed image. Adapt to the task, not automatically stage design.

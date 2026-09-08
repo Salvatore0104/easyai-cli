@@ -1,0 +1,4 @@
+interface:
+  display_name: "Seedance 2.5 Prompts (Wowidea)"
+  short_description: "Model-specific prompts and reference planning"
+  default_prompt: "Use $wowidea-seedance-25-prompt to write a precise prompt for my design task."
