@@ -1,4 +1,3 @@
-// Billing is intentionally omitted from public CLI responses. The platform may still return
-// provider-specific accounting fields internally; they are not interpreted or surfaced here.
+/** Compatibility no-op: billing details are intentionally never exposed. */
 export function pointsUsage(_value: unknown): null { return null; }
-export function withPointsUsage(value: unknown): unknown { return value; }
+export function withPointsUsage<T>(value: T): T { return value; }

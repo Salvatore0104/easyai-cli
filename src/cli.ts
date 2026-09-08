@@ -13,7 +13,6 @@ import { CliError, ExitCode, redact } from "./errors.js";
 import { emit, OutputOptions } from "./output.js";
 import { localQuote, payloadHash, Quote, saveQuote } from "./preflight.js";
 import { approveManifest, creativeHash, readManifest, seedancePayload, uploadReferences, validateManifest, validateStoryboardQc } from "./seedance.js";
-import { pointsUsage, withPointsUsage } from "./usage.js";
 import { submitAsyncWithRecovery, submitImageWithRecovery, listSubmissions, recoverSubmission, taskStatus, taskRows } from "./submission.js";
 import { routeModel, validateCapabilities } from "./models.js";
 import { initProject, readProject, recordCreation } from "./project.js";
@@ -82,11 +81,11 @@ models.command("show").argument("<id>").action(async id => { const result = awai
 models.command("route").requiredOption("--kind <image|video>").option("--model <name>").action(async (o, c) => { const defaults = await creativeDefaults(); await output(routeModel(await (await apiFor(c)).get("/v1/models"), o.kind, o.model || defaults[o.kind as "image" | "video"]), c); });
 const tasks = program.command("tasks").description("Persisted submissions; recovery never submits another task");
 tasks.command("list").action(async (_o, c) => output(await listSubmissions(await apiFor(c)), c));
-tasks.command("resume").argument("<idempotencyKey>").action(async (key, _o, c) => output(withPointsUsage(await recoverSubmission(await apiFor(c), key)), c));
+tasks.command("resume").argument("<idempotencyKey>").action(async (key, _o, c) => output((await recoverSubmission(await apiFor(c), key)), c));
 program.command("balance").action(async (_o, c) => output(await (await apiFor(c)).get("/v1/balance"), c));
 
 function taskCommands(parent: Command, media: "image" | "video") {
-  parent.command("status").argument("<taskId>").action(async (id, _o, c) => output(withPointsUsage(await (await apiFor(c)).get(`/v1/tasks/${enc(id)}`)), c));
+  parent.command("status").argument("<taskId>").action(async (id, _o, c) => output((await (await apiFor(c)).get(`/v1/tasks/${enc(id)}`)), c));
   parent.command("download").argument("<taskId>").option("--dir <path>", "download directory", ".").action(async (id, o, c) => { const value = await (await apiFor(c)).get(`/v1/tasks/${enc(id)}`); await output({ taskId: id, paths: await downloadUrls(findUrls(value), resolve(o.dir)) }, c); });
   parent.command("watch").argument("<taskId>").option("--interval <ms>", "poll interval", "2000").action(async (id, o, c) => watchTask(await apiFor(c), id, Number(o.interval), c));
   if (media === "video") {
@@ -100,10 +99,10 @@ dataOptions(image.command("generate")).requiredOption("--idempotency-key <key>")
   if (/seedance/i.test(String(payload.model))) throw new CliError("Seedance requires video generate --manifest.", ExitCode.Approval);
   const api = await apiFor(c);
   // A repeated invocation recovers the same task before any new submission.
-  if ((await listSubmissions(api)).some(r => r.idempotencyKey === o.idempotencyKey)) { const recovered = await recoverSubmission(api, o.idempotencyKey); await output(o.wait ? await completeGeneration(api, recovered, "image", o.dir) : withPointsUsage(recovered), c); return; }
+  if ((await listSubmissions(api)).some(r => r.idempotencyKey === o.idempotencyKey)) { const recovered = await recoverSubmission(api, o.idempotencyKey); await output(o.wait ? await completeGeneration(api, recovered, "image", o.dir) : (recovered), c); return; }
   const selected = routeModel(await api.get("/v1/models"), "image", payload.model ? String(payload.model) : (await creativeDefaults()).image); payload.model = selected.model; validateCapabilities(selected, payload);
   const submitted = await submitDirect(api, "/v1/images/generations", payload, o);
-  await output(o.wait ? await completeGeneration(api, submitted, "image", o.dir) : withPointsUsage(submitted), c);
+  await output(o.wait ? await completeGeneration(api, submitted, "image", o.dir) : (submitted), c);
 });
 taskCommands(image, "image");
 
@@ -147,7 +146,7 @@ dataOptions(video.command("generate")).requiredOption("--idempotency-key <key>")
     if (selected.approvalRequired) throw new CliError("Seedance requires an approved manifest.", ExitCode.Approval);
     payload.model = selected.model; payload = prepareVideoPayload(payload); validateCapabilities(selected, payload);
     const submitted = await submitDirect(api, "/v1/video/generations", payload, o);
-    await output(o.wait ? await completeGeneration(api, submitted, "video", o.dir) : withPointsUsage(submitted), c); return;
+    await output(o.wait ? await completeGeneration(api, submitted, "video", o.dir) : (submitted), c); return;
   }
   let initialCreativeHash: string | undefined;
   if (o.manifest) {
@@ -168,7 +167,7 @@ dataOptions(video.command("generate")).requiredOption("--idempotency-key <key>")
     if (!taskId) throw new CliError("Submission returned no task ID; the manifest was not advanced and no retry was made.", ExitCode.Service);
     manifest.state = "submitted"; manifest.taskId = taskId; await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
   }
-  await output(o.wait ? await completeGeneration(api, result, "video", o.dir) : withPointsUsage(result), c);
+  await output(o.wait ? await completeGeneration(api, result, "video", o.dir) : (result), c);
 });
 taskCommands(video, "video");
 
@@ -180,7 +179,7 @@ async function watchTask(api: EasyAiApi, id: string, interval: number, cmd: Comm
     const task = await api.get<any>(`/v1/tasks/${enc(id)}`); const status = taskStatus(task);
     const terminal = ["completed", "succeeded", "success", "failed", "error", "cancelled", "canceled"].includes(status);
     if (globals(cmd).jsonl) await output({ taskId: id, status, cursor,  }, cmd);
-    if (terminal) { if (!globals(cmd).jsonl) await output(withPointsUsage(task), cmd); return; }
+    if (terminal) { if (!globals(cmd).jsonl) await output((task), cmd); return; }
     await new Promise(r => setTimeout(r, Math.max(250, interval)));
   }
   throw new CliError(`Watch deadline reached; resume status/watch for task ${id}. No new task was submitted.`, ExitCode.Service);
@@ -246,10 +245,10 @@ dataOptions(canvas.command("run")).argument("<projectId>").addOption(new Option(
   if (o.preflight) { await output(await preflight(api, "canvas", `/v1/canvas-workflow/projects/${enc(p)}/executions/preflight`, payload), c); return; }
   const state = await api.get(`/v1/canvas-workflow/projects/${enc(p)}/state`);
   if (/seedance/i.test(JSON.stringify(state))) throw new CliError("Canvas containing Seedance must use video generate --manifest; canvas approval bridging is not implemented.", ExitCode.Approval);
-  await output(withPointsUsage(await submitDirect(api, `/v1/canvas-workflow/projects/${enc(p)}/executions`, payload, o)), c);
+  await output((await submitDirect(api, `/v1/canvas-workflow/projects/${enc(p)}/executions`, payload, o)), c);
 });
 const canvasTask = canvas.command("task");
-canvasTask.command("show").argument("<projectId>").argument("<taskId>").action(async (p, t, _o, c) => output(withPointsUsage(await (await apiFor(c)).get(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}`)), c));
+canvasTask.command("show").argument("<projectId>").argument("<taskId>").action(async (p, t, _o, c) => output((await (await apiFor(c)).get(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}`)), c));
 canvasTask.command("events").argument("<projectId>").argument("<taskId>").option("--cursor <cursor>").action(async (p, t, o, c) => output(await (await apiFor(c)).get(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}/events${o.cursor ? `?cursor=${enc(o.cursor)}` : ""}`), c));
 canvasTask.command("watch").argument("<projectId>").argument("<taskId>").option("--interval <ms>", "poll interval", "2000").action(async (_p, t, o, c) => watchTask(await apiFor(c), t, Number(o.interval), c));
 canvasTask.command("cancel").argument("<projectId>").argument("<taskId>").action(async (p, t, _o, c) => output(await (await apiFor(c)).post(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}/cancel`), c));

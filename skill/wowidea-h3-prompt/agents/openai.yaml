@@ -1,4 +1,0 @@
-interface:
-  display_name: "MiniMax H3 Prompts (Wowidea)"
-  short_description: "Model-specific prompts and reference planning"
-  default_prompt: "Use $wowidea-h3-prompt to write a precise prompt for my design task."

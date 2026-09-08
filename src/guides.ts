@@ -16,21 +16,13 @@ export const guideRegistry = [
   ["seedance-gate", "Seedance approval and execution"], ["storyboard-quality", "Storyboard quality"],
   ["image-case-index", "Curated image methods"], ["sources", "Sources and licences"], ["workflow", "Execution and recovery"],
 ].map(([id, title]) => ({ id: id!, title: title!, guide: `references/${id}.md`, version: guideVersion }));
-export const promptSkills: Record<string, string> = {
-  "minimax-h3": "wowidea-h3-prompt",
-  "seedance-20": "wowidea-seedance-20-prompt",
-  "seedance-25": "wowidea-seedance-25-prompt",
-  "gpt-image": "wowidea-gpt-image-prompt",
-  "nano-banana": "wowidea-nano-banana-prompt",
-};
+export const promptSkills: Record<string, string> = {};
 export function guideInfo(id: string) {
   const entry = guideRegistry.find(g => g.id === id);
   if (!entry) throw new CliError("Unknown guide; use guides list.", ExitCode.Usage);
   // Both src and bundled dist are one level below the package root. Never use cwd or a mutable installed Skill copy.
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "../skill");
-  const promptSkill = promptSkills[id];
-  return { ...entry, path: resolve(root, "wowidea", entry.guide),
-    ...(promptSkill ? { promptSkill, promptSkillPath: resolve(root, promptSkill, "SKILL.md") } : {}) };
+  return { ...entry, path: resolve(root, "wowidea", entry.guide), promptSkill: undefined as string | undefined, promptSkillPath: undefined as string | undefined };
 }
 export async function showGuide(id: string) {
   const info = guideInfo(id);

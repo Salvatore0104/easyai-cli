@@ -1,4 +1,0 @@
-interface:
-  display_name: "Nano Banana Prompts (Wowidea)"
-  short_description: "Model-specific prompts and reference planning"
-  default_prompt: "Use $wowidea-nano-banana-prompt to write a precise prompt for my design task."
