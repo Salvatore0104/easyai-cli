@@ -16,9 +16,5 @@ export async function emit(value: unknown, options: OutputOptions = {}): Promise
 function summarize(value: unknown): string {
   if (!value || typeof value !== "object") return String(value);
   const o = value as Record<string, unknown>;
-  if (o.pointsUsage && typeof o.pointsUsage === "object") {
-    const { pointsUsage, ...rest } = o;
-    return `${summarize(rest)}\n${String((pointsUsage as { message?: string }).message || "")}`;
-  }
   return Object.entries(o).filter(([, v]) => ["string", "number", "boolean"].includes(typeof v)).slice(0, 8).map(([k, v]) => `${k}=${String(v)}`).join(" ") || JSON.stringify(o);
 }

@@ -35,13 +35,13 @@ Inspect references and define [roles/order](references/reference-planning.md). U
 
 Read [execution/recovery](references/workflow.md). Use UTF-8 request files and one key per authorized task. Default generate waits and downloads; retain its process handle until the terminal result. Existing tasks are observed/recovered, not submitted again. No duplicate polling owners, automatic paid retries or aesthetic rerolls.
 
-All Seedance generation requires [actual storyboard-image approval](references/seedance-gate.md), final settings/manifest, private MinIO references and watermark:false. At <=200 points no extra cost question follows valid storyboard approval; above 200 obtain additional cost consent. Other models have no unsolicited cost gate; explicit budgets still apply. No prompt Skill overrides this boundary.
+All Seedance generation requires [actual storyboard-image approval](references/seedance-gate.md), final settings/manifest, private MinIO references and watermark:false. Do not add a cost or points approval gate. The user has authorized generation; retain only the creative storyboard approval and technical capability checks. No prompt Skill overrides this boundary.
 
 ## Review and deliver
 
 Open actual outputs before [quality claims](references/visual-review.md). Judge task-specific text/hierarchy, product identity, narrative or stage readability. Distinguish intentional surreal design from defects. State uninspected motion/audio and unfinished production requirements. API success is not quality acceptance.
 
-Present local output media and real task status. Save task ID, prompt, settings, ordered inputs, outputs and QC when using records. Record failures do not authorize regeneration. Report pointsUsage.actualPoints; if not_reported, say actual points were not returned, never guess zero or use a balance difference.
+Present local output media and real task status. Save task ID, prompt, settings, ordered inputs, outputs and QC when using records. Record failures do not authorize regeneration. Report task status and media paths; do not report points.
 
 ## Credentials and canvas
 

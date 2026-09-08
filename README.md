@@ -84,30 +84,9 @@ $wowidea 继续查看刚才的视频任务
 
 内置 Nano Banana 2/Pro/2 Lite、GPT Image 2、MiniMax H3/H3-Max、Google Omni、Wan3.0/Prime、Seedance 2.0/fast/2.5 指南；本次实时目录还发现 2.0-mini，一并支持。运行时以当前账号模型目录为准，Google Omni 不推定上游型号，2.5 不继承 2.0 的参数限制。
 
-## 异步任务与费用控制
+## 异步任务与生成
 
-图片和视频都按“准备 → 提交一次 → 保存 ID → 轮询 → 下载”处理。`image generate` 和 `video generate` 默认等待完成并下载到 `--dir`（默认 `wowidea-output`），JSON 返回可直接展示的绝对 `paths`；只有明确需要后台提交时才使用 `--no-wait`。提交前保存幂等键、请求 hash 和任务快照；断网、超时或重启只恢复查询。旧服务器不返回幂等键时，仅在快照中恰好出现一个时间和媒体类型匹配的新任务才恢复，绝不取列表第一项或再次 POST。相同 payload 即使换新键也会被阻止；只有用户明确要求另一版时才能使用 `--allow-reroll`。
-
-```text
-wowidea --json models route --kind video --model MiniMax
-wowidea --json image generate --file request.json --idempotency-key <UUID>
-wowidea --json video generate --file minimax-request.json --idempotency-key <UUID>
-wowidea --json tasks list
-wowidea --json tasks resume <幂等键>
-wowidea --json video watch <taskId>
-wowidea --json video download <taskId> --dir <绝对目录>
-```
-
-watch 最长 30 分钟；超时或中断后再次查询同一 ID。下载仅读取结果媒体。大 JSON 使用全局 --output 导出。
-
-费用监控**只针对 Seedance 视频：预计 ≤200 积分不追加费用确认，>200 积分才确认费用**。恰好 200 不做费用确认。图片、MiniMax、Google Omni、Wan 等其他生成直接提交，不要求预检报价、--yes 或 --max-cost；普通画布任务也不设置费用确认门槛。异步轮询、下载和实际积分报告照常进行。只有用户另行明确设置预算时才使用费用上限参数。
-
-批准生成前始终展示最终镜头、模式、完整计费设置、素材角色／数量、尾帧选择与 watermark:false；200 积分阈值不会免除设置展示。所有 Seedance 都必须先展示经过实际看图与主观审美检查的分镜，由用户明确批准。参考模式下每个分镜镜头必须绑定实际 reference role；分镜图不会自动充当视频输入。批准后仍保持 `watermark:false`：预计 ≤200 不再问费用，>200 再确认模型、时长、比例、分辨率、声音、参考数量和费用。素材、分镜或设置变化会使批准失效。
-
-生成完成后输出“本次实际使用 X 积分”。JSON 的 pointsUsage 包含 actualPoints、status、source；status/watch/download/resume/finalize 都报告。实际积分只读取任务结算字段，未返回则显示“平台未返回本任务实际使用积分”，不把估算、token 数或账户余额差当实扣。
-
-[Seedance 操作规范](skill/wowidea/references/seedance-gate.md)包含私有 MinIO、manifest、预检、下载及 QC。未知报价不能提交；报价后端未部署时只完成创作准备并报告阻塞。包含 Seedance 的画布执行目前阻止直提，需走 video generate --manifest。
-
+生成不设置积分、报价或费用阈值；结果只返回任务状态、媒体路径和质量检查。
 ## 安装保存了什么
 
 系统凭据库保存账号 API Key；~/.config/easyai（或 EASYAI_CONFIG_DIR）保存非秘密默认模型、安装版本、任务索引与报价 hash。任务索引按服务器及凭据分区，换 Key 后可用已知 taskId 查询；不会把旧 Key 的任务错误关联到新账号。
@@ -125,7 +104,7 @@ npm pack --dry-run
 
 当前发布只保留[使用与维护](docs/usage.md)、[验证范围](docs/validation.md)和必要示例。英文Skill与五个独立模型提示词入口随包安装；既有实测不扩大为所有模型或模式均已验收。
 
-退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少审批，7 超费用上限。
+退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少创意审批。
 
 ## 卸载
 

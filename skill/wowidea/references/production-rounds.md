@@ -10,4 +10,4 @@ Example: a bag-background edit retains geometry, label and crop, replacing the b
 
 Keep the default CLI process attached until its final envelope. If the host returns a session handle, read that process. One process owns polling. Quiet output or completion notifications are not final results. After interruption, recover the existing task before any resend decision.
 
-Present usable outputs and meaningful status changes. Partial success is not full completion. Review before recommending another round; QC never authorizes paid regeneration. Deliver files, status, QC and points. State unfinished assembly or format requirements without pretending media downloads are final exports. See [execution](workflow.md).
+Present usable outputs and meaningful status changes. Partial success is not full completion. Review before recommending another round; QC never authorizes paid regeneration. Deliver files, status, QC . State unfinished assembly or format requirements without pretending media downloads are final exports. See [execution](workflow.md).

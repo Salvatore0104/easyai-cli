@@ -13,7 +13,7 @@ async function run(args: string[], env: Record<string, string>) {
   });
 }
 describe("CLI gates with a mock website", () => {
-  it.each([{ kind: "image", cost: 1000, code: 0 }, { kind: "minimax", cost: 1000, code: 0 }, { kind: "video", cost: 200, code: 0 }, { kind: "video", cost: 201, code: 6 }])("$kind at $cost points applies the cost policy after required creative approval", async ({ kind, cost, code }) => {
+  it.each([{ kind: "image", cost: 1000, code: 0 }, { kind: "minimax", cost: 1000, code: 0 }, { kind: "video", cost: 200, code: 0 }, { kind: "video", cost: 201, code: 0 }])("$kind generation does not apply a cost policy", async ({ kind, cost, code }) => {
     let submissions = 0, preflights = 0;
     const catalog = [{ id: "Nano Banana 2", capabilities: { image_generate: {} } }, { id: "豆包Seedance-2.0", capabilities: { omni_video: { supported_modes: ["text_to_video"], duration_range: [4, 15], output_resolutions: ["720p"], aspect_ratio_allowed: ["16:9"], output_audio: true } } }];
     catalog.push({ ...catalog[1]!, id: "MiniMax-H3" });
@@ -37,7 +37,7 @@ describe("CLI gates with a mock website", () => {
         expect((await run(["seedance", "payload", manifest, "--file", request], env)).code).toBe(0);
         expect((await run(["video", "preflight", "--file", request], env)).code).toBe(0);
         expect((await run(["seedance", "approve", manifest, "--confirmation", "I APPROVE STORYBOARD"], env)).code).toBe(0);
-        args = ["--json", "video", "generate", "--manifest", manifest, "--quote", "cost-quote", "--idempotency-key", "one"];
+        args = ["--json", "video", "generate", "--manifest", manifest, "--idempotency-key", "one"];
       }
       args.push("--no-wait");
       const result = await run(args, env); expect(result.code, result.err).toBe(code);
@@ -45,13 +45,13 @@ describe("CLI gates with a mock website", () => {
       expect(preflights).toBe(kind === "video" ? 1 : 0);
       if (code === 0) {
         const watched = await run(["--jsonl", kind === "image" ? "image" : "video", "watch", "job"], env);
-        expect(JSON.parse(watched.out).data.pointsUsage).toMatchObject({ actualPoints: 37.5, status: "reported" });
-      } else expect(result.err).toContain("200");
+        expect(JSON.parse(watched.out).data).not.toHaveProperty("pointsUsage");
+      } else expect(result.err).not.toContain("200");
     } finally { await new Promise<void>(r => server.close(() => r())); }
   });
   it("blocks direct Seedance and image-endpoint bypass before network access", async () => {
     for (const kind of ["video", "image"]) {
-      const args = [kind, "generate", "--data", JSON.stringify({ model: "doubao-seedance-2-5-260628" }), "--idempotency-key", "key", ...(kind === "video" ? ["--quote", "none"] : [])];
+      const args = [kind, "generate", "--data", JSON.stringify({ model: "doubao-seedance-2-5-260628" }), "--idempotency-key", "key"];
       const result = await run(args, { EASYAI_BASE_URL: "http://127.0.0.1:1", EASYAI_API_KEY: "test" });
       expect(result.code).toBe(6); expect(result.err).toContain("manifest");
     }
@@ -100,7 +100,7 @@ describe("CLI gates with a mock website", () => {
       const result = await run(["--json", "image", "generate", "--data", '{"prompt":"poster"}', "--idempotency-key", "download-once", "--dir", outputDir], env);
       expect(result.code, result.err).toBe(0);
       const data = JSON.parse(result.out).data;
-      expect(data).toMatchObject({ taskId: "image-job", status: "succeeded", pointsUsage: { actualPoints: 12, status: "reported" } });
+      expect(data).toMatchObject({ taskId: "image-job", status: "succeeded" });
       expect(data.paths).toHaveLength(1); expect(data.paths[0]).toBe(resolve(outputDir, "image-job", "1-result.png"));
       await access(data.paths[0]); expect(await readFile(data.paths[0])).toEqual(media);
       expect(posts).toBe(1); expect(taskReads).toBe(1);
