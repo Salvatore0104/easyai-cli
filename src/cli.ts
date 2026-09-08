@@ -19,7 +19,7 @@ import { routeModel, validateCapabilities } from "./models.js";
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Control EasyAI generation and infinite canvas workflows (easyai compatible)").version("0.2.2")
+program.name("wowidea").description("Control EasyAI generation and infinite canvas workflows (easyai compatible)").version("0.2.3")
   .option("--profile <name>", "configuration profile")
   .option("--base-url <url>", "EasyAI server URL")
   .option("--json", "stable JSON output")
@@ -83,14 +83,15 @@ function taskCommands(parent: Command, media: "image" | "video") {
 }
 const image = program.command("image");
 dataOptions(image.command("preflight")).action(async (o, c) => output(await preflight(await apiFor(c), "image", "/v1/images/preflight", await jsonInput(o)), c));
-dataOptions(image.command("generate")).requiredOption("--idempotency-key <key>").option("--quote <id>").option("--yes").option("--max-cost <amount>").action(async (o, c) => {
+dataOptions(image.command("generate")).requiredOption("--idempotency-key <key>").option("--quote <id>").option("--yes").option("--max-cost <amount>").option("--dir <path>", "download directory", "wowidea-output").option("--no-wait", "return after task acceptance without polling or download").action(async (o, c) => {
   const payload = await jsonInput(o);
   if (/seedance/i.test(String(payload.model))) throw new CliError("Seedance requires video generate --manifest.", ExitCode.Approval);
   const api = await apiFor(c);
   // A repeated invocation recovers before acquiring a different quote or submitting again.
-  if ((await listSubmissions(api)).some(r => r.idempotencyKey === o.idempotencyKey)) { await output(withPointsUsage(await recoverSubmission(api, o.idempotencyKey)), c); return; }
+  if ((await listSubmissions(api)).some(r => r.idempotencyKey === o.idempotencyKey)) { const recovered = await recoverSubmission(api, o.idempotencyKey); await output(o.wait ? await completeGeneration(api, recovered, "image", o.dir) : withPointsUsage(recovered), c); return; }
   const selected = routeModel(await api.get("/v1/models"), "image", payload.model ? String(payload.model) : (await creativeDefaults()).image); payload.model = selected.model; validateCapabilities(selected, payload);
-  await output(withPointsUsage(await submitDirect(api, "/v1/images/generations", payload, o)), c);
+  const submitted = await submitDirect(api, "/v1/images/generations", payload, o);
+  await output(o.wait ? await completeGeneration(api, submitted, "image", o.dir) : withPointsUsage(submitted), c);
 });
 taskCommands(image, "image");
 
@@ -128,7 +129,7 @@ async function submitOnce(api: EasyAiApi, path: string, payload: Record<string, 
   if (quote.scope !== api.scope) throw new CliError("Quote belongs to another server or credential; preflight again.", ExitCode.Approval);
   if (quote.submissionPath !== path) throw new CliError("Quote belongs to another execution endpoint.", ExitCode.Approval);
   const kind = path.includes("video") ? "video" : "image";
-  return submitAsyncWithRecovery(api, path, { ...payload, quoteId: quote.serverQuoteId || quote.quoteId }, key, kind);
+  return submitAsyncWithRecovery(api, path, { ...payload, quoteId: quote.serverQuoteId || quote.quoteId }, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : 60_000, recoveryWaitMs: 90_000 });
 }
 const video = program.command("video");
 async function submitDirect(api: EasyAiApi, path: string, payload: Record<string, unknown>, opts: { quote?: string; maxCost?: string; idempotencyKey?: string }): Promise<unknown> {
@@ -136,10 +137,11 @@ async function submitDirect(api: EasyAiApi, path: string, payload: Record<string
   // No automatic quote or cost confirmation for non-Seedance tasks. Explicit budgets still apply.
   if (opts.maxCost !== undefined && !opts.quote) throw new CliError("An explicit --max-cost needs --quote; omit both for direct generation.", ExitCode.Usage);
   if (opts.quote) { const quote = await loadQuote(opts.quote); assertQuote(quote, payload); requiresConfirmation(quote, opts.maxCost); return submitOnce(api, path, payload, quote, key); }
-  return submitAsyncWithRecovery(api, path, payload, key, path.includes("video") ? "video" : "image");
+  const kind = path.includes("video") ? "video" : "image";
+  return submitAsyncWithRecovery(api, path, payload, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : 60_000, recoveryWaitMs: 90_000 });
 }
 dataOptions(video.command("preflight")).action(async (o, c) => output(await preflight(await apiFor(c), "video", "/v1/video/preflight", await jsonInput(o)), c));
-dataOptions(video.command("generate")).option("--quote <id>", "required only for Seedance or an explicit cost limit").requiredOption("--idempotency-key <key>").option("--yes").option("--max-cost <amount>").option("--manifest <path>").action(async (o, c) => {
+dataOptions(video.command("generate")).option("--quote <id>", "required only for Seedance or an explicit cost limit").requiredOption("--idempotency-key <key>").option("--yes").option("--max-cost <amount>").option("--manifest <path>").option("--dir <path>", "download directory", "wowidea-output").option("--no-wait", "return after task acceptance without polling or download").action(async (o, c) => {
   let payload = await jsonInput(o);
   let manifestPath: string | undefined;
   let approvalKey: string | undefined;
@@ -149,7 +151,8 @@ dataOptions(video.command("generate")).option("--quote <id>", "required only for
     const selected = routeModel(await api.get("/v1/models"), "video", String(payload.model || ""));
     if (selected.approvalRequired) throw new CliError("Seedance requires --manifest and --quote.", ExitCode.Approval);
     payload.model = selected.model; validateCapabilities(selected, payload);
-    await output(withPointsUsage(await submitDirect(api, "/v1/video/generations", payload, o)), c); return;
+    const submitted = await submitDirect(api, "/v1/video/generations", payload, o);
+    await output(o.wait ? await completeGeneration(api, submitted, "video", o.dir) : withPointsUsage(submitted), c); return;
   }
   if (!o.quote) throw new CliError("Seedance requires --quote to determine whether the task exceeds 200 points.", ExitCode.Approval);
   const quote = await loadQuote(o.quote);
@@ -174,7 +177,7 @@ dataOptions(video.command("generate")).option("--quote <id>", "required only for
     if (!taskId) throw new CliError("Submission returned no task ID; the manifest was not advanced and no retry was made.", ExitCode.Service);
     manifest.state = "submitted"; manifest.taskId = taskId; await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
   }
-  await output(withPointsUsage(result), c);
+  await output(o.wait ? await completeGeneration(api, result, "video", o.dir) : withPointsUsage(result), c);
 });
 taskCommands(video, "video");
 
@@ -190,6 +193,28 @@ async function watchTask(api: EasyAiApi, id: string, interval: number, cmd: Comm
     await new Promise(r => setTimeout(r, Math.max(250, interval)));
   }
   throw new CliError(`Watch deadline reached; resume status/watch for task ${id}. No new task was submitted.`, ExitCode.Service);
+}
+
+async function completeGeneration(api: EasyAiApi, submitted: unknown, kind: "image" | "video", directory: string): Promise<unknown> {
+  const id = findTaskId(submitted);
+  let task: any = submitted;
+  let status = taskStatus(task);
+  let urls = findUrls(task);
+  const terminal = () => ["completed", "succeeded", "success", "failed", "error", "cancelled", "canceled"].includes(status);
+  const successful = () => ["completed", "succeeded", "success"].includes(status);
+  if (id && (!terminal() || (successful() && !urls.length))) {
+    const deadline = Date.now() + 30 * 60_000;
+    while (Date.now() < deadline) {
+      task = await api.get(`/v1/tasks/${enc(id)}`); status = taskStatus(task); urls = findUrls(task);
+      if (terminal() && (!successful() || urls.length)) break;
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    if (!terminal() || (successful() && !urls.length)) throw new CliError(`Task ${id} did not expose a downloadable ${kind} within 30 minutes. Resume status/download for this same task; do not submit again.`, ExitCode.Service);
+  }
+  if (["failed", "error", "cancelled", "canceled"].includes(status)) return { taskId: id, status, paths: [], pointsUsage: pointsUsage(task), task };
+  if (!urls.length) throw new CliError(`Task ${id || "response"} reported ${status || "success"} but returned no downloadable ${kind} URL. Query this task again; do not resubmit.`, ExitCode.Service);
+  const target = resolve(directory, id || `${kind}-${Date.now()}`);
+  return { taskId: id, status: status === "unknown" ? "completed" : status, paths: await downloadUrls(urls, target), pointsUsage: pointsUsage(task) };
 }
 
 const canvas = program.command("canvas");
@@ -269,7 +294,12 @@ async function readStdin(): Promise<string> { const chunks: Buffer[] = []; for a
 let directApiKeyPromise: Promise<string> | undefined;
 function readStdinApiKey(): Promise<string> { return directApiKeyPromise ||= readStdin(); }
 async function outputApiKeyOnce(value: unknown, cmd: Command): Promise<void> { const options = globals(cmd); if (options.output) throw new CliError("--output is disabled for API key creation because the plaintext is shown only once.", ExitCode.Usage); process.stderr.write("The account-level API key is shown once. Store it in an OS credential manager and revoke it immediately if exposed.\n"); process.stdout.write(JSON.stringify(options.json ? { schemaVersion: "easyai.cli/v1", data: value } : value, null, 2) + "\n"); }
-function findTaskId(value: unknown): string | undefined { if (!value || typeof value !== "object") return; const row = value as Record<string, any>; return row.taskId || row.task_id || row.id || row.data?.taskId || row.data?.task_id || row.data?.id; }
+function findTaskId(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") return;
+  const row = value as Record<string, any>; const id = row.taskId || row.task_id || row.id;
+  if (typeof id === "string") return id;
+  for (const key of ["data", "result", "task"]) { const nested = findTaskId(row[key]); if (nested) return nested; }
+}
 async function hiddenKey(): Promise<string> {
   if (!process.stdin.isTTY) throw new CliError("--prompt requires a local interactive terminal.", ExitCode.Usage);
   process.stderr.write("Account API Key (hidden): ");

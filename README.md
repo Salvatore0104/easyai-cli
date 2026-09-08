@@ -2,7 +2,7 @@
 
 # Wowidea：在 Codex 中创作图片与视频
 
-复制上面的提示词给 Codex 即可开始。版本 0.2.2；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
+复制上面的提示词给 Codex 即可开始。版本 0.2.3；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
 
 ## 安装 / 更新
 
@@ -52,7 +52,7 @@ $wowidea 继续查看刚才的视频任务
 
 ## 异步任务与费用控制
 
-图片和视频都按“准备 → 提交一次 → 保存 ID → 轮询 → 下载”处理。提交前保存幂等键和请求 hash；断网、超时或重启只恢复查询。服务端未返回匹配的幂等键时保持 uncertain，绝不取列表第一项或再次 POST。
+图片和视频都按“准备 → 提交一次 → 保存 ID → 轮询 → 下载”处理。`image generate` 和 `video generate` 默认等待完成并下载到 `--dir`（默认 `wowidea-output`），JSON 返回可直接展示的绝对 `paths`；只有明确需要后台提交时才使用 `--no-wait`。提交前保存幂等键、请求 hash 和任务快照；断网、超时或重启只恢复查询。旧服务器不返回幂等键时，仅在快照中恰好出现一个时间和媒体类型匹配的新任务才恢复，绝不取列表第一项或再次 POST。
 
 ```text
 wowidea --json models route --kind video --model MiniMax
@@ -89,7 +89,7 @@ npm run check
 npm pack --dry-run
 ```
 
-[0.2.2 Seedance 专属门槛](docs/wowidea-release-0.2.2.md)及[0.2.0 基础验证](docs/wowidea-release-0.2.0.md)区分实测、模拟测试和未验证项。未新增付费生成，不能把离线测试视为所有模型生成成功。
+[0.2.3 异步结果恢复修复](docs/wowidea-release-0.2.3.md)、[0.2.2 Seedance 专属门槛](docs/wowidea-release-0.2.2.md)及[0.2.0 基础验证](docs/wowidea-release-0.2.0.md)区分实测、模拟测试和未验证项。0.2.3 未新增付费生成，不能把离线测试视为所有模型生成成功。
 
 退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少审批，7 超费用上限。
 

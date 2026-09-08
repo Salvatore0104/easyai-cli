@@ -14,9 +14,9 @@ export class EasyAiApi {
     const root = this.options.baseUrl.endsWith("/api") ? this.options.baseUrl : `${this.options.baseUrl}/api`;
     return `${root}${path.startsWith("/") ? path : `/${path}`}`;
   }
-  async request<T = unknown>(method: string, path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
+  async request<T = unknown>(method: string, path: string, body?: unknown, headers: Record<string, string> = {}, timeoutMs = this.options.timeoutMs): Promise<T> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.options.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(this.url(path), {
         method,
@@ -39,12 +39,13 @@ export class EasyAiApi {
       return data as T;
     } catch (error) {
       if (error instanceof CliError) throw error;
-      if ((error as Error).name === "AbortError") throw new CliError(`Request timed out after ${this.options.timeoutMs}ms`, ExitCode.Service);
+      if ((error as Error).name === "AbortError") throw new CliError(`Request timed out after ${timeoutMs}ms`, ExitCode.Service);
       throw new CliError((error as Error).message, ExitCode.Service);
     } finally { clearTimeout(timer); }
   }
   get<T = unknown>(path: string) { return this.request<T>("GET", path); }
   post<T = unknown>(path: string, body?: unknown, headers?: Record<string, string>) { return this.request<T>("POST", path, body, headers); }
+  postWithTimeout<T = unknown>(path: string, body: unknown, headers: Record<string, string>, timeoutMs: number) { return this.request<T>("POST", path, body, headers, timeoutMs); }
   patch<T = unknown>(path: string, body?: unknown) { return this.request<T>("PATCH", path, body); }
   delete<T = unknown>(path: string, body?: unknown, headers?: Record<string, string>) { return this.request<T>("DELETE", path, body, headers); }
   async upload(path: string, file: Blob, name: string, fields: Record<string, string> = {}, headers?: Record<string, string>): Promise<unknown> {
@@ -58,7 +59,7 @@ export function findUrls(value: unknown): string[] {
     if (typeof item === "string" && /^https?:\/\//i.test(item)) urls.add(item);
     else if (Array.isArray(item)) item.forEach(visit);
     else if (item && typeof item === "object") for (const [key, value] of Object.entries(item)) {
-      if (["data", "result", "results", "output", "outputs", "images", "videos", "url", "image_url", "video_url", "download_url", "last_frame_url", "lastFrameUrl"].includes(key)) visit(value);
+      if (["data", "task", "result", "results", "output", "outputs", "images", "videos", "url", "image_url", "video_url", "download_url", "last_frame_url", "lastFrameUrl"].includes(key)) visit(value);
     }
   };
   visit(value); return [...urls];
@@ -68,8 +69,17 @@ export async function downloadUrls(urls: string[], outputDir: string): Promise<s
   await mkdir(outputDir, { recursive: true });
   const paths: string[] = [];
   for (const [index, url] of urls.entries()) {
-    const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
-    if (!response.ok || !response.body) throw new CliError(`Download failed: HTTP ${response.status}`, ExitCode.Service);
+    let response: Response | undefined;
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        response = await fetch(url, { signal: AbortSignal.timeout(120000) });
+        if (response.ok && response.body) break;
+        lastError = new Error(`HTTP ${response.status}`);
+      } catch (error) { lastError = error; }
+      if (attempt < 3) await new Promise(done => setTimeout(done, attempt * 500));
+    }
+    if (!response?.ok || !response.body) throw new CliError(`Download failed after 3 attempts: ${lastError instanceof Error ? lastError.message : "unknown error"}`, ExitCode.Service);
     const pathname = new URL(url).pathname;
     const filename = `${index + 1}-${basename(pathname).replace(/[^a-zA-Z0-9._-]/g, "_") || "output"}`;
     const path = resolve(outputDir, filename);

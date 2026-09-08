@@ -1,6 +1,6 @@
 {
   "name": "@easyai/cli",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Agent-friendly CLI for EasyAI media generation and infinite canvas control",
   "type": "module",
   "bin": {

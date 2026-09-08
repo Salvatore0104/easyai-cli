@@ -25,8 +25,9 @@ description: 使用 Wowidea 网站账号生成海报、图片和视频，选择 
 ## 执行与恢复
 
 读取 [网站执行流程](references/workflow.md)。请求写入 UTF-8 JSON 文件，调用 CLI，不拼接私有 HTTP。
-图片和视频均可能异步：先生成并记住一个 UUID 幂等键 → 提交一次 → 保存 taskId → watch → download → 展示本地结果。
-断网、超时、未知归属或进程重启只用 tasks list/resume、status/watch；绝不重新 POST。不同创作才用新键。
+图片和视频均可能异步：先生成并记住一个 UUID 幂等键 → 提交一次 → 保存 taskId → watch → download → 展示本地结果。`image generate` 和 `video generate` 默认已完成等待与下载；只有用户明确要求后台提交时才用 `--no-wait`。
+成功后读取 CLI JSON 的 `paths`，向用户展示这些本地媒体并报告绝对路径，不能只说网站已完成。若成功状态暂时没有结果 URL，继续查询同一 taskId；不能重新提交。
+断网、超时、未知归属或进程重启只用 tasks list/resume、status/watch；绝不重新 POST。生成命令返回 `uncertain` 时，不把它当作工作结束：用同一个幂等键执行 `tasks resume`。CLI 可在服务端未返回幂等键时用提交前快照和唯一新增任务恢复；多个候选才保持 `uncertain`。不同创作才用新键。
 费用监控仅用于 Seedance 视频：有效报价 ≤200 积分直接执行（含恰好 200），只有 >200 才确认。图片、MiniMax、Google Omni、Wan 等其他生成直接提交，不主动获取费用报价或询问费用确认；普通画布任务同样不设置费用门槛。用户明确设置额外预算时仍遵守。此规则取代 0.2.0/0.2.1 的审批策略。
 Seedance 仍遵循 [分镜准备与积分门槛](references/seedance-gate.md)：准备分镜与 manifest，≤200 自动校验执行，>200 一次展示分镜、设置与预计积分并取得确认。Seedance 未知报价不能猜成低价；其他模型不因缺少报价被阻止。修改 Seedance 请求后重新预检，只有新报价 >200 才重新询问。所有异步任务仍轮询、下载并报告结果，“不监控费用”不代表放弃等待生成完成。每个请求只提交一个任务，不自动重试。
 每次完成生成必须向用户输出“本次实际使用 X 积分”，包括免费任务的 0 积分。使用 CLI 的 pointsUsage.actualPoints，不把预计费用、token 数或余额差当实扣；若 status 为 not_reported，明确说“平台未返回本任务实际积分”，可继续查询同一任务结算，不能编造数字。

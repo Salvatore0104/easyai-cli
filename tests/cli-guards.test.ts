@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 const dirs: string[] = [];
@@ -38,6 +38,7 @@ describe("CLI gates with a mock website", () => {
         expect((await run(["video", "preflight", "--file", request], env)).code).toBe(0);
         args = ["--json", "video", "generate", "--manifest", manifest, "--quote", "cost-quote", "--idempotency-key", "one"];
       }
+      args.push("--no-wait");
       const result = await run(args, env); expect(result.code, result.err).toBe(code);
       expect(submissions).toBe(code === 0 ? 1 : 0);
       expect(preflights).toBe(kind === "video" ? 1 : 0);
@@ -77,4 +78,55 @@ describe("CLI gates with a mock website", () => {
       expect(listed.out).not.toContain("mock-account-key");
     } finally { await new Promise<void>(r => server.close(() => r())); }
   });
+  it("waits for an async image, downloads it, and returns an absolute path by default", async () => {
+    let posts = 0, taskReads = 0;
+    const media = Buffer.from("mock-png-bytes");
+    const server = createServer((req, res) => {
+      const base = `http://127.0.0.1:${(server.address() as any).port}`;
+      if (req.url === "/result.png") { res.setHeader("Content-Type", "image/png"); res.end(media); return; }
+      res.setHeader("Content-Type", "application/json");
+      if (req.url === "/api/v1/models") { res.end(JSON.stringify({ data: [{ id: "Nano Banana 2", capabilities: { image_generate: {} } }] })); return; }
+      if (req.url === "/api/v1/tasks") { res.end(JSON.stringify({ items: [] })); return; }
+      if (req.method === "POST" && req.url === "/api/v1/images/generations") { posts++; res.statusCode = 202; res.end(JSON.stringify({ data: { task: { id: "image-job", status: "queued" } } })); return; }
+      if (req.url === "/api/v1/tasks/image-job") { taskReads++; res.end(JSON.stringify({ data: { task: { id: "image-job", status: "succeeded", result: { images: [{ url: `${base}/result.png` }] }, billing: { actualPoints: 12 } } } })); return; }
+      res.statusCode = 404; res.end('{}');
+    });
+    await new Promise<void>(r => server.listen(0, "127.0.0.1", r));
+    const dir = await mkdtemp(join(tmpdir(), "wowidea-download-cli-")); dirs.push(dir);
+    const outputDir = join(dir, "outputs");
+    const env = { EASYAI_CONFIG_DIR: join(dir, "config"), EASYAI_API_KEY: "mock-account-key", EASYAI_BASE_URL: `http://127.0.0.1:${(server.address() as any).port}` };
+    try {
+      const result = await run(["--json", "image", "generate", "--data", '{"prompt":"poster"}', "--idempotency-key", "download-once", "--dir", outputDir], env);
+      expect(result.code, result.err).toBe(0);
+      const data = JSON.parse(result.out).data;
+      expect(data).toMatchObject({ taskId: "image-job", status: "succeeded", pointsUsage: { actualPoints: 12, status: "reported" } });
+      expect(data.paths).toHaveLength(1); expect(data.paths[0]).toBe(resolve(outputDir, "image-job", "1-result.png"));
+      await access(data.paths[0]); expect(await readFile(data.paths[0])).toEqual(media);
+      expect(posts).toBe(1); expect(taskReads).toBe(1);
+    } finally { await new Promise<void>(r => server.close(() => r())); }
+  });
+  it("keeps polling the same successful task until its output URL is available", async () => {
+    let posts = 0, taskReads = 0;
+    const server = createServer((req, res) => {
+      const base = `http://127.0.0.1:${(server.address() as any).port}`;
+      if (req.url === "/delayed.png") { res.end("delayed-image"); return; }
+      res.setHeader("Content-Type", "application/json");
+      if (req.url === "/api/v1/models") { res.end(JSON.stringify({ data: [{ id: "Nano Banana 2", capabilities: { image_generate: {} } }] })); return; }
+      if (req.url === "/api/v1/tasks") { res.end(JSON.stringify({ items: [] })); return; }
+      if (req.method === "POST" && req.url === "/api/v1/images/generations") { posts++; res.end(JSON.stringify({ taskId: "delayed-job", status: "succeeded" })); return; }
+      if (req.url === "/api/v1/tasks/delayed-job") {
+        taskReads++;
+        res.end(JSON.stringify(taskReads === 1 ? { taskId: "delayed-job", status: "succeeded" } : { taskId: "delayed-job", status: "succeeded", result: { images: [{ url: `${base}/delayed.png` }] } })); return;
+      }
+      res.statusCode = 404; res.end('{}');
+    });
+    await new Promise<void>(r => server.listen(0, "127.0.0.1", r));
+    const dir = await mkdtemp(join(tmpdir(), "wowidea-delayed-result-")); dirs.push(dir);
+    const env = { EASYAI_CONFIG_DIR: join(dir, "config"), EASYAI_API_KEY: "mock-account-key", EASYAI_BASE_URL: `http://127.0.0.1:${(server.address() as any).port}` };
+    try {
+      const result = await run(["--json", "image", "generate", "--data", '{"prompt":"poster"}', "--idempotency-key", "delayed-result", "--dir", join(dir, "out")], env);
+      expect(result.code, result.err).toBe(0); expect(JSON.parse(result.out).data.paths).toHaveLength(1);
+      expect(posts).toBe(1); expect(taskReads).toBe(2);
+    } finally { await new Promise<void>(r => server.close(() => r())); }
+  }, 10_000);
 });

@@ -1,11 +1,51 @@
 openapi: 3.0.3
 info:
   title: EasyAI CLI Contract Overlay
-  version: 0.2.2
+  version: 0.2.3
   description: Missing typed contracts required by the EasyAI CLI. Merge into the server OpenAPI document.
 servers:
   - url: https://ai.wowidea.top/api
 paths:
+  /v1/images/generations:
+    post:
+      operationId: submitImageGeneration
+      summary: Accept one idempotent asynchronous image task
+      description: Validate and enqueue promptly. Return 202 with the durable task ID instead of holding the HTTP request open until generation finishes.
+      security: [{ bearer: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImageGenerationRequest' }
+      responses:
+        '202':
+          description: The task was accepted and can immediately be queried by ID or idempotency key
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskAccepted' }
+        '409': { description: This account and idempotency key already belong to another payload }
+  /v1/video/generations:
+    post:
+      operationId: submitVideoGeneration
+      summary: Accept one idempotent asynchronous video task
+      description: Validate and enqueue promptly. Return 202 with the durable task ID instead of holding the HTTP request open until generation finishes.
+      security: [{ bearer: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VideoGenerationRequest' }
+      responses:
+        '202':
+          description: The task was accepted and can immediately be queried by ID or idempotency key
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskAccepted' }
+        '409': { description: This account and idempotency key already belong to another payload }
   /v1/images/preflight:
     post:
       operationId: preflightImageGeneration
@@ -53,9 +93,9 @@ paths:
     get:
       operationId: recoverTaskByIdempotencyKey
       security: [{ bearer: [] }]
-      description: Account-scoped lookup. Return the stored key on each matching row; an unmarked or ambiguous list cannot establish ownership. Never create a task during lookup. Enforce atomic key uniqueness across clients on generation submission.
+      description: Account-scoped lookup. When idempotencyKey is present, filter by it and return the stored key on each matching row; an unknown key returns an empty list. When absent, return the normal paginated account task list. Never create a task during lookup. Enforce atomic key uniqueness across clients on generation submission. The CLI snapshot-delta fallback is only compatibility for older servers and does not replace this contract.
       parameters:
-        - { name: idempotencyKey, in: query, required: true, schema: { type: string } }
+        - { name: idempotencyKey, in: query, required: false, schema: { type: string } }
       responses:
         '200':
           description: Empty when not yet known; one exact row when accepted. CLI also tolerates items/data envelopes.
@@ -202,7 +242,7 @@ components:
       name: Idempotency-Key
       in: header
       required: true
-      schema: { type: string, format: uuid }
+      schema: { type: string, minLength: 1, maxLength: 200 }
   responses:
     ValidationError:
       description: Request is invalid or violates provider limits
@@ -211,6 +251,20 @@ components:
           schema:
             $ref: '#/components/schemas/ValidationError'
   schemas:
+    ImageGenerationRequest:
+      type: object
+      required: [model, prompt]
+      properties:
+        model: { type: string }
+        prompt: { type: string, minLength: 1 }
+      additionalProperties: true
+    TaskAccepted:
+      type: object
+      required: [taskId, status]
+      properties:
+        taskId: { type: string }
+        status: { type: string, enum: [accepted, queued, pending, running] }
+      additionalProperties: true
     CliTokenRequest:
       type: object
       required: [grant_type]

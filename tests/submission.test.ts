@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CliError, ExitCode } from "../src/errors.js";
-import { submitAsyncWithRecovery, submitImageWithRecovery, taskRows, listSubmissions, recoverSubmission, taskStatus } from "../src/submission.js";
+import { submitAsyncWithRecovery, submitImageWithRecovery, taskRows, listSubmissions, recoverSubmission, taskId, taskStatus } from "../src/submission.js";
 let dir: string;
 beforeEach(async () => { dir = await mkdtemp(join(tmpdir(), "wowidea-task-test-")); vi.stubEnv("EASYAI_CONFIG_DIR", dir); });
 afterEach(async () => { vi.unstubAllEnvs(); await rm(dir, { recursive: true, force: true }); });
@@ -40,11 +40,31 @@ describe("durable async lifecycle", () => {
     const api = mock(); api.post.mockRejectedValue(new CliError("bad input", ExitCode.Usage));
     await expect(submitImageWithRecovery(api, {}, "key")).rejects.toMatchObject({ exitCode: 2 });
     await expect(submitImageWithRecovery(api, { prompt: "changed" }, "key")).rejects.toMatchObject({ exitCode: 4 });
-    expect(api.post).toHaveBeenCalledTimes(1); expect(api.get).not.toHaveBeenCalled();
+    expect(api.post).toHaveBeenCalledTimes(1); expect(api.get).toHaveBeenCalledTimes(1); expect(api.get).toHaveBeenCalledWith("/v1/tasks");
   });
   it("handles connection loss during lookup", async () => {
     const api = mock(); api.get.mockRejectedValue(new Error("offline"));
     await expect(submitAsyncWithRecovery(api, "/v1/video/generations", {}, "key", "video")).rejects.toThrow("uncertain"); expect(api.post).toHaveBeenCalledTimes(1);
   });
-  it("reads nested terminal states", () => expect(taskStatus({ data: { task_status: "SUCCESS" } })).toBe("success"));
+  it("reads nested terminal states", () => expect(taskStatus({ data: { result: { task_status: "SUCCESS" } } })).toBe("success"));
+  it("reads nested task IDs", () => expect(taskId({ data: { task: { task_id: "nested" } } })).toBe("nested"));
+  it("recovers a unique new image when the server ignores the idempotency filter", async () => {
+    const now = new Date().toISOString();
+    const api = mock();
+    api.get.mockResolvedValueOnce({ items: [{ id: "old", task_type: "image", createdAt: now }] })
+      .mockResolvedValueOnce({ items: [{ id: "new", task_type: "image_generation", createdAt: now }, { id: "old", task_type: "image", createdAt: now }] });
+    await expect(submitImageWithRecovery(api, {}, "key")).resolves.toMatchObject({ id: "new" });
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(await listSubmissions(api)).toEqual([expect.objectContaining({ taskId: "new", recoveredBy: "unique-task-snapshot-delta" })]);
+  });
+  it.each([
+    { name: "multiple new image tasks", after: [{ id: "a", task_type: "image", createdAt: new Date().toISOString() }, { id: "b", task_type: "image", createdAt: new Date().toISOString() }] },
+    { name: "wrong media type", after: [{ id: "a", task_type: "video", createdAt: new Date().toISOString() }] },
+    { name: "task predating submission", after: [{ id: "a", task_type: "image", createdAt: new Date(Date.now() - 60_000).toISOString() }] },
+  ])("keeps ownership uncertain for $name", async ({ after }) => {
+    const api = mock(); api.get.mockResolvedValueOnce({ items: [] }).mockResolvedValueOnce({ items: after });
+    await expect(submitImageWithRecovery(api, {}, "key")).rejects.toThrow("uncertain");
+    await expect(submitImageWithRecovery(api, {}, "key")).rejects.toThrow("uncertain");
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
 });
