@@ -25,4 +25,13 @@ describe("model routing", () => {
     expect(() => validateCapabilities(selected, { ...payload, audio: false })).toThrow();
     expect(() => validateCapabilities(selected, { ...payload, mode: "video_edit" })).toThrow();
   });
+  it("does not turn H3 official prompt modes into unverified platform support", () => {
+    const selected = routeModel(catalog, "video", "MiniMax-H3");
+    selected.capabilities.capabilities = { omni_video: { duration_range: [4, 15], supported_modes: ["text_to_video", "image_reference"], max_images: 2, output_audio: true } };
+    const payload = { duration: 8, resolution: "768p", aspect_ratio: "16:9", audio: true };
+    expect(() => validateCapabilities(selected, { ...payload, mode: "L2VA", image_urls: ["https://example.test/end.png"] })).toThrow(/not supported/);
+    expect(() => validateCapabilities(selected, { ...payload, mode: "Ref2VA" })).toThrow(/not supported/);
+    expect(() => validateCapabilities(selected, { ...payload, mode: "image_reference", image_urls: ["https://example.test/a.png"], audio_urls: ["https://example.test/sound.wav"] })).toThrow();
+    expect(() => validateCapabilities(selected, { ...payload, mode: "text_to_video", image_urls: ["https://example.test/a.png"] })).toThrow(/Text-only/);
+  });
 });

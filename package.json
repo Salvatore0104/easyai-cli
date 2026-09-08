@@ -1,23 +1,35 @@
 {
   "name": "@easyai/cli",
-  "version": "0.2.4",
-  "description": "Agent-friendly CLI for EasyAI media generation and infinite canvas control",
+  "version": "0.3.0",
+  "description": "Codex-driven visual agent for VJ, stage design and programme creation",
   "type": "module",
   "bin": {
     "wowidea": "dist/cli.js",
     "easyai": "dist/cli.js",
     "easyai-canvas": "dist/cli.js"
   },
-  "files": ["dist", "skill", "openapi", "docs", "scripts"],
+  "files": [
+    "dist",
+    "skill",
+    "openapi",
+    "docs",
+    "scripts"
+  ],
   "scripts": {
     "build": "tsup src/cli.ts --format esm --clean --external keytar",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run build && npm test",
+    "check": "npm run resources:check && npm run typecheck && npm run build && npm test",
     "pack:check": "npm pack --dry-run",
-    "package:host": "npm run build && node scripts/package-host.mjs"
+    "package:host": "npm run build && node scripts/package-host.mjs",
+    "resources:check": "node scripts/check-resources.mjs",
+    "resources:lock": "node scripts/check-resources.mjs --update",
+    "prepack": "npm run resources:check",
+    "package:smoke": "node scripts/smoke-package.mjs"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.883.0",
     "@aws-sdk/s3-request-presigner": "^3.883.0",
@@ -34,7 +46,12 @@
     "vitest": "^3.2.4"
   },
   "pkg": {
-    "scripts": ["dist/*.js"],
-    "assets": ["node_modules/keytar/build/Release/*.node"]
+    "scripts": [
+      "dist/*.js"
+    ],
+    "assets": [
+      "node_modules/keytar/build/Release/*.node",
+      "skill/**/*"
+    ]
   }
 }

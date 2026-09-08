@@ -9,6 +9,15 @@ beforeEach(async () => { dir = await mkdtemp(join(tmpdir(), "wowidea-task-test-"
 afterEach(async () => { vi.unstubAllEnvs(); await rm(dir, { recursive: true, force: true }); });
 const mock = (rows: any = []) => ({ scope: "account-a", post: vi.fn().mockRejectedValue(new CliError("timeout", ExitCode.Service)), get: vi.fn().mockResolvedValue({ data: { items: rows } }) } as any);
 describe("durable async lifecycle", () => {
+  it("records explicit validation rejection and never attaches a later unrelated task", async () => {
+    const api = mock(); api.post.mockRejectedValue(new CliError("content cannot be empty", ExitCode.Usage));
+    await expect(submitAsyncWithRecovery(api, "/v1/video/generations", { prompt: "x" }, "rejected-key", "video")).rejects.toThrow(/content/);
+    expect((await listSubmissions(api))[0].state).toBe("rejected");
+    api.get.mockClear();
+    await expect(recoverSubmission(api, "rejected-key")).rejects.toThrow(/rejected before acceptance/);
+    expect(api.get).not.toHaveBeenCalled();
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
   it.each([[[]], [{ items: [] }], [{ data: { items: [] } }]])("accepts list envelopes", value => expect(taskRows(value)).toEqual([]));
   it("persists before POST and recovers only the matching row", async () => {
     const api = mock([{ id: "other", idempotencyKey: "other" }, { id: "task", idempotencyKey: "key" }]);

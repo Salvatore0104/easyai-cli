@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { approveManifest, creativeHash, SeedanceManifest, validateManifest, validateStoryboardQc } from "../src/seedance.js";
+import { approveManifest, creativeHash, seedancePayload, SeedanceManifest, validateManifest, validateStoryboardQc } from "../src/seedance.js";
 
 const dirs: string[] = [];
 const base = (): SeedanceManifest => ({
@@ -14,6 +14,18 @@ const base = (): SeedanceManifest => ({
 afterEach(async () => { await Promise.all(dirs.splice(0).map(d => rm(d, { recursive: true, force: true }))); });
 
 describe("Seedance approval", () => {
+  it("serializes mixed references in the approved per-media order without dropping roles", () => {
+    const m = base(); m.mode = "video";
+    m.references = [{ type: "image", role: "hero", url: "https://example.test/hero.png" }, { type: "video", role: "motion", url: "https://example.test/motion.mp4" }, { type: "image", role: "material", url: "https://example.test/material.png" }];
+    m.referenceCounts = { images: 2, videos: 1, audio: 0 };
+    const p = seedancePayload(m);
+    expect(p.image_urls).toEqual([m.references[0]!.url, m.references[2]!.url]);
+    expect(p.video_urls).toEqual([m.references[1]!.url]);
+    expect(p.references).toEqual(m.references);
+    expect(p.watermark).toBe(false);
+    m.references[2]!.url = undefined;
+    expect(() => seedancePayload(m)).toThrow(/not fully uploaded/);
+  });
   it("rejects any visible watermark", async () => {
     await expect(validateManifest({ ...base(), watermark: true as false })).rejects.toMatchObject({ exitCode: 6 });
   });

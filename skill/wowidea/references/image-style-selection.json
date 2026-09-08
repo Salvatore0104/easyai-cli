@@ -1,0 +1,70 @@
+{
+  "source": "https://github.com/freestylefly/awesome-gpt-image-2",
+  "revision": "b477278bb2a36d4c59655eb0daa4ce48e8dbc4c4",
+  "license": "MIT",
+  "note": "Upstream template metadata for optional inspiration; programme intent overrides upstream style defaults. No remote images are bundled.",
+  "templates": [
+    {
+      "id": "conceptual-typography-poster",
+      "category": "Posters & Typography",
+      "title": {
+        "en": "Conceptual Typography Poster",
+        "zh": "概念字体海报"
+      },
+      "useWhen": {
+        "en": "Use when the exact title must become the main visual structure.",
+        "zh": "用于标题文字需要成为主视觉结构的海报。"
+      },
+      "exampleCases": [
+        355
+      ]
+    },
+    {
+      "id": "architecture-space",
+      "category": "Architecture & Spaces",
+      "title": {
+        "en": "Architecture & Space",
+        "zh": "建筑与空间"
+      },
+      "useWhen": {
+        "en": "Use for interiors, architecture renders, city maps, spatial plans, and environment concepts.",
+        "zh": "用于室内、建筑表现、城市地图、空间规划和环境概念图。"
+      },
+      "exampleCases": [
+        331,
+        11
+      ]
+    },
+    {
+      "id": "illustration-art-style",
+      "category": "Illustration & Art",
+      "title": {
+        "en": "Illustration & Art Style",
+        "zh": "插画与艺术风格"
+      },
+      "useWhen": {
+        "en": "Use for anime, watercolor, ink, decorative art, and style experiments.",
+        "zh": "用于动漫、水彩、水墨、装饰画和风格实验。"
+      },
+      "exampleCases": [
+        346,
+        6
+      ]
+    },
+    {
+      "id": "scene-storytelling",
+      "category": "Scenes & Storytelling",
+      "title": {
+        "en": "Scene Storytelling",
+        "zh": "场景叙事"
+      },
+      "useWhen": {
+        "en": "Use for storyboards, worldbuilding, live scenes, and emotional narrative frames.",
+        "zh": "用于分镜、世界观、直播场景和情绪叙事画面。"
+      },
+      "exampleCases": [
+        330
+      ]
+    }
+  ]
+}

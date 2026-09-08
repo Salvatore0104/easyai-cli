@@ -1,0 +1,169 @@
+{
+  "schemaVersion": "wowidea.sources/v1",
+  "sources": [
+    {
+      "id": "minimax-ai",
+      "url": "https://github.com/MiniMax-AI/MiniMax-H3",
+      "revision": "d21241f0a4b3acbb34c97dae47fa417b7065e438",
+      "verifiedAt": "2026-09-08",
+      "license": null,
+      "strategy": "original-adaptation-and-links",
+      "files": [
+        {
+          "path": "skills/h3-prompt-writing/SKILL.md",
+          "url": "https://raw.githubusercontent.com/MiniMax-AI/MiniMax-H3/d21241f0a4b3acbb34c97dae47fa417b7065e438/skills/h3-prompt-writing/SKILL.md",
+          "sha256": "a7000443588ca3f145e3b3fd8900f14e0325dc460bd811268fac89a9dc8e56d0"
+        },
+        {
+          "path": "skills/h3-prompt-writing/references/base-en.txt",
+          "url": "https://raw.githubusercontent.com/MiniMax-AI/MiniMax-H3/d21241f0a4b3acbb34c97dae47fa417b7065e438/skills/h3-prompt-writing/references/base-en.txt",
+          "sha256": "2cfebc096a6e08370f288d468d90b60f7f9bcb938f94bf090816e910e48e75fc"
+        },
+        {
+          "path": "skills/h3-prompt-writing/references/ref-en.txt",
+          "url": "https://raw.githubusercontent.com/MiniMax-AI/MiniMax-H3/d21241f0a4b3acbb34c97dae47fa417b7065e438/skills/h3-prompt-writing/references/ref-en.txt",
+          "sha256": "1e574f356716ad55612247ffb7bbccbcdb484ad96599d63c7dca1af186b1fab7"
+        }
+      ],
+      "applicableModels": [
+        "MiniMax-H3",
+        "MiniMax-H3-Max"
+      ],
+      "summary": "Official H3 base and full-reference prompt structures; original adapter summary, no source Skill redistribution. No explicit skill-level licence found."
+    },
+    {
+      "id": "picotrex",
+      "url": "https://github.com/PicoTrex/Awesome-Nano-Banana-images",
+      "revision": "2558bf0bb825be150c5d1aeab918cd90004882d3",
+      "verifiedAt": "2026-09-08",
+      "license": {
+        "key": "apache-2.0",
+        "name": "Apache License 2.0",
+        "spdx_id": "Apache-2.0",
+        "url": "https://api.github.com/licenses/apache-2.0",
+        "node_id": "MDc6TGljZW5zZTI="
+      },
+      "strategy": "original-adaptation-and-links",
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://raw.githubusercontent.com/PicoTrex/Awesome-Nano-Banana-images/2558bf0bb825be150c5d1aeab918cd90004882d3/README.md",
+          "sha256": "0ceec3d505054bf518346c8d2e9b3a316273ca3d63d0511904221297a925de54"
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/PicoTrex/Awesome-Nano-Banana-images/2558bf0bb825be150c5d1aeab918cd90004882d3/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ],
+      "applicableModels": [
+        "Nano Banana family"
+      ],
+      "summary": "Material, scale and storyboard case index; README CC BY badge conflicts with Apache LICENSE. Links and original synthesis only."
+    },
+    {
+      "id": "evolinkai",
+      "url": "https://github.com/EvoLinkAI/awesome-gpt-image-2-API-and-Prompts",
+      "revision": "e2a269ad1a055a0b4f6c1e170341c6c1aba30faa",
+      "verifiedAt": "2026-09-08",
+      "license": {
+        "key": "cc0-1.0",
+        "name": "Creative Commons Zero v1.0 Universal",
+        "spdx_id": "CC0-1.0",
+        "url": "https://api.github.com/licenses/cc0-1.0",
+        "node_id": "MDc6TGljZW5zZTY="
+      },
+      "strategy": "original-adaptation-and-links",
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://raw.githubusercontent.com/EvoLinkAI/awesome-gpt-image-2-API-and-Prompts/e2a269ad1a055a0b4f6c1e170341c6c1aba30faa/README.md",
+          "sha256": "9538387ea77eb41311bf26e44bc2b5e21ef6b3b7173551a370b6f6df64040e3c"
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/EvoLinkAI/awesome-gpt-image-2-API-and-Prompts/e2a269ad1a055a0b4f6c1e170341c6c1aba30faa/LICENSE",
+          "sha256": "57ce24bf58b853cc1193bf86cf0561c6947e37301e0907dde89c6f2f12651225"
+        }
+      ],
+      "applicableModels": [
+        "GPT Image 2"
+      ],
+      "summary": "Community TVC storyboard case index; repository CC0 does not verify every third-party image. No media or full prompts copied."
+    },
+    {
+      "id": "freestylefly",
+      "url": "https://github.com/freestylefly/awesome-gpt-image-2",
+      "revision": "b477278bb2a36d4c59655eb0daa4ce48e8dbc4c4",
+      "verifiedAt": "2026-09-08",
+      "license": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "strategy": "selected-metadata-with-MIT-notice",
+      "files": [
+        {
+          "path": "agents/skills/gpt-image-2-style-library/SKILL.md",
+          "url": "https://raw.githubusercontent.com/freestylefly/awesome-gpt-image-2/b477278bb2a36d4c59655eb0daa4ce48e8dbc4c4/agents/skills/gpt-image-2-style-library/SKILL.md",
+          "sha256": "98519a3bfd28c5ab5630771a536f18fbe3627123cd7dd7a8801fa5da166a60f9"
+        },
+        {
+          "path": "data/style-library.json",
+          "url": "https://raw.githubusercontent.com/freestylefly/awesome-gpt-image-2/b477278bb2a36d4c59655eb0daa4ce48e8dbc4c4/data/style-library.json",
+          "sha256": "80f5cae039d0d6f312f0e2de2c9b3fc8a806640b0d517c120d704a71c5e4aa72"
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/freestylefly/awesome-gpt-image-2/b477278bb2a36d4c59655eb0daa4ce48e8dbc4c4/LICENSE",
+          "sha256": "27a75c48bac29eb78f43c19f75c4e175974c8f1046d848d5562eae1ead2f1176"
+        }
+      ],
+      "applicableModels": [
+        "GPT Image 2"
+      ],
+      "summary": "Four selected template metadata entries from MIT style-library.json, copyright and licence preserved; programme intent overrides upstream style preferences."
+    },
+    {
+      "id": "ark-seedance-20",
+      "url": "https://ark.volcengine.com/region:cn-beijing/docs/82379/2222480?lang=zh",
+      "revision": "page inspected 2026-09-08",
+      "verifiedAt": "2026-09-08",
+      "license": "No redistribution licence established",
+      "strategy": "original-summary-and-link",
+      "applicableModels": [
+        "Seedance 2.0"
+      ],
+      "summary": "Official rendered prompt guide inspected; no original article/media bundled. Shot-order guidance and reference/edit/continuation distinctions.",
+      "files": []
+    },
+    {
+      "id": "ark-seedance-25",
+      "url": "https://ark.volcengine.com/region:cn-beijing/docs/82379/2607689?lang=zh",
+      "revision": "page inspected 2026-09-08",
+      "verifiedAt": "2026-09-08",
+      "license": "No redistribution licence established",
+      "strategy": "original-summary-and-link",
+      "applicableModels": [
+        "Seedance 2.5"
+      ],
+      "summary": "Official rendered prompt guide inspected; no original article/media bundled. Official sd25-pe referenced but distribution endpoint returned 404; original skill package not verified or installed.",
+      "files": []
+    },
+    {
+      "id": "legacy-seedance-community",
+      "url": "https://github.com/LeoYeAI/seedance-skills",
+      "revision": "797e16efaa3c5ac01c0e391d0b8466a87cc5aadc",
+      "verifiedAt": "2026-09-08",
+      "license": "MIT",
+      "strategy": "retained-legacy-attribution",
+      "applicableModels": [
+        "Seedance 2.0"
+      ],
+      "summary": "Previous release attribution and MIT notice retained; current model-specific guidance prioritizes official documentation.",
+      "files": []
+    }
+  ]
+}

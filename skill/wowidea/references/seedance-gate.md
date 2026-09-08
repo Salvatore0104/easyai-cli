@@ -10,3 +10,5 @@
 8. `seedance payload manifest.json --file request.json` 导出最终私密请求，再 video preflight --file 获取服务器报价。预计 ≤200 积分时不再追加费用确认，直接用已批准 manifest 提交；>200 时展示模型、时长、比例、分辨率、声音、参考数量与报价，取得费用确认后加 --yes --max-cost。任何创意/设置变化都需重新批准分镜并预检；未知费用不能假定低于门槛。
 9. CLI 将批准绑定到素材字节与请求，单个批准仅提交一次。得到 taskId 后只查询该 ID；未得到 ID 用 tasks resume，不能重新生成或自动比较。
 10. 成功后 `seedance finalize manifest.json --dir <绝对路径>` 下载视频、返回尾帧并生成 ledger 和 QC 素材。检查接触表、尾帧及多个时点右下区域；记录真实 QC 结论，不把自动生成裁剪图当作通过。向用户报告 pointsUsage 的实际使用积分，未返回则明确标注，不能以预估代替。若 ffmpeg 不可用说明缺失检查。无授权不重生成。
+
+批准生成前始终展示完整镜头、准确模式、模型、时长、比例、分辨率、音频、参考角色与数量、尾帧选择以及 watermark:false，绑定最终 manifest。低于费用门槛不免除这次展示；用户修改或含糊回复不是批准。

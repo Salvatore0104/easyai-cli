@@ -16,10 +16,13 @@ import { approveManifest, creativeHash, readManifest, seedancePayload, uploadRef
 import { pointsUsage, withPointsUsage } from "./usage.js";
 import { submitAsyncWithRecovery, submitImageWithRecovery, listSubmissions, recoverSubmission, taskStatus, taskRows } from "./submission.js";
 import { routeModel, validateCapabilities } from "./models.js";
+import { initProject, readProject, recordCreation } from "./project.js";
+import { guideRegistry, guideInfo, showGuide } from "./guides.js";
+import { prepareVideoPayload, videoSubmitTimeout } from "./video-payload.js";
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Control EasyAI generation and infinite canvas workflows (easyai compatible)").version("0.2.4")
+program.name("wowidea").description("Codex visual agent for VJ and stage creation (easyai compatible)").version("0.3.0")
   .option("--profile <name>", "configuration profile")
   .option("--base-url <url>", "EasyAI server URL")
   .option("--json", "stable JSON output")
@@ -47,6 +50,15 @@ async function jsonInput(opts: { data?: string; file?: string }): Promise<Record
 function dataOptions(command: Command): Command { return command.option("--data <json>", "JSON request body").option("--file <path>", "JSON request body file"); }
 function mutationOptions(command: Command): Command { return dataOptions(command).option("--base-version <n>", "known canvas version", Number); }
 const enc = encodeURIComponent;
+
+const localProject = program.command("project").description("Local programme preferences and creation records; no API calls");
+localProject.command("init").option("--dir <path>", "programme directory", ".").option("--name <name>", "programme name", "").action(async (o, c) => output(await initProject(o.dir, o.name), c));
+localProject.command("show").option("--dir <path>", "programme directory", ".").action(async (o, c) => output(await readProject(o.dir), c));
+localProject.command("validate").option("--dir <path>", "programme directory", ".").action(async (o, c) => { const result = await readProject(o.dir); await output({ valid: true, ...result }, c); });
+localProject.command("record").requiredOption("--file <path>", "creation JSON").option("--dir <path>", "programme directory", ".").action(async (o, c) => output(await recordCreation(o.dir, await jsonInput(o)), c));
+const guides = program.command("guides").description("Bundled versioned creative resources; works offline");
+guides.command("list").action(async (_o, c) => output(guideRegistry.map(g => guideInfo(g.id)), c));
+guides.command("show").argument("<id>").action(async (id, _o, c) => output(await showGuide(id), c));
 
 const auth = program.command("auth").description("Manage CLI authentication");
 auth.command("login").action(async (_o, c) => { const g = globals(c); await output(await browserLogin(g.profile, g.baseUrl, Number(g.timeout)), c); });
@@ -96,6 +108,7 @@ dataOptions(image.command("generate")).requiredOption("--idempotency-key <key>")
 taskCommands(image, "image");
 
 async function preflight(api: EasyAiApi, kind: Quote["kind"], path: string, payload: Record<string, unknown>): Promise<Quote> {
+  if (kind === "video") payload = prepareVideoPayload(payload);
   if (kind === "image") { const selected = routeModel(await api.get("/v1/models"), "image", payload.model ? String(payload.model) : (await creativeDefaults()).image); payload.model = selected.model; validateCapabilities(selected, payload); }
   if (kind === "video") validateCapabilities(routeModel(await api.get("/v1/models"), "video", String(payload.model || "")), payload);
   try {
@@ -129,7 +142,7 @@ async function submitOnce(api: EasyAiApi, path: string, payload: Record<string, 
   if (quote.scope !== api.scope) throw new CliError("Quote belongs to another server or credential; preflight again.", ExitCode.Approval);
   if (quote.submissionPath !== path) throw new CliError("Quote belongs to another execution endpoint.", ExitCode.Approval);
   const kind = path.includes("video") ? "video" : "image";
-  return submitAsyncWithRecovery(api, path, { ...payload, quoteId: quote.serverQuoteId || quote.quoteId }, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : 60_000, recoveryWaitMs: 90_000, allowDuplicatePayload });
+  return submitAsyncWithRecovery(api, path, { ...payload, quoteId: quote.serverQuoteId || quote.quoteId }, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : videoSubmitTimeout(payload), recoveryWaitMs: 90_000, allowDuplicatePayload });
 }
 const video = program.command("video");
 async function submitDirect(api: EasyAiApi, path: string, payload: Record<string, unknown>, opts: { quote?: string; maxCost?: string; idempotencyKey?: string; allowReroll?: boolean }): Promise<unknown> {
@@ -138,7 +151,7 @@ async function submitDirect(api: EasyAiApi, path: string, payload: Record<string
   if (opts.maxCost !== undefined && !opts.quote) throw new CliError("An explicit --max-cost needs --quote; omit both for direct generation.", ExitCode.Usage);
   if (opts.quote) { const quote = await loadQuote(opts.quote); assertQuote(quote, payload); requiresConfirmation(quote, opts.maxCost); return submitOnce(api, path, payload, quote, key, opts.allowReroll); }
   const kind = path.includes("video") ? "video" : "image";
-  return submitAsyncWithRecovery(api, path, payload, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : 60_000, recoveryWaitMs: 90_000, allowDuplicatePayload: opts.allowReroll });
+  return submitAsyncWithRecovery(api, path, payload, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : videoSubmitTimeout(payload), recoveryWaitMs: 90_000, allowDuplicatePayload: opts.allowReroll });
 }
 dataOptions(video.command("preflight")).action(async (o, c) => output(await preflight(await apiFor(c), "video", "/v1/video/preflight", await jsonInput(o)), c));
 dataOptions(video.command("generate")).option("--quote <id>", "required only for Seedance or an explicit cost limit").requiredOption("--idempotency-key <key>").option("--yes").option("--max-cost <amount>").option("--manifest <path>").option("--dir <path>", "download directory", "wowidea-output").option("--no-wait", "return after task acceptance without polling or download").option("--allow-reroll", "allow an identical non-Seedance payload only after explicit user intent").action(async (o, c) => {
@@ -150,7 +163,7 @@ dataOptions(video.command("generate")).option("--quote <id>", "required only for
     const api = await apiFor(c);
     const selected = routeModel(await api.get("/v1/models"), "video", String(payload.model || ""));
     if (selected.approvalRequired) throw new CliError("Seedance requires --manifest and --quote.", ExitCode.Approval);
-    payload.model = selected.model; validateCapabilities(selected, payload);
+    payload.model = selected.model; payload = prepareVideoPayload(payload); validateCapabilities(selected, payload);
     const submitted = await submitDirect(api, "/v1/video/generations", payload, o);
     await output(o.wait ? await completeGeneration(api, submitted, "video", o.dir) : withPointsUsage(submitted), c); return;
   }

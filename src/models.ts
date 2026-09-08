@@ -1,5 +1,6 @@
 import { CliError, ExitCode } from "./errors.js";
 import { taskRows } from "./submission.js";
+import { guideInfo } from "./guides.js";
 
 export const registry = [
   ["Nano Banana 2", "image_nanoBanana2", "image", "nano-banana"],
@@ -26,7 +27,7 @@ export function routeModel(catalog: unknown, kind: string, requested?: string) {
   if (!entry || entry.kind !== kind) throw new CliError(`Unsupported ${kind} model: ${name}. Use models list; no substitution was made.`, ExitCode.Usage);
   const live = taskRows(catalog).find((r: any) => [r.id, r.model, r.modelName, r.name].some(v => typeof v === "string" && [entry.id, entry.modelName].includes(v))) as any;
   if (!live || live.enabled === false || live.available === false) throw new CliError(`Model unavailable for this account: ${entry.id}. No substitution was made.`, ExitCode.Usage);
-  return { ...entry, model: live.id || live.model || entry.id, capabilities: live, suggestedDefaults: kind === "image" ? { aspectRatio: "3:4", resolution: "2K", note: "Use only when supported by live capabilities" } : {}, approvalRequired: /seedance/i.test(entry.modelName) };
+  return { ...entry, guideInfo: guideInfo(entry.guide.replace(/^references\//, "").replace(/\.md$/, "")), capabilityPolicy: "Official creative guidance does not authorize modes absent from verified EasyAI capabilities.", model: live.id || live.model || entry.id, capabilities: live, suggestedDefaults: kind === "image" ? { aspectRatio: "3:4", resolution: "2K", note: "Poster default only; stage output follows programme requirements and live capabilities" } : {}, approvalRequired: /seedance/i.test(entry.modelName) };
 }
 
 export function validateCapabilities(selected: ReturnType<typeof routeModel>, payload: Record<string, any>) {

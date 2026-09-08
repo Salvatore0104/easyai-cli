@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "wowidea.project/v1",
+  "name": "示例：折叠潮汐",
+  "theme": "超现实空间由秩序进入爆发",
+  "audience": "现场演出观众（演示设定）",
+  "stage": {
+    "screens": [
+      {
+        "name": "主屏（示例值，替换为实际屏幕）",
+        "width": 5760,
+        "height": 1080,
+        "safeArea": "中下方演员区域"
+      }
+    ],
+    "viewingDistance": "待现场确认",
+    "deliveryNotes": "屏幕规格不等于模型原生输出；超宽屏适配与播放编码待后期确认"
+  },
+  "preferences": {
+    "styles": [],
+    "preserve": [],
+    "avoid": [],
+    "approvedDirections": []
+  }
+}

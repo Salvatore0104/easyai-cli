@@ -15,3 +15,5 @@ Before asking for paid approval:
 Submit exactly one task. Do not retry, re-roll, compare, or change the mode after an error. If a task ID exists, poll only it. Download the video and returned last frame, record settings and paths in a ledger, and inspect a contact sheet, final frame, and sampled bottom-right regions for visible watermark and prompt adherence. Report QC without regenerating.
 
 For the existing fantasy-dancer project only, a future user-approved revision should prioritize realistic delayed translucent-silk motion and reduce synthetic bloom/sparkle. This note does not authorize a retry.
+
+批准生成前始终展示完整镜头、准确模式、模型、时长、比例、分辨率、音频、参考角色与数量、尾帧选择以及 watermark:false，绑定最终 manifest。低于费用门槛不免除这次展示；用户修改或含糊回复不是批准。

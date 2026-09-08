@@ -9,7 +9,7 @@ describe("bundled Skill installer", () => {
     const env = { ...process.env, EASYAI_CONFIG_DIR: join(dir, "config"), WOWIDEA_SKILLS_DIR: join(dir, "skills") };
     const run = () => JSON.parse(execFileSync(process.execPath, [resolve("scripts/install-skills.mjs")], { env, encoding: "utf8" }));
     try {
-      expect(run().version).toBe("0.2.4");
+      expect(run().version).toBe("0.3.0");
       const config = join(dir, "config", "config.json"), skill = join(dir, "skills", "wowidea", "SKILL.md");
       await writeFile(config, '{"profiles":{"private":"keep unchanged"}}');
       const before = await readFile(config, "utf8");
@@ -19,6 +19,9 @@ describe("bundled Skill installer", () => {
       expect(await readFile(skill, "utf8")).toBe("user custom instructions");
       expect(await readFile(config, "utf8")).toBe(before);
       expect(await readFile(join(dir, "skills", "wowidea", "references", "seedance-25.md"), "utf8")).toContain("2.5");
+      const resources = JSON.parse(await readFile(join(dir, "skills", "wowidea", "resources.json"), "utf8"));
+      for (const path of Object.keys(resources.files)) expect((await readFile(join(dir, "skills", path))).length).toBeGreaterThan(0);
+      expect(JSON.parse(await readFile(join(dir, "skills", "wowidea", "references", "upstream-lock.json"), "utf8")).sources.length).toBe(7);
       expect(await readFile(result.preserved[0].update, "utf8")).toContain("name: wowidea");
     } finally { await rm(dir, { recursive: true, force: true }); }
   });

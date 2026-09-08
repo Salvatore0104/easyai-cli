@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "wowidea.creation/v1",
+  "id": "opening-001-draft",
+  "prompt": "黑色空间里的铬色薄膜墙层层向外翻开，主轮廓大而清晰，内部深蓝裂隙逐渐收窄；最后形成向观众推进的环形波。固定正视构图，无文字。",
+  "model": "豆包Seedance-2.0",
+  "mode": "text_to_video",
+  "settings": {
+    "duration": 8,
+    "aspectRatio": "16:9",
+    "resolution": "720p",
+    "audio": false,
+    "watermark": false,
+    "verification": "illustrative settings; validate against live capabilities before any execution"
+  },
+  "references": [],
+  "taskId": null,
+  "outputs": [],
+  "qc": {
+    "verdict": "not_reviewed",
+    "evidence": []
+  }
+}

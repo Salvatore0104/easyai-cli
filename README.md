@@ -1,8 +1,29 @@
 > 帮我安装 https://github.com/Salvatore0104/easyai-cli 的 CLI 和 wowidea Skill。使用账号 API Key，不走浏览器登录；需要密钥时提供本机输入方式。默认图片用 Nano Banana 2，视频用 Seedance 2.0。安装后验证模型、余额和任务查询，并告诉我如何使用 `$wowidea`。
 
-# Wowidea：在 Codex 中创作图片与视频
+# Wowidea：Codex 驱动的专业视觉 Agent
 
-复制上面的提示词给 Codex 即可开始。版本 0.2.4；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
+复制上面的提示词给 Codex 即可开始。版本 0.3.0；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
+
+面向设计公司的 VJ、舞台主视觉和节目视觉创作。Codex 负责节目理解、美术方向、参考分析、模型专用提示词和审美判断；CLI 负责执行、恢复与交付。支持超现实、强冲击和实验性视觉，审美随节目调整。
+
+```text
+$wowidea 为这个节目的开场设计超现实 VJ 视觉，按当前节目目录保存风格
+$wowidea 用 H3 做全能参考提示词：图1提供主体，视频1只提供运动
+$wowidea 按刚才认可的节目风格继续设计第二段，先给分镜
+```
+
+节目档案保存在指定目录的 `.wowidea/project.json`，试验稿不会自动覆盖已认可风格。六类内置方法覆盖抽象运动、主视觉、超现实空间、节奏递进、循环构思、角色／物体变形。阶段性审美评审强调创新、冲击力、远距离可读性和节目意图，实际输出必须看过再评价。
+
+```text
+wowidea --json project init --dir <节目目录> --name <节目名>
+wowidea --json project show --dir <节目目录>
+wowidea --json project validate --dir <节目目录>
+wowidea --json project record --dir <节目目录> --file <创作记录.json>
+wowidea --json guides list
+wowidea --json guides show minimax-h3
+```
+
+以上命令可离线运行，无需账号 Key。`models route` 保留旧 guide 字段并新增 guideInfo（含实际包内路径与版本）。[节目与资源使用说明](docs/visual-agent-v1.md)包含记录格式、模型边界和更新方法；[离线节目示例](docs/examples/vj-programme/project.json)可复制到节目目录的 `.wowidea/project.json`。
 
 ## 安装 / 更新
 
@@ -68,7 +89,7 @@ watch 最长 30 分钟；超时或中断后再次查询同一 ID。下载仅读�
 
 费用监控**只针对 Seedance 视频：预计 ≤200 积分不追加费用确认，>200 积分才确认费用**。恰好 200 不做费用确认。图片、MiniMax、Google Omni、Wan 等其他生成直接提交，不要求预检报价、--yes 或 --max-cost；普通画布任务也不设置费用确认门槛。异步轮询、下载和实际积分报告照常进行。只有用户另行明确设置预算时才使用费用上限参数。
 
-所有 Seedance 都必须先展示经过实际看图与主观审美检查的分镜，由用户明确批准。参考模式下每个分镜镜头必须绑定实际 reference role；分镜图不会自动充当视频输入。批准后仍保持 `watermark:false`：预计 ≤200 不再问费用，>200 再确认模型、时长、比例、分辨率、声音、参考数量和费用。素材、分镜或设置变化会使批准失效。
+批准生成前始终展示最终镜头、模式、完整计费设置、素材角色／数量、尾帧选择与 watermark:false；200 积分阈值不会免除设置展示。所有 Seedance 都必须先展示经过实际看图与主观审美检查的分镜，由用户明确批准。参考模式下每个分镜镜头必须绑定实际 reference role；分镜图不会自动充当视频输入。批准后仍保持 `watermark:false`：预计 ≤200 不再问费用，>200 再确认模型、时长、比例、分辨率、声音、参考数量和费用。素材、分镜或设置变化会使批准失效。
 
 生成完成后输出“本次实际使用 X 积分”。JSON 的 pointsUsage 包含 actualPoints、status、source；status/watch/download/resume/finalize 都报告。实际积分只读取任务结算字段，未返回则显示“平台未返回本任务实际使用积分”，不把估算、token 数或账户余额差当实扣。
 
@@ -79,7 +100,7 @@ watch 最长 30 分钟；超时或中断后再次查询同一 ID。下载仅读�
 系统凭据库保存账号 API Key；~/.config/easyai（或 EASYAI_CONFIG_DIR）保存非秘密默认模型、安装版本、任务索引与报价 hash。任务索引按服务器及凭据分区，换 Key 后可用已知 taskId 查询；不会把旧 Key 的任务错误关联到新账号。
 本地 Seedance manifest/请求文件可能包含临时签名 URL，属于私密执行材料，不应提交版本库。日志输出会脱敏。
 
-Skill 来源与许可证见 [来源记录](skill/wowidea/references/sources.md)。社区 Seedance 创作指南固定提交并保留 MIT；MiniMax 和其他指南明确标为项目自有适配，不伪称官方。生成中不临时下载任何上游代码。
+Skill 来源与许可证见 [来源记录](skill/wowidea/references/sources.md)。社区 Seedance 创作指南固定提交并保留 MIT；MiniMax H3 已依据官方 h3-prompt-writing 结构更新，适配文档不伪称官方原包；Seedance 2.5 官方 sd25-pe 分发端点本次未能取得，采用可核验的官方文档原创总结。生成中不临时下载任何上游代码。
 
 ## 开发与验证
 
@@ -89,7 +110,7 @@ npm run check
 npm pack --dry-run
 ```
 
-[0.2.4 分镜审美与来源绑定](docs/wowidea-release-0.2.4.md)、[0.2.3 异步结果恢复修复](docs/wowidea-release-0.2.3.md)及[0.2.2 Seedance 费用门槛](docs/wowidea-release-0.2.2.md)区分实测、模拟测试和未验证项。本次未新增付费生成，不能把离线测试视为所有模型生成成功。
+[0.3.0 专业视觉 Agent](docs/wowidea-release-0.3.0.md)、[0.2.4 分镜审美与来源绑定](docs/wowidea-release-0.2.4.md)、[0.2.3 异步结果恢复修复](docs/wowidea-release-0.2.3.md)及[0.2.2 Seedance 费用门槛](docs/wowidea-release-0.2.2.md)区分实测、模拟测试和未验证项。本次已完成GPT Image 2及H3文本／单图全能参考付费冒烟，详见[真实实测记录](docs/live-smoke-20260908.md)；不能扩大为所有模型和模式已验收。
 
 退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少审批，7 超费用上限。
 

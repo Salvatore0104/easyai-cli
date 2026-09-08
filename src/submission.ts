@@ -45,6 +45,7 @@ export async function listSubmissions(api: EasyAiApi) {
 export async function recoverSubmission(api: EasyAiApi, key: string): Promise<unknown> {
   const file = recordPath(api, key);
   const record = JSON.parse(await readFile(file, "utf8"));
+  if (record.state === "rejected") throw new CliError(`Submission ${key} was rejected before acceptance: ${record.error || "validation failure"}. No recovery or resubmission was attempted.`, ExitCode.Usage);
   if (record.taskId) return api.get(`/v1/tasks/${encodeURIComponent(record.taskId)}`);
   const found = await api.get(`/v1/tasks?idempotencyKey=${encodeURIComponent(key)}`);
   const rows = taskRows(found);
@@ -123,6 +124,10 @@ export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payl
     return result;
   }
   catch (error) {
+    if (error instanceof CliError && error.exitCode === ExitCode.Usage) {
+      await writeFile(file, JSON.stringify({ ...record, state: "rejected", error: redact(error.message), rejectedAt: new Date().toISOString() }), { mode: 0o600 });
+      throw error;
+    }
     if (!(error instanceof CliError) || error.exitCode !== ExitCode.Service) throw error;
     const transportUncertain = /timed out|fetch failed|network|socket|econn|connection/i.test(error.message);
     const deadline = Date.now() + (transportUncertain ? options.recoveryWaitMs || 0 : 0);
