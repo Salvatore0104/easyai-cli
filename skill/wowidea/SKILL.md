@@ -18,6 +18,8 @@ description: 由 Codex 驱动的 VJ、舞台视觉与节目创作 Agent：制定
 - VJ、主视觉、空间、节奏、循环或变形：[六类创作参考](references/vj-recipes.md)。
 - 图片／视频／音频或全能参考：[素材角色与模式](references/reference-planning.md)。
 - 看图看片与修改建议：[按节目意图评审](references/visual-review.md)。
+- 多镜头、阶段制作或续作：[按创作轮次推进](references/production-rounds.md)。
+- 学习外部Skill或固化可复用方法：[创作配方编写](references/recipe-authoring.md)。
 - 图片风格灵感：[精选案例索引](references/image-case-index.md)，无需加载整个案例库。
 
 安装资源可通过 `wowidea --json guides list` 与 `wowidea --json guides show <id>` 查找。CLI 是本地档案、能力检查与可靠执行层；创作判断由 Codex 完成。

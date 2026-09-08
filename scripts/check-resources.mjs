@@ -36,7 +36,7 @@ for (const source of sources.sources) {
   for (const f of source.files || []) if (!/^[a-f0-9]{64}$/.test(f.sha256)) throw new Error(`Missing upstream digest: ${f.path}`);
 }
 if (process.argv.includes('--update')) {
-  await writeFile(lockPath, JSON.stringify({ schemaVersion: 'wowidea.resources/v1', version: '0.3.0', textNormalization: 'UTF-8 with LF line endings; binary files hashed verbatim', files: hashes }, null, 2) + '\n');
+  await writeFile(lockPath, JSON.stringify({ schemaVersion: 'wowidea.resources/v1', version: '0.3.1', textNormalization: 'UTF-8 with LF line endings; binary files hashed verbatim', files: hashes }, null, 2) + '\n');
 } else {
   const lock = JSON.parse(await readFile(lockPath, 'utf8'));
   if (JSON.stringify(lock.files) !== JSON.stringify(hashes)) throw new Error('Resource inventory changed. Review sources and run npm run resources:lock, then recheck.');

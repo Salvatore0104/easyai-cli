@@ -2,7 +2,7 @@
 
 # Wowidea：Codex 驱动的专业视觉 Agent
 
-复制上面的提示词给 Codex 即可开始。版本 0.3.0；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
+复制上面的提示词给 Codex 即可开始。版本 0.3.1；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
 
 面向设计公司的 VJ、舞台主视觉和节目视觉创作。Codex 负责节目理解、美术方向、参考分析、模型专用提示词和审美判断；CLI 负责执行、恢复与交付。支持超现实、强冲击和实验性视觉，审美随节目调整。
 
@@ -110,7 +110,7 @@ npm run check
 npm pack --dry-run
 ```
 
-[0.3.0 专业视觉 Agent](docs/wowidea-release-0.3.0.md)、[0.2.4 分镜审美与来源绑定](docs/wowidea-release-0.2.4.md)、[0.2.3 异步结果恢复修复](docs/wowidea-release-0.2.3.md)及[0.2.2 Seedance 费用门槛](docs/wowidea-release-0.2.2.md)区分实测、模拟测试和未验证项。本次已完成GPT Image 2及H3文本／单图全能参考付费冒烟，详见[真实实测记录](docs/live-smoke-20260908.md)；不能扩大为所有模型和模式已验收。
+[0.3.1 创作配方与轮次](docs/wowidea-release-0.3.1.md)、[0.3.0 专业视觉 Agent](docs/wowidea-release-0.3.0.md)、[0.2.4 分镜审美与来源绑定](docs/wowidea-release-0.2.4.md)、[0.2.3 异步结果恢复修复](docs/wowidea-release-0.2.3.md)及[0.2.2 Seedance 费用门槛](docs/wowidea-release-0.2.2.md)区分实测、模拟测试和未验证项。本次已完成GPT Image 2及H3文本／单图全能参考付费冒烟，详见[真实实测记录](docs/live-smoke-20260908.md)；不能扩大为所有模型和模式已验收。
 
 退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少审批，7 超费用上限。
 

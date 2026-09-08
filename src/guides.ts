@@ -3,8 +3,9 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CliError, ExitCode } from "./errors.js";
 
-export const guideVersion = "0.3.0";
+export const guideVersion = "0.3.1";
 export const guideRegistry = [
+  ["production-rounds", "按创作轮次推进"], ["recipe-authoring", "编写与复用创作配方"],
   ["creative-direction", "节目理解与美术方向"], ["vj-recipes", "VJ 与舞台创作方法"],
   ["project-workflow", "节目档案与创作记录"], ["reference-planning", "素材角色与顺序"],
   ["visual-review", "按节目意图评审"], ["seedance-20", "Seedance 2.0"],

@@ -1,6 +1,6 @@
 {
   "name": "@easyai/cli",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Codex-driven visual agent for VJ, stage design and programme creation",
   "type": "module",
   "bin": {

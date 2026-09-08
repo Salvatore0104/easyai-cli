@@ -22,7 +22,7 @@ import { prepareVideoPayload, videoSubmitTimeout } from "./video-payload.js";
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Codex visual agent for VJ and stage creation (easyai compatible)").version("0.3.0")
+program.name("wowidea").description("Codex visual agent for VJ and stage creation (easyai compatible)").version("0.3.1")
   .option("--profile <name>", "configuration profile")
   .option("--base-url <url>", "EasyAI server URL")
   .option("--json", "stable JSON output")

@@ -164,6 +164,28 @@
       ],
       "summary": "Previous release attribution and MIT notice retained; current model-specific guidance prioritizes official documentation.",
       "files": []
+    },
+    {
+      "id": "flova-local-skill",
+      "url": "https://www.flova.ai/",
+      "revision": "local installed snapshot; upstream commit and distribution URL not established",
+      "verifiedAt": "2026-09-08",
+      "license": null,
+      "strategy": "original-method-adaptation-only",
+      "applicableModels": [
+        "model-independent creative workflow"
+      ],
+      "summary": "Studied locally installed Flova SKILL.md and Skill Builder: project lifecycle, decision-focused rules and module separation. Public site is attribution only, not a verified Skill download. No local licence file found; no original text, configuration, credentials or media redistributed. Adapted for Codex decisions and EasyAI execution.",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "151391cb8929729d3fcf029a30ef3639b0aa2d7ba194ff9a301285473dc602db"
+        },
+        {
+          "path": "references/skill-builder.md",
+          "sha256": "102f96ab5b76c77cfc51bdf49f5bcaf24a18a502b707a1c7292332f74f01b5e5"
+        }
+      ]
     }
   ]
 }
