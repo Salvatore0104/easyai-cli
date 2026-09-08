@@ -1,6 +1,6 @@
 import { EasyAiApi, findUrls } from "./api.js";
 import { CliError, ExitCode, redact } from "./errors.js";
-import { mkdir, readFile, writeFile, readdir } from "node:fs/promises";
+import { mkdir, readFile, writeFile, readdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { configDir } from "./config.js";
 import { payloadHash } from "./preflight.js";
@@ -81,9 +81,10 @@ export function taskRows(value: unknown): unknown[] {
 }
 
 export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payload: Record<string, unknown>, idempotencyKey: string, kind: "image" | "video" = "image", options: { submitTimeoutMs?: number; recoveryWaitMs?: number; allowDuplicatePayload?: boolean } = {}): Promise<unknown> {
+  let claimPath: string | undefined;
   if (idempotencyKey.startsWith("seedance-")) {
     const claims = join(configDir(), "approvals"); await mkdir(claims, { recursive: true });
-    const claimPath = join(claims, `${payloadHash(idempotencyKey)}.json`);
+    claimPath = join(claims, `${payloadHash(idempotencyKey)}.json`);
     const claim = { scope: api.scope || "test", payloadHash: payloadHash(payload) };
     try { await writeFile(claimPath, JSON.stringify(claim), { flag: "wx", mode: 0o600 }); }
     catch (error) {
@@ -104,8 +105,12 @@ export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payl
   catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     const previous = JSON.parse(await readFile(file, "utf8"));
+    if (idempotencyKey.startsWith("seedance-") && previous.state === "rejected") {
+      await writeFile(file, JSON.stringify(record), { mode: 0o600 });
+    } else {
     if (previous.payloadHash !== record.payloadHash || previous.path !== path) throw new CliError("Idempotency key already belongs to a different request.", ExitCode.Conflict);
     return recoverSubmission(api, idempotencyKey);
+    }
   }
   try {
     try {
@@ -125,7 +130,11 @@ export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payl
   }
   catch (error) {
     if (error instanceof CliError && error.exitCode === ExitCode.Usage) {
-      await writeFile(file, JSON.stringify({ ...record, state: "rejected", error: redact(error.message), rejectedAt: new Date().toISOString() }), { mode: 0o600 });
+      // A provider validation rejection created no paid task. Preserve the
+      // diagnostic and release the creative claim so a corrected payload can
+      // reuse the same approved manifest without another approval ceremony.
+      if (claimPath) await unlink(claimPath).catch(() => undefined);
+      await writeFile(file, JSON.stringify({ ...record, state: "rejected", error: redact(error.message), errorDetails: redact(error.details), rejectedAt: new Date().toISOString() }), { mode: 0o600 });
       throw error;
     }
     if (!(error instanceof CliError) || error.exitCode !== ExitCode.Service) throw error;

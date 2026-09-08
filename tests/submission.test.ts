@@ -45,6 +45,15 @@ describe("durable async lifecycle", () => {
     await expect(submitAsyncWithRecovery(anotherAccount, "/v1/video/generations", {}, "seedance-approved", "video")).rejects.toMatchObject({ exitCode: 6 });
     expect(anotherAccount.post).not.toHaveBeenCalled();
   });
+  it("releases a Seedance claim after provider validation rejects before task creation", async () => {
+    const api = mock();
+    api.post.mockRejectedValue(new CliError("VIDEO_INPUT_CONTENT_EMPTY", ExitCode.Usage, { code: "VIDEO_INPUT_CONTENT_EMPTY" }));
+    await expect(submitAsyncWithRecovery(api, "/v1/video/generations", { content: [] }, "seedance-validation", "video")).rejects.toThrow("VIDEO_INPUT_CONTENT_EMPTY");
+    const rows = await listSubmissions(api);
+    expect(rows[0]).toMatchObject({ state: "rejected", errorDetails: { code: "VIDEO_INPUT_CONTENT_EMPTY" } });
+    const corrected = mock(); corrected.post.mockResolvedValue({ taskId: "new-task" });
+    await expect(submitAsyncWithRecovery(corrected, "/v1/video/generations", { content: [{ type: "text", text: "fixed" }] }, "seedance-validation", "video")).resolves.toMatchObject({ taskId: "new-task" });
+  });
   it("does not retry validation errors or a changed payload", async () => {
     const api = mock(); api.post.mockRejectedValue(new CliError("bad input", ExitCode.Usage));
     await expect(submitImageWithRecovery(api, {}, "key")).rejects.toMatchObject({ exitCode: 2 });
