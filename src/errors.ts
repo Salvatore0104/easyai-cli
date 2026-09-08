@@ -15,17 +15,18 @@ export class CliError extends Error {
   }
 }
 
-const sensitiveKey = /authorization|api.?key|(^|_)key$|access.?token|refresh.?token|secret|password|cookie|signed.?url/i;
+const sensitiveKey = /authorization|api.?key|(^|_)key$|(^|_)token$|jwt|access.?token|refresh.?token|secret|password|cookie|signed.?url/i;
 export function redact(value: unknown): unknown {
   if (typeof value === "string") {
     return value
       .replace(/Bearer\s+[^\s'",}]+/gi, "Bearer [REDACTED]")
       .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, "sk-[REDACTED]")
+      .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[REDACTED-JWT]")
       .replace(/([?&](?:X-Amz-[^=]+|Signature|token)\=)[^&\s]+/gi, "$1[REDACTED]");
   }
   if (Array.isArray(value)) return value.map(redact);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sensitiveKey.test(key) ? "[REDACTED]" : redact(item)]));
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, !["idempotencyKey", "idempotency_key"].includes(key) && sensitiveKey.test(key) ? "[REDACTED]" : redact(item)]));
   }
   return value;
 }

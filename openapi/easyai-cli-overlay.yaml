@@ -1,11 +1,33 @@
 openapi: 3.0.3
 info:
   title: EasyAI CLI Contract Overlay
-  version: 0.1.0
+  version: 0.2.0
   description: Missing typed contracts required by the EasyAI CLI. Merge into the server OpenAPI document.
 servers:
   - url: https://ai.wowidea.top/api
 paths:
+  /v1/tasks:
+    get:
+      operationId: recoverTaskByIdempotencyKey
+      security: [{ bearer: [] }]
+      description: Account-scoped lookup. Return the stored key on each matching row; an unmarked or ambiguous list cannot establish ownership. Never create a task during lookup. Enforce atomic key uniqueness across clients on generation submission.
+      parameters:
+        - { name: idempotencyKey, in: query, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Empty when not yet known; one exact row when accepted. CLI also tolerates items/data envelopes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [taskId, idempotencyKey, status]
+                  properties:
+                    taskId: { type: string }
+                    idempotencyKey: { type: string }
+                    status: { type: string }
+        '409': { description: Key belongs to another serialized payload; never submit again automatically }
   /auth/cli/authorize:
     get:
       operationId: authorizeCli

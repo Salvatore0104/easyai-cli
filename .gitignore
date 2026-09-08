@@ -4,3 +4,4 @@ coverage/
 release/
 *.tgz
 .easyai-test/
+nano2-test-output/

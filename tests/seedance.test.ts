@@ -24,6 +24,8 @@ describe("Seedance approval", () => {
     await expect(approveManifest(file, "looks good")).rejects.toMatchObject({ exitCode: 6 });
     const approved = await approveManifest(file, "I APPROVE STORYBOARD");
     expect(approved.approval?.creativeHash).toBe(creativeHash(approved));
+    await writeFile(join(dir, "storyboard-1.png"), "changed bytes", "utf8");
+    await expect(validateManifest(approved)).rejects.toMatchObject({ exitCode: 6 });
     const changed = JSON.parse(await readFile(file, "utf8")) as SeedanceManifest; changed.duration = 10;
     await expect(validateManifest(changed)).rejects.toMatchObject({ exitCode: 6 });
   });

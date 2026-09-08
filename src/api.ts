@@ -3,11 +3,13 @@ import { mkdir } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
+import { createHash } from "node:crypto";
 import { classifyHttpError, CliError, ExitCode } from "./errors.js";
 
 export interface ApiOptions { baseUrl: string; token?: string; timeoutMs: number; }
 export class EasyAiApi {
   constructor(private readonly options: ApiOptions) {}
+  get scope(): string { return createHash("sha256").update(this.options.baseUrl + "\n" + (this.options.token || "")).digest("hex"); }
   private url(path: string): string {
     const root = this.options.baseUrl.endsWith("/api") ? this.options.baseUrl : `${this.options.baseUrl}/api`;
     return `${root}${path.startsWith("/") ? path : `/${path}`}`;
@@ -30,7 +32,10 @@ export class EasyAiApi {
       const text = await response.text();
       let data: unknown = text;
       try { data = text ? JSON.parse(text) : null; } catch { /* preserve text */ }
-      if (!response.ok) throw classifyHttpError(response.status, data);
+      if (!response.ok) {
+        const safeData = this.options.token ? JSON.parse(JSON.stringify(data).replaceAll(this.options.token, "[REDACTED]")) : data;
+        throw classifyHttpError(response.status, safeData);
+      }
       return data as T;
     } catch (error) {
       if (error instanceof CliError) throw error;
@@ -52,7 +57,9 @@ export function findUrls(value: unknown): string[] {
   const visit = (item: unknown) => {
     if (typeof item === "string" && /^https?:\/\//i.test(item)) urls.add(item);
     else if (Array.isArray(item)) item.forEach(visit);
-    else if (item && typeof item === "object") Object.values(item).forEach(visit);
+    else if (item && typeof item === "object") for (const [key, value] of Object.entries(item)) {
+      if (["data", "result", "results", "output", "outputs", "images", "videos", "url", "image_url", "video_url", "download_url", "last_frame_url", "lastFrameUrl"].includes(key)) visit(value);
+    }
   };
   visit(value); return [...urls];
 }
@@ -61,10 +68,10 @@ export async function downloadUrls(urls: string[], outputDir: string): Promise<s
   await mkdir(outputDir, { recursive: true });
   const paths: string[] = [];
   for (const [index, url] of urls.entries()) {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
     if (!response.ok || !response.body) throw new CliError(`Download failed: HTTP ${response.status}`, ExitCode.Service);
     const pathname = new URL(url).pathname;
-    const filename = basename(pathname) || `output-${index + 1}`;
+    const filename = `${index + 1}-${basename(pathname).replace(/[^a-zA-Z0-9._-]/g, "_") || "output"}`;
     const path = resolve(outputDir, filename);
     await pipeline(Readable.fromWeb(response.body as never), createWriteStream(path)); paths.push(path);
   }

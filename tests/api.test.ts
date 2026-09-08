@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EasyAiApi } from "../src/api.js";
+import { EasyAiApi, findUrls } from "../src/api.js";
 
 describe("API client", () => {
+  it("downloads only output media, never input references or arbitrary URLs", () => {
+    expect(findUrls({ input: { image_urls: ["https://input.test/a.png"] }, reference: "https://input.test/b.png", result: { images: [{ url: "https://output.test/a.png" }], last_frame_url: "https://output.test/tail.png" } })).toEqual(["https://output.test/a.png", "https://output.test/tail.png"]);
+  });
   afterEach(() => vi.unstubAllGlobals());
 
   it("does not retry failed requests", async () => {

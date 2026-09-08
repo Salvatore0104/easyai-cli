@@ -1,138 +1,95 @@
-# EasyAI CLI
+> 帮我安装 https://github.com/Salvatore0104/easyai-cli 的 CLI 和 wowidea Skill。使用账号 API Key，不走浏览器登录；需要密钥时提供本机输入方式。默认图片用 Nano Banana 2，视频用 Seedance 2.0。安装后验证模型、余额和任务查询，并告诉我如何使用 `$wowidea`。
 
-Agent-friendly CLI for EasyAI image/video generation and infinite-canvas workflows. It exposes both `easyai` and the compatibility alias `easyai-canvas`.
+# Wowidea：在 Codex 中创作图片与视频
 
-## 首次在 Codex 中使用
+复制上面的提示词给 Codex 即可开始。版本 0.2.0；命令名 `wowidea`，兼容 `easyai` 和 `easyai-canvas`。无需 GitHub 打包或额外模型服务 Key；安装器从源码构建 npm 实体包，同时安装主 Skill 和模型参考指南。
 
-In a Codex terminal, run:
+## 安装 / 更新
 
-请先阅读 [Codex 首次使用指南](docs/codex-first-run-zh.md)。macOS 用户直接执行：
+需要 Node.js 20+、npm 和 Git。重复执行就是更新，保留系统凭据与用户修改的 Skill；待合并的新文件存于配置目录 skill-updates，安装结果会列出路径。不要使用 `npm install -g .` 从临时目录安装，会留下失效链接。
+
+macOS：
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Salvatore0104/easyai-cli/master/scripts/install-macos.sh)"
 ```
 
-Then ask Codex to use the bundled `skill/easyai` instructions, or install the skill into your Codex skills directory:
-
-```bash
-mkdir -p "$HOME/.codex/skills/easyai"
-cp -R "$(npm root -g)/@easyai/cli/skill/easyai/." "$HOME/.codex/skills/easyai/"
-```
-
-Windows PowerShell:
+Windows PowerShell：
 
 ```powershell
-git clone https://github.com/Salvatore0104/easyai-cli.git
-cd easyai-cli
-npm install
-npm run build
-npm install --global .
-easyai --help
-$skill = Join-Path (npm root -g) "@easyai/cli/skill/easyai"
-Copy-Item $skill "$HOME\.codex\skills\easyai" -Recurse -Force
+irm https://raw.githubusercontent.com/Salvatore0104/easyai-cli/master/scripts/install-windows.ps1 | iex
 ```
 
-浏览器登录是可选的；推荐直接使用账号 API Key，不需要登录验证。完整首次配置和自然语言示例见 [Codex 首次使用指南](docs/codex-first-run-zh.md)。
+Codex 也可以克隆仓库后查看并运行对应安装脚本。npm 全局目录需当前用户可写；不要为了安装默认使用 sudo。Skill 默认安装到 CODEX_HOME/skills（未配置时为 ~/.codex/skills），可通过 WOWIDEA_SKILLS_DIR 指定位置。避免在 .agents/skills 和 .codex/skills 同时安装同名副本。
 
-### 直接使用 API Key（推荐）
-
-不需要执行 `auth login`。单次调用可从标准输入传入：
-
-```bash
-read -s EASYAI_API_KEY
-printf '%s' "$EASYAI_API_KEY" | easyai --api-key-stdin --json models list
-unset EASYAI_API_KEY
-```
-
-连续调用可在当前终端设置环境变量：
-
-```bash
-export EASYAI_API_KEY='只在本机输入，不要提交到 GitHub'
-easyai --json models list
-easyai --json balance
-easyai --json canvas project list
-unset EASYAI_API_KEY
-```
-
-也支持单次显式参数 `--api-key <key>`，但不推荐，因为可能进入 shell 历史。API Key 是账号级权限，请按需创建并可以在网站或 `easyai api-key revoke KEY_ID` 立即撤销。
-
-## macOS one-command install
-
-Run this from a Codex terminal on macOS. It requires Node.js 20+ and git, clones the repository, builds locally, and registers both CLI aliases globally:
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Salvatore0104/easyai-cli/master/scripts/install-macos.sh)"
-```
-
-然后直接使用 API Key（不需要浏览器登录）：
-
-```bash
-read -s EASYAI_API_KEY
-printf '%s' "$EASYAI_API_KEY" | easyai --api-key-stdin --json models list
-unset EASYAI_API_KEY
-```
-
-To install a different fork or branch, set `EASYAI_CLI_REPO` and `EASYAI_CLI_REF` before running the same command. This path intentionally builds on the user's Mac instead of downloading a platform-specific binary.
-
-## Safety model
-
-Use `--json` for stable machine output and `--output` for large responses. Canvas writes use `baseVersion` and idempotency keys; conflicts are never overwritten automatically. Video and billable canvas execution require a preflight quote. Seedance requires storyboard approval, exact reference counts, `watermark: false`, and one-task-only submission with no automatic retry.
-
-The server-side preflight and CLI PKCE endpoints are specified in `openapi/easyai-cli-overlay.yaml`; they must be merged into the EasyAI backend before online preflight/login acceptance.
-
-## 在 Codex 中怎么调用
-
-安装并把 `skill/easyai` 放入 Codex skills 目录后，不需要记住所有参数。直接用自然语言说明目标即可，例如：
+在自己的交互终端输入密钥：
 
 ```text
-使用 EasyAI CLI 列出我的模型和余额，只读操作，返回 JSON。
+wowidea auth use-key --prompt
+wowidea --json auth status
+wowidea --json models route --kind image
+wowidea --json balance
+wowidea --json tasks list
 ```
+
+--prompt 隐藏输入并保存系统凭据库。不要把 API Key 发进聊天、写进命令参数、Skill、记忆或 GitHub。无人值守可安全注入 EASYAI_API_KEY 或 --api-key-stdin。凭据库不可用时会报错，不回退明文配置。API Key 是账号级自动化权限，可在网站立即撤销；不会要求浏览器登录。
+
+## 以后如何调用
+
+安装后下一轮对话输入：
 
 ```text
-使用 EasyAI CLI 查看我的无限画布项目，读取项目 PROJECT_ID 的当前状态，不要修改。
+$wowidea 帮我生成一张咖啡店开业海报
+$wowidea 用 MiniMax 制作产品视频
+$wowidea 继续查看刚才的视频任务
 ```
+
+也可以说“使用 wowidea……”。`/wowidea ……` 会作为文本创作意图识别，不承诺出现在 Codex 原生斜杠菜单。无需每次重复安装、提供 Key 或指定 Skill 文件路径。
+
+图片默认 Nano Banana 2；明确主题和必要文案后直接制作。单张海报优先 3:4、2K（以平台支持为准）。视频默认 Seedance 2.0；用户指定模型优先，模型不可用明确提示，不擅自替换。
+
+内置 Nano Banana 2/Pro/2 Lite、GPT Image 2、MiniMax H3/H3-Max、Google Omni、Wan3.0/Prime、Seedance 2.0/fast/2.5 指南；本次实时目录还发现 2.0-mini，一并支持。运行时以当前账号模型目录为准，Google Omni 不推定上游型号，2.5 不继承 2.0 的参数限制。
+
+## 异步任务与费用控制
+
+图片和视频都按“准备 → 提交一次 → 保存 ID → 轮询 → 下载”处理。提交前保存幂等键和请求 hash；断网、超时或重启只恢复查询。服务端未返回匹配的幂等键时保持 uncertain，绝不取列表第一项或再次 POST。
 
 ```text
-使用 EasyAI CLI 在项目 PROJECT_ID 中增加一个 text 节点。先读取当前版本，再用乐观锁写入；如果版本冲突就停止，不要覆盖。
+wowidea --json models route --kind video --model MiniMax
+wowidea --json image generate --file request.json --idempotency-key <UUID>
+wowidea --json video preflight --file request.json
+wowidea --json video generate --file request.json --quote <quoteId> --yes --max-cost <上限> --idempotency-key <UUID>
+wowidea --json tasks list
+wowidea --json tasks resume <幂等键>
+wowidea --json video watch <taskId>
+wowidea --json video download <taskId> --dir <绝对目录>
 ```
 
-也可以显式要求 Codex 使用 Skill：
+watch 最长 30 分钟；超时或中断后再次查询同一 ID。下载仅读取结果媒体。大 JSON 使用全局 --output 导出。
 
-```text
-$easyai 查看我的 EasyAI 画布项目并汇总节点类型。
-```
+所有 Seedance 版本必须先制作、展示分镜图并得到明确批准，再确认模型、时长、比例、分辨率、音频和引用。CLI 要求 --manifest、watermark:false、有效服务器报价及费用上限。素材字节或创作设置改变会使批准失效；本机并发调用同一批准最多提交一次。跨设备的全局单任务保证仍需要后端幂等存储。
 
-Codex 实际执行的就是普通 CLI 命令，例如：
+[Seedance 操作规范](skill/wowidea/references/seedance-gate.md)包含私有 MinIO、manifest、预检、下载及 QC。未知报价不能提交；报价后端未部署时只完成创作准备并报告阻塞。包含 Seedance 的画布执行目前阻止直提，需走 video generate --manifest。
+
+## 安装保存了什么
+
+系统凭据库保存账号 API Key；~/.config/easyai（或 EASYAI_CONFIG_DIR）保存非秘密默认模型、安装版本、任务索引与报价 hash。任务索引按服务器及凭据分区，换 Key 后可用已知 taskId 查询；不会把旧 Key 的任务错误关联到新账号。
+本地 Seedance manifest/请求文件可能包含临时签名 URL，属于私密执行材料，不应提交版本库。日志输出会脱敏。
+
+Skill 来源与许可证见 [来源记录](skill/wowidea/references/sources.md)。社区 Seedance 创作指南固定提交并保留 MIT；MiniMax 和其他指南明确标为项目自有适配，不伪称官方。生成中不临时下载任何上游代码。
+
+## 开发与验证
 
 ```bash
-easyai --json models list
-easyai --json balance
-easyai --json canvas project list
-```
-
-图片和视频要分开描述。图片可以在你确认费用后直接提交；视频必须先预检：
-
-```text
-使用 EasyAI CLI 预检这个视频请求，先不要提交，告诉我模型、时长、分辨率、音频和预计费用。
-```
-
-得到 quote 后，再明确授权：
-
-```text
-费用在我的预算内，使用刚才的 quote 提交一次视频任务。不要重试，不要创建对比任务，并持续查看这个任务的状态。
-```
-
-非交互自动化必须明确给出 `--yes --max-cost`。网络超时后 CLI 会按幂等键找回已经接受的图片或视频任务；找不到时会报告 `uncertain`，不会再次扣费提交。
-
-这种用法和其他 agent-friendly CLI 一样：自然语言负责表达意图，Codex Skill 负责选择命令，CLI 负责稳定 JSON、认证、幂等和安全边界。不要把私有 HTTP 请求拼接到提示词里。
-
-## Development
-
-```bash
-npm install
+npm ci
 npm run check
-npm run pack:check
-npm run package:host
+npm pack --dry-run
 ```
 
-See `docs/easyai-cli-application-spec.md` for the complete command and API specification.
+[本次发布验证与后端依赖](docs/wowidea-release-0.2.0.md)区分实测、模拟测试和未验证项。未新增付费生成，不能把离线测试视为所有模型生成成功。
+
+退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少审批，7 超费用上限。
+
+## 卸载
+
+`npm uninstall -g @easyai/cli` 删除三个 CLI 命令。需要移除 Skill 时，让 Codex 只删除实际安装目录中的 wowidea/easyai 两个目录；先保留自定义修改。凭据和任务索引默认不删除。撤销账号 Key 是独立操作，需用户明确要求。

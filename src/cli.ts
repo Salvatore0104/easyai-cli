@@ -8,16 +8,17 @@ import { Command, Option } from "commander";
 import { EasyAiApi, downloadUrls, findUrls } from "./api.js";
 import { accessToken, authStatus, browserLogin, logout, useApiKey } from "./auth.js";
 import { applyCanvasBatch, applyCanvasOperation, canvasMutationEnvelope } from "./canvas.js";
-import { getProfile } from "./config.js";
+import { getProfile, creativeDefaults } from "./config.js";
 import { CliError, ExitCode, redact } from "./errors.js";
 import { emit, OutputOptions } from "./output.js";
 import { assertQuote, loadQuote, localQuote, payloadHash, Quote, saveQuote } from "./preflight.js";
 import { approveManifest, creativeHash, readManifest, seedancePayload, uploadReferences, validateManifest } from "./seedance.js";
-import { submitAsyncWithRecovery, submitImageWithRecovery } from "./submission.js";
+import { submitAsyncWithRecovery, submitImageWithRecovery, listSubmissions, recoverSubmission, taskStatus, taskRows } from "./submission.js";
+import { routeModel, validateCapabilities } from "./models.js";
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("easyai").description("Control EasyAI generation and infinite canvas workflows").version("0.1.0")
+program.name("wowidea").description("Control EasyAI generation and infinite canvas workflows (easyai compatible)").version("0.2.0")
   .option("--profile <name>", "configuration profile")
   .option("--base-url <url>", "EasyAI server URL")
   .option("--json", "stable JSON output")
@@ -50,8 +51,8 @@ const auth = program.command("auth").description("Manage CLI authentication");
 auth.command("login").action(async (_o, c) => { const g = globals(c); await output(await browserLogin(g.profile, g.baseUrl, Number(g.timeout)), c); });
 auth.command("logout").action(async (_o, c) => { const g = globals(c); await output(await logout(g.profile, g.baseUrl), c); });
 auth.command("status").action(async (_o, c) => { const g = globals(c); await output(await authStatus(g.profile, g.baseUrl), c); });
-auth.command("use-key").argument("[key]").option("--key-stdin", "read key from stdin").action(async (key: string | undefined, o, c) => {
-  const value = o.keyStdin ? await readStdin() : key; if (!value) throw new CliError("Provide a key or --key-stdin.", ExitCode.Usage);
+auth.command("use-key").argument("[key]").option("--key-stdin", "read key from stdin").option("--prompt", "hidden local terminal input").action(async (key: string | undefined, o, c) => {
+  const value = o.prompt ? await hiddenKey() : o.keyStdin ? await readStdin() : key; if (!value) throw new CliError("Provide --prompt or --key-stdin.", ExitCode.Usage);
   const g = globals(c); await output(await useApiKey(value, g.profile, g.baseUrl), c);
 });
 
@@ -64,27 +65,35 @@ keys.command("revoke").argument("<id>").action(async id => output(await (await a
 
 const models = program.command("models");
 models.command("list").option("--type <type>").action(async o => output(await (await apiFor(models)).get(o.type ? `/v1/models?type=${enc(o.type)}` : "/v1/models"), models));
-models.command("show").argument("<id>").action(async id => { const result = await (await apiFor(models)).get<unknown>("/v1/models"); const rows = Array.isArray(result) ? result : (result as { data?: unknown[] }).data || []; await output(rows.find((x: any) => x.id === id || x.model === id) ?? { found: false, id }, models); });
+models.command("show").argument("<id>").action(async id => { const result = await (await apiFor(models)).get<unknown>("/v1/models"); await output(taskRows(result).find((x: any) => x.id === id || x.model === id || x.modelName === id) ?? { found: false, id }, models); });
+models.command("route").requiredOption("--kind <image|video>").option("--model <name>").action(async (o, c) => { const defaults = await creativeDefaults(); await output(routeModel(await (await apiFor(c)).get("/v1/models"), o.kind, o.model || defaults[o.kind as "image" | "video"]), c); });
+const tasks = program.command("tasks").description("Persisted submissions; recovery never submits another task");
+tasks.command("list").action(async (_o, c) => output(await listSubmissions(await apiFor(c)), c));
+tasks.command("resume").argument("<idempotencyKey>").action(async (key, _o, c) => output(await recoverSubmission(await apiFor(c), key), c));
 program.command("balance").action(async (_o, c) => output(await (await apiFor(c)).get("/v1/balance"), c));
 
 function taskCommands(parent: Command, media: "image" | "video") {
   parent.command("status").argument("<taskId>").action(async (id, _o, c) => output(await (await apiFor(c)).get(`/v1/tasks/${enc(id)}`), c));
   parent.command("download").argument("<taskId>").option("--dir <path>", "download directory", ".").action(async (id, o, c) => { const value = await (await apiFor(c)).get(`/v1/tasks/${enc(id)}`); await output({ taskId: id, paths: await downloadUrls(findUrls(value), resolve(o.dir)) }, c); });
+  parent.command("watch").argument("<taskId>").option("--interval <ms>", "poll interval", "2000").action(async (id, o, c) => watchTask(await apiFor(c), id, Number(o.interval), c));
   if (media === "video") {
     parent.command("cancel").argument("<taskId>").action(async (id, _o, c) => output(await (await apiFor(c)).post(`/v1/tasks/${enc(id)}/cancel`), c));
-    parent.command("watch").argument("<taskId>").option("--interval <ms>", "poll interval", "2000").action(async (id, o, c) => watchTask(await apiFor(c), id, Number(o.interval), c));
   }
 }
 const image = program.command("image");
-dataOptions(image.command("generate")).action(async (o, c) => { const api = await apiFor(c); const payload = await jsonInput(o); await output(await submitImageWithRecovery(api, payload, randomUUID()), c); });
+dataOptions(image.command("generate")).requiredOption("--idempotency-key <key>").action(async (o, c) => { const payload = await jsonInput(o); if (/seedance/i.test(String(payload.model))) throw new CliError("Seedance requires video generate --manifest.", ExitCode.Approval); const api = await apiFor(c); const selected = routeModel(await api.get("/v1/models"), "image", payload.model ? String(payload.model) : (await creativeDefaults()).image); payload.model = selected.model; validateCapabilities(selected, payload); await output(await submitImageWithRecovery(api, payload, o.idempotencyKey), c); });
 taskCommands(image, "image");
 
 async function preflight(api: EasyAiApi, kind: "video" | "canvas", path: string, payload: Record<string, unknown>): Promise<Quote> {
+  if (kind === "video") validateCapabilities(routeModel(await api.get("/v1/models"), "video", String(payload.model || "")), payload);
   try {
-    const server = await api.post<any>(path, payload);
+    const response = await api.post<any>(path, payload);
+    const server = response.data && !response.quoteId ? response.data : response;
     const normalized = server.normalizedRequest || payload; const computedHash = payloadHash(normalized);
     if (!server.quoteId || !server.expiresAt || !Number.isFinite(Date.parse(server.expiresAt)) || (server.payloadHash && server.payloadHash !== computedHash)) throw new CliError("Server returned an invalid preflight quote.", ExitCode.Service);
     const quote: Quote = { quoteId: String(server.quoteId), serverQuoteId: String(server.quoteId), kind, payloadHash: computedHash, payload: normalized, estimatedCost: server.estimatedCost ?? null, currency: server.currency || "points", createdAt: new Date().toISOString(), expiresAt: server.expiresAt, source: "server" };
+    quote.scope = api.scope;
+    quote.submissionPath = kind === "video" ? "/v1/video/generations" : path.replace(/\/preflight$/, "");
     await saveQuote(quote); return quote;
   } catch (error) {
     if (!(error instanceof CliError) || !/HTTP 404/.test(error.message)) throw error;
@@ -104,22 +113,32 @@ async function confirmQuote(quote: Quote, opts: { yes?: boolean; maxCost?: strin
   const rl = createInterface({ input: process.stdin, output: process.stderr }); const answer = await rl.question(""); rl.close();
   if (answer !== "YES") throw new CliError("Generation was not approved.", ExitCode.Approval);
 }
-async function submitOnce(api: EasyAiApi, path: string, payload: Record<string, unknown>, quote: Quote): Promise<unknown> {
-  const key = randomUUID();
+async function submitOnce(api: EasyAiApi, path: string, payload: Record<string, unknown>, quote: Quote, key = quote.quoteId): Promise<unknown> {
+  if (quote.scope !== api.scope) throw new CliError("Quote belongs to another server or credential; preflight again.", ExitCode.Approval);
+  if (quote.submissionPath !== path) throw new CliError("Quote belongs to another execution endpoint.", ExitCode.Approval);
   const kind = path.includes("video") ? "video" : "image";
   return submitAsyncWithRecovery(api, path, { ...payload, quoteId: quote.serverQuoteId || quote.quoteId }, key, kind);
 }
 const video = program.command("video");
 dataOptions(video.command("preflight")).action(async (o, c) => output(await preflight(await apiFor(c), "video", "/v1/video/preflight", await jsonInput(o)), c));
-dataOptions(video.command("generate")).requiredOption("--quote <id>").option("--yes").option("--max-cost <amount>").option("--manifest <path>").action(async (o, c) => {
+dataOptions(video.command("generate")).requiredOption("--quote <id>").requiredOption("--idempotency-key <key>").option("--yes").option("--max-cost <amount>").option("--manifest <path>").action(async (o, c) => {
   let payload = await jsonInput(o);
   let manifestPath: string | undefined;
+  let approvalKey: string | undefined;
+  if (/seedance/i.test(String(payload.model)) && !o.manifest) throw new CliError("Seedance requires an approved --manifest; direct payload submission is disabled.", ExitCode.Approval);
   if (o.manifest) {
     manifestPath = resolve(o.manifest); const manifest = await readManifest(manifestPath); await validateManifest(manifest, true);
     if (manifest.state !== "approved" || manifest.approval?.creativeHash !== creativeHash(manifest)) throw new CliError("Seedance storyboard is not currently approved.", ExitCode.Approval);
     payload = seedancePayload(manifest);
+    approvalKey = `seedance-${payloadHash(manifest.approval)}`;
   }
-  const quote = await loadQuote(o.quote); assertQuote(quote, payload); await confirmQuote(quote, o); const result = await submitOnce(await apiFor(c), "/v1/video/generations", payload, quote);
+  const api = await apiFor(c);
+  const selected = routeModel(await api.get("/v1/models"), "video", String(payload.model || ""));
+  validateCapabilities(selected, payload);
+  if (selected.approvalRequired && !manifestPath) throw new CliError("Seedance requires an approved manifest.", ExitCode.Approval);
+  const quote = await loadQuote(o.quote); assertQuote(quote, payload); await confirmQuote(quote, o);
+  if (manifestPath) { const latest = await readManifest(manifestPath); await validateManifest(latest, true); if (latest.state !== "approved" || `seedance-${payloadHash(latest.approval)}` !== approvalKey || payloadHash(seedancePayload(latest)) !== payloadHash(payload)) throw new CliError("Manifest changed during preflight; approval is invalid.", ExitCode.Approval); }
+  const result = await submitOnce(api, "/v1/video/generations", payload, quote, approvalKey || o.idempotencyKey);
   if (manifestPath) {
     const manifest = await readManifest(manifestPath); const taskId = findTaskId(result);
     if (!taskId) throw new CliError("Submission returned no task ID; the manifest was not advanced and no retry was made.", ExitCode.Service);
@@ -130,13 +149,16 @@ dataOptions(video.command("generate")).requiredOption("--quote <id>").option("--
 taskCommands(video, "video");
 
 async function watchTask(api: EasyAiApi, id: string, interval: number, cmd: Command) {
+  if (!Number.isFinite(interval) || interval < 250) throw new CliError("Poll interval must be at least 250ms.", ExitCode.Usage);
+  const deadline = Date.now() + 30 * 60_000;
   let cursor = "";
-  for (;;) {
-    const task = await api.get<any>(`/v1/tasks/${enc(id)}`); const status = String(task.status || task.data?.status || "unknown");
+  while (Date.now() < deadline) {
+    const task = await api.get<any>(`/v1/tasks/${enc(id)}`); const status = taskStatus(task);
     if (globals(cmd).jsonl) await output({ taskId: id, status, cursor }, cmd);
-    if (["completed", "succeeded", "failed", "cancelled", "canceled"].includes(status.toLowerCase())) { if (!globals(cmd).jsonl) await output(task, cmd); return; }
+    if (["completed", "succeeded", "success", "failed", "error", "cancelled", "canceled"].includes(status)) { if (!globals(cmd).jsonl) await output(task, cmd); return; }
     await new Promise(r => setTimeout(r, Math.max(250, interval)));
   }
+  throw new CliError(`Watch deadline reached; resume status/watch for task ${id}. No new task was submitted.`, ExitCode.Service);
 }
 
 const canvas = program.command("canvas");
@@ -176,6 +198,8 @@ dataOptions(canvas.command("run")).argument("<projectId>").addOption(new Option(
   const payload = { ...(await jsonInput(o)), ...(o.node ? { nodeId: o.node } : o.group ? { groupId: o.group } : { all: true }) }; const api = await apiFor(c);
   if (o.preflight) { await output(await preflight(api, "canvas", `/v1/canvas-workflow/projects/${enc(p)}/executions/preflight`, payload), c); return; }
   if (!o.quote) throw new CliError("Canvas execution requires --quote from --preflight.", ExitCode.Approval); const quote = await loadQuote(o.quote); assertQuote(quote, payload); await confirmQuote(quote, o);
+  const state = await api.get(`/v1/canvas-workflow/projects/${enc(p)}/state`);
+  if (/seedance/i.test(JSON.stringify(state))) throw new CliError("Canvas containing Seedance must use video generate --manifest; canvas approval bridging is not implemented.", ExitCode.Approval);
   await output(await submitOnce(api, `/v1/canvas-workflow/projects/${enc(p)}/executions`, payload, quote), c);
 });
 const canvasTask = canvas.command("task");
@@ -185,6 +209,7 @@ canvasTask.command("watch").argument("<projectId>").argument("<taskId>").option(
 canvasTask.command("cancel").argument("<projectId>").argument("<taskId>").action(async (p, t, _o, c) => output(await (await apiFor(c)).post(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}/cancel`), c));
 
 const seedance = program.command("seedance").description("Validate and approve Seedance manifests without submitting paid tasks");
+seedance.command("payload").argument("<manifest>").requiredOption("--file <path>").action(async (p, o, c) => { const m = await readManifest(resolve(p)); await validateManifest(m, true); const path = resolve(o.file); await writeFile(path, JSON.stringify(seedancePayload(m), null, 2), { mode: 0o600 }); await output({ path }, c); });
 seedance.command("validate").argument("<manifest>").option("--verify-remote").action(async (p, o, c) => { const m = await readManifest(resolve(p)); await validateManifest(m, o.verifyRemote); await output({ valid: true, state: m.state, creativeHash: creativeHash(m), referenceCount: m.references.length, watermark: m.watermark }, c); });
 seedance.command("approve").argument("<manifest>").requiredOption("--confirmation <text>").action(async (p, o, c) => output(await approveManifest(resolve(p), o.confirmation), c));
 seedance.command("upload-references").argument("<manifest>").action(async (p, _o, c) => output(await uploadReferences(resolve(p)), c));
@@ -199,7 +224,7 @@ seedance.command("finalize").argument("<manifest>").requiredOption("--dir <path>
       const contact = resolve(outDir, "contact-sheet.jpg"), tail = resolve(outDir, "final-frame.png"), corner = resolve(outDir, "bottom-right-sample.png");
       const madeContact = await runFfmpeg(["-y", "-i", videoPath, "-vf", "fps=1,scale=480:-1,tile=4x3", contact]);
       const madeTail = await runFfmpeg(["-y", "-sseof", "-0.1", "-i", videoPath, "-frames:v", "1", tail]);
-      const madeCorner = madeTail && await runFfmpeg(["-y", "-i", tail, "-vf", "crop=iw/3:ih/3:iw*2/3:ih*2/3", corner]);
+      const madeCorner = await runFfmpeg(["-y", "-i", videoPath, "-vf", "fps=1,crop=iw/3:ih/3:iw*2/3:ih*2/3,scale=320:-1,tile=4x3", "-frames:v", "1", corner]);
       Object.assign(qc, { status: madeContact && madeTail && madeCorner ? "artifacts-ready" : "ffmpeg-unavailable", contactSheet: madeContact ? contact : null, finalFrame: madeTail ? tail : null, bottomRightSample: madeCorner ? corner : null });
     }
     manifest.state = "completed";
@@ -215,6 +240,19 @@ let directApiKeyPromise: Promise<string> | undefined;
 function readStdinApiKey(): Promise<string> { return directApiKeyPromise ||= readStdin(); }
 async function outputApiKeyOnce(value: unknown, cmd: Command): Promise<void> { const options = globals(cmd); if (options.output) throw new CliError("--output is disabled for API key creation because the plaintext is shown only once.", ExitCode.Usage); process.stderr.write("The account-level API key is shown once. Store it in an OS credential manager and revoke it immediately if exposed.\n"); process.stdout.write(JSON.stringify(options.json ? { schemaVersion: "easyai.cli/v1", data: value } : value, null, 2) + "\n"); }
 function findTaskId(value: unknown): string | undefined { if (!value || typeof value !== "object") return; const row = value as Record<string, any>; return row.taskId || row.task_id || row.id || row.data?.taskId || row.data?.task_id || row.data?.id; }
+async function hiddenKey(): Promise<string> {
+  if (!process.stdin.isTTY) throw new CliError("--prompt requires a local interactive terminal.", ExitCode.Usage);
+  process.stderr.write("Account API Key (hidden): ");
+  return new Promise((done, reject) => {
+    let value = ""; process.stdin.setRawMode(true); process.stdin.resume(); process.stdin.setEncoding("utf8");
+    const finish = () => { process.stdin.setRawMode(false); process.stdin.pause(); process.stdin.removeListener("data", listener); process.stderr.write("\n"); };
+    const listener = (chunk: string) => { for (const ch of chunk) {
+      if (ch === "\u0003") { finish(); reject(new CliError("Input cancelled", ExitCode.Auth)); return; }
+      if (ch === "\r" || ch === "\n") { finish(); done(value.trim()); return; }
+      if (ch === "\u007f" || ch === "\b") value = value.slice(0, -1); else if (ch >= " ") value += ch;
+    } }; process.stdin.on("data", listener);
+  });
+}
 async function runFfmpeg(args: string[]): Promise<boolean> { return new Promise(resolveResult => { const child = spawn("ffmpeg", args, { stdio: "ignore", windowsHide: true }); child.on("error", () => resolveResult(false)); child.on("exit", code => resolveResult(code === 0)); }); }
 
 program.exitOverride();

@@ -52,3 +52,8 @@ export async function clearSecrets(profile: string): Promise<void> {
   const store = await keytar();
   await Promise.all([store.deletePassword(service, `${profile}:api-key`), store.deletePassword(service, `${profile}:session`)]);
 }
+
+export async function creativeDefaults(): Promise<{ image: string; video: string }> {
+  const saved = await readFile(join(configDir(), "wowidea-install.json"), "utf8").then(JSON.parse).catch(() => ({}));
+  return { image: "Nano Banana 2", video: "豆包Seedance-2.0", ...saved.defaults };
+}
