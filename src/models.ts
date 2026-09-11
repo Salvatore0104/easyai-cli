@@ -7,6 +7,11 @@ export const registry = [
   ["Nano Banana Pro", "image_nanoBanana_pro", "image", "nano-banana"],
   ["Nano Banana 2 Lite", "image_nanoBanana2Lite", "image", "nano-banana"],
   ["GPT Image 2", "gpt-image-2", "image", "gpt-image"],
+  ["GPT Image 2.5", "gpt-image-2.5", "image", "gpt-image"],
+  ["GPT Image 2.5 Sunburst", "gpt-image-2.5-sunburst", "image", "gpt-image"],
+  ["GPT Image 2.5 Flare", "gpt-image-2.5-flare", "image", "gpt-image"],
+  ["Midjourney v8.2", "mj-v8.2", "image", "midjourney"],
+  ["Midjourney v8.2 Fast", "mj-v8.2-fast", "image", "midjourney"],
   ["MiniMax-H3", "MiniMax-H3", "video", "minimax-h3"],
   ["MiniMax-H3-Max", "MiniMax-H3-Max", "video", "minimax-h3"],
   ["Google Omni", "video_google_omni", "video", "google-omni"],
@@ -18,14 +23,46 @@ export const registry = [
   ["豆包Seedance-2.5", "doubao-seedance-2-5-260628", "video", "seedance-25"],
 ].map(([id, modelName, kind, guide]) => ({ id: id!, modelName: modelName!, kind: kind!, guide: `references/${guide}.md`, adapter: kind === "image" ? "platform-image" : "platform-video" }));
 const norm = (s: string) => s.toLowerCase().replace(/[\s_.-]/g, "").replace(/^豆包/, "");
+export function modelIdentifiers(row: any): string[] {
+  return [row?.id, row?.model, row?.modelName, row?.name, row?.displayName, row?.display_name, row?.modelAlias, row?.model_alias]
+    .filter((value): value is string => typeof value === "string");
+}
+export function modelTypes(row: any): string[] {
+  const value = row?.modelType ?? row?.types;
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+// The live catalog reports Midjourney as `mj-v8.2` while this CLI presents it as
+// "Midjourney v8.2", so lookups resolve registry aliases before every raw field.
+export function findModel(catalog: unknown, requested: string) {
+  const rows = taskRows(catalog);
+  const wanted = norm(requested);
+  const entry = registry.find(r => [r.id, r.modelName].some(value => norm(value) === wanted));
+  const direct = rows.find((row: any) => modelIdentifiers(row).some(value => norm(value) === wanted));
+  if (direct || !entry) return direct as any | undefined;
+  return rows.find((row: any) => modelIdentifiers(row).some(value => [entry.id, entry.modelName].some(alias => norm(alias) === norm(value)))) as any | undefined;
+}
+export function matchesModelType(row: any, type: string): boolean {
+  const wanted = type.toLowerCase();
+  const types = modelTypes(row).map(value => value.toLowerCase());
+  // `image`/`video` answer the practical question "can this model produce that
+  // media?", so analysis-only and text models stay out of the default listing.
+  // Exact platform types such as image_analysis remain available verbatim.
+  if (wanted === "image") return types.includes("image_generate") || types.includes("image_edit");
+  if (wanted === "video") return types.some(value => value === "video_generate" || value === "image_to_video" || value === "omni_video");
+  return types.includes(wanted);
+}
+export function registryEntry(row: any) {
+  const values = modelIdentifiers(row).map(norm);
+  return registry.find(entry => [entry.id, entry.modelName].some(value => values.includes(norm(value))));
+}
 export function routeModel(catalog: unknown, kind: string, requested?: string) {
   if (!["image", "video"].includes(kind)) throw new CliError("kind must be image or video", ExitCode.Usage);
   const name = requested || (kind === "image" ? "Nano Banana 2" : "豆包Seedance-2.0");
-  const aliases: Record<string, string> = { minimax: "MiniMax-H3", seedance: "豆包Seedance-2.0", wan30: "Wan3.0-Video", wan30prime: "Wan3.0-Video-Prime" };
+  const aliases: Record<string, string> = { minimax: "MiniMax-H3", seedance: "豆包Seedance-2.0", wan30: "Wan3.0-Video", wan30prime: "Wan3.0-Video-Prime", midjourney: "Midjourney v8.2", mj: "Midjourney v8.2", gptimage25: "GPT Image 2.5" };
   const alias = aliases[norm(name)] || name;
   const entry = registry.find(r => [r.id, r.modelName].some(v => norm(v) === norm(alias)));
   if (!entry || entry.kind !== kind) throw new CliError(`Unsupported ${kind} model: ${name}. Use models list; no substitution was made.`, ExitCode.Usage);
-  const live = taskRows(catalog).find((r: any) => [r.id, r.model, r.modelName, r.name].some(v => typeof v === "string" && [entry.id, entry.modelName].includes(v))) as any;
+  const live = findModel(catalog, entry.id);
   if (!live || live.enabled === false || live.available === false) throw new CliError(`Model unavailable for this account: ${entry.id}. No substitution was made.`, ExitCode.Usage);
   return { ...entry, guideInfo: guideInfo(entry.guide.replace(/^references\//, "").replace(/\.md$/, "")), capabilityPolicy: "Official creative guidance does not authorize modes absent from verified EasyAI capabilities.", model: live.id || live.model || entry.id, capabilities: live, suggestedDefaults: kind === "image" ? { aspectRatio: "3:4", resolution: "2K", note: "Poster default only; stage output follows programme requirements and live capabilities" } : {}, approvalRequired: /seedance/i.test(entry.modelName) };
 }

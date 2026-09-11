@@ -34,6 +34,27 @@ describe("API client", () => {
     await expect(api.postWithTimeout("/v1/images/generations", {}, {}, 100)).resolves.toEqual({ taskId: "accepted" });
   });
 
+  // Platform host aliases (ai.wowidea.top -> wowidea.top) answer with a
+  // cross-origin redirect. Native fetch strips the auth header there, so the
+  // client follows the hop itself and keeps its credentials.
+  it("keeps credentials across a same-site host redirect", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 301, headers: { location: "https://www.example.test/api/v1/models" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(new EasyAiApi({ baseUrl: "https://example.test", token: "secret", timeoutMs: 1000 }).get("/v1/models")).resolves.toEqual({ data: [] });
+    expect(fetchMock.mock.calls[0]![0]).toBe("https://example.test/api/v1/models");
+    expect(fetchMock.mock.calls[1]![0]).toBe("https://www.example.test/api/v1/models");
+    expect((fetchMock.mock.calls[1]![1] as RequestInit).headers).toMatchObject({ Authorization: "Bearer secret" });
+  });
+
+  it("refuses to forward credentials to an unrelated site", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: "https://evil.test/api/v1/models" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(new EasyAiApi({ baseUrl: "https://example.test", token: "secret", timeoutMs: 1000 }).get("/v1/models")).rejects.toMatchObject({ exitCode: 3 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("retries transient media GET failures without resubmitting generation", async () => {
     const fetchMock = vi.fn()
       .mockRejectedValueOnce(new TypeError("fetch failed"))

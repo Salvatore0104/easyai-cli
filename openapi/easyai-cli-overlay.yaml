@@ -4,7 +4,7 @@ info:
   version: 0.2.4
   description: Missing typed contracts required by the EasyAI CLI. Merge into the server OpenAPI document.
 servers:
-  - url: https://ai.wowidea.top/api
+  - url: https://wowidea.top/api
 paths:
   /v1/images/generations:
     post:

@@ -19,13 +19,14 @@ Run models route --kind image|video, with --model when specified. Preserve the r
 
 Read only the relevant guide. Model prompt methods are bundled as internal Wowidea references and are selected by the single `$wowidea` entry:
 
-| Model | Prompt Skill | Guide |
-| --- | --- | --- |
+| Model | Guide |
+| --- | --- |
 | MiniMax H3 / H3-Max | [H3](references/minimax-h3.md) |
 | Seedance 2.0 family | [2.0](references/seedance-20.md) |
 | Seedance 2.5 | [2.5](references/seedance-25.md) |
-| GPT Image 2 | [GPT Image](references/gpt-image.md) |
+| GPT Image 2 / 2.5 family | [GPT Image](references/gpt-image.md) |
 | Nano Banana family | [Nano Banana](references/nano-banana.md) |
+| Midjourney v8.2 / 8.2-fast | [Midjourney](references/midjourney.md) |
 
 Other routes: [Google Omni](references/google-omni.md), [Wan](references/wan.md). Use `wowidea guides list|show` to locate bundled references. Prompt-only requests make no paid call. Check API capability independently from official creative guidance.
 

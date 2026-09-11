@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { access } from "node:fs/promises";
-import { registry, routeModel, validateCapabilities } from "../src/models.js";
+import { findModel, matchesModelType, registry, registryEntry, routeModel, validateCapabilities } from "../src/models.js";
 const catalog = { data: { items: registry.map(r => ({ id: r.id, modelName: r.modelName, enabled: true })) } };
 describe("model routing", () => {
   it("selects defaults and explicit MiniMax without substitution", () => {
@@ -33,5 +33,30 @@ describe("model routing", () => {
     expect(() => validateCapabilities(selected, { ...payload, mode: "Ref2VA" })).toThrow(/not supported/);
     expect(() => validateCapabilities(selected, { ...payload, mode: "image_reference", image_urls: ["https://example.test/a.png"], audio_urls: ["https://example.test/sound.wav"] })).toThrow();
     expect(() => validateCapabilities(selected, { ...payload, mode: "text_to_video", image_urls: ["https://example.test/a.png"] })).toThrow(/Text-only/);
+  });
+
+  // The live catalog ships Midjourney as `mj-v8.2` while this CLI presents it as
+  // "Midjourney v8.2"; both spellings must resolve to the same live row.
+  it("resolves registry display names against the live catalog identifiers", () => {
+    const live = { data: [{ id: "mj-v8.2", modelName: "mj-v8.2", displayName: "mj-v8.2", modelType: ["image_generate", "image_edit"], enabled: true }] };
+    expect(findModel(live, "Midjourney v8.2")?.id).toBe("mj-v8.2");
+    expect(findModel(live, "mj-v8.2")?.id).toBe("mj-v8.2");
+    expect(registryEntry(live.data[0])?.guide).toBe("references/midjourney.md");
+    expect(findModel(live, "Nano Banana 2")).toBeUndefined();
+  });
+
+  it("filters the live catalog locally because the server ignores ?type=", () => {
+    expect(matchesModelType({ modelType: ["image_generate", "image_edit"] }, "image")).toBe(true);
+    expect(matchesModelType({ modelType: ["image_analysis"] }, "video")).toBe(false);
+    expect(matchesModelType({ modelType: ["video_generate", "image_to_video", "omni_video"] }, "video")).toBe(true);
+    expect(matchesModelType({ modelType: ["text_generate", "image_analysis"] }, "image")).toBe(false);
+    expect(matchesModelType({ modelType: ["image_analysis"] }, "image_analysis")).toBe(true);
+    expect(matchesModelType({ types: ["audio_understanding"] }, "image")).toBe(false);
+  });
+
+  it("registers every image model the live catalog exposes", () => {
+    for (const modelName of ["gpt-image-2.5", "gpt-image-2.5-sunburst", "gpt-image-2.5-flare", "mj-v8.2", "mj-v8.2-fast"]) {
+      expect(registry.some(entry => entry.modelName === modelName)).toBe(true);
+    }
   });
 });

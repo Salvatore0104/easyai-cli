@@ -12,6 +12,7 @@ export const guideRegistry = [
   ["visual-review", "Purpose-specific review"], ["seedance-20", "Seedance 2.0"],
   ["seedance-25", "Seedance 2.5"], ["minimax-h3", "MiniMax H3 / H3-Max"],
   ["nano-banana", "Nano Banana"], ["gpt-image", "GPT Image 2"],
+  ["midjourney", "Midjourney v8.2"],
   ["google-omni", "Google Omni"], ["wan", "Wan3.0"],
   ["seedance-gate", "Seedance approval and execution"], ["storyboard-quality", "Storyboard quality"],
   ["image-case-index", "Curated image methods"], ["sources", "Sources and licences"], ["workflow", "Execution and recovery"],

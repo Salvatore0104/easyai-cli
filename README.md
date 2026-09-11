@@ -26,17 +26,20 @@ wowidea --json guides show minimax-h3
 
 以上命令可离线运行，无需账号 Key。`models route` 保留旧 guide 字段并新增 guideInfo（含实际包内路径与版本）。[项目与资源使用说明](docs/usage.md)包含记录格式、模型边界和更新方法；[离线节目示例](docs/examples/vj-programme/project.json)可复制到节目目录的 `.wowidea/project.json`。
 
-## 模型提示词 Skill
+## 模型提示词指南
 
-以下入口与 `$wowidea` 一起安装，指令为英文，交流和准确文案仍保留用户语言：
+模型提示词方法随包安装为 `$wowidea` 的内部参考，由单一入口按任务选择；指令为英文，交流和准确文案仍保留用户语言：
 
-- `$wowidea-h3-prompt`：H3三段／六段结构、关键帧与全能参考。
-- `$wowidea-seedance-20-prompt`：2.0镜头、动作、音频与多模态引用。
-- `$wowidea-seedance-25-prompt`：2.5整数时间轴、关键帧、白模、编辑与延长。
-- `$wowidea-gpt-image-prompt`：构图、文字层级和局部编辑。
-- `$wowidea-nano-banana-prompt`：生成、参考编辑、材质迁移和修复。
+| 模型 | 随包指南 |
+| --- | --- |
+| MiniMax H3 / H3-Max | `references/minimax-h3.md` |
+| Seedance 2.0 系列 | `references/seedance-20.md` |
+| Seedance 2.5 | `references/seedance-25.md` |
+| GPT Image 2 / 2.5 系列 | `references/gpt-image.md` |
+| Nano Banana 系列 | `references/nano-banana.md` |
+| Midjourney v8.2 / 8.2-fast | `references/midjourney.md` |
 
-只写提示词不会调用付费生成。可用 `wowidea --json guides list` 查看本地资源及 `promptSkillPath`。更新后新对话可发现这些入口，不覆盖本机原有同类Skill。
+只写提示词不会调用付费生成。可用 `wowidea --json guides list` 查看随包资源，用 `wowidea --json guides show <id>` 读取具体指南。更新后新对话可发现入口，不覆盖本机原有同类Skill。
 
 ## 安装 / 更新
 
@@ -62,11 +65,17 @@ Codex 也可以克隆仓库后查看并运行对应安装脚本。npm 全局目�
 wowidea auth use-key --prompt
 wowidea --json auth status
 wowidea --json models route --kind image
+wowidea --json models list --type image
 wowidea --json balance
 wowidea --json tasks list
+wowidea --json tasks remote --page 1 --page-size 20
 ```
 
+`tasks list`是本机提交记录（恢复和防重复用），`tasks remote`才是当前账号在服务器上的任务列表，可按页翻查。`models list --type image`只列出真正能产出图片的模型；平台会忽略 `?type=`，所以过滤在本地完成。若要用平台原始类型（例如 `image_analysis`）精确匹配，直接传入该类型即可。
+
 --prompt 隐藏输入并保存系统凭据库。不要把 API Key 发进聊天、写进命令参数、Skill、记忆或 GitHub。无人值守可安全注入 EASYAI_API_KEY 或 --api-key-stdin。凭据库不可用时会报错，不回退明文配置。API Key 是账号级自动化权限，可在网站立即撤销；不会要求浏览器登录。
+
+默认服务地址是 `https://wowidea.top`。旧的 `ai.wowidea.top` 会 301 跳到该地址，普通 HTTP 客户端在跨站跳转时会丢掉 `Authorization` 头并表现为 401；CLI 已改为手动跟随跳转并保留凭据，但仍建议使用默认地址或显式 `--base-url https://wowidea.top`。
 
 ## 以后如何调用
 
@@ -82,7 +91,7 @@ $wowidea 继续查看刚才的视频任务
 
 图片默认 Nano Banana 2；明确主题和必要文案后直接制作。单张海报优先 3:4、2K（以平台支持为准）。视频默认 Seedance 2.0；用户指定模型优先，模型不可用明确提示，不擅自替换。
 
-内置 Nano Banana 2/Pro/2 Lite、GPT Image 2、MiniMax H3/H3-Max、Google Omni、Wan3.0/Prime、Seedance 2.0/fast/2.5 指南；本次实时目录还发现 2.0-mini，一并支持。运行时以当前账号模型目录为准，Google Omni 不推定上游型号，2.5 不继承 2.0 的参数限制。
+内置 Nano Banana 2/Pro/2 Lite、GPT Image 2 与 2.5（含 Sunburst／Flare）、Midjourney v8.2/8.2-fast、MiniMax H3/H3-Max、Google Omni、Wan3.0/Prime、Seedance 2.0/2.0-fast/2.0-mini/2.5 指南。运行时以当前账号模型目录为准，Google Omni 不推定上游型号，2.5 不继承 2.0 的参数限制，Midjourney 只走参数尾部语法。
 
 ## 异步任务与生成
 
@@ -102,7 +111,7 @@ npm run check
 npm pack --dry-run
 ```
 
-当前发布只保留[使用与维护](docs/usage.md)、[验证范围](docs/validation.md)和必要示例。英文Skill与五个独立模型提示词入口随包安装；既有实测不扩大为所有模型或模式均已验收。
+当前发布只保留[使用与维护](docs/usage.md)、[验证范围](docs/validation.md)和必要示例。英文Skill与内部模型提示词指南随包安装，由 `$wowidea` 单一入口选择；既有实测不扩大为所有模型或模式均已验收。
 
 退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少创意审批。
 

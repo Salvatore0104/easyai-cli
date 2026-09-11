@@ -9,12 +9,12 @@ import { EasyAiApi, downloadUrls, findUrls } from "./api.js";
 import { accessToken, authStatus, browserLogin, logout, useApiKey } from "./auth.js";
 import { applyCanvasBatch, applyCanvasOperation, canvasMutationEnvelope } from "./canvas.js";
 import { getProfile, creativeDefaults } from "./config.js";
-import { CliError, ExitCode, redact } from "./errors.js";
+import { CliError, ExitCode, isNotFound, redact } from "./errors.js";
 import { emit, OutputOptions } from "./output.js";
 import { localQuote, payloadHash, Quote, saveQuote } from "./preflight.js";
 import { approveManifest, creativeHash, readManifest, seedancePayload, uploadReferences, validateManifest, validateStoryboardQc } from "./seedance.js";
 import { submitAsyncWithRecovery, submitImageWithRecovery, listSubmissions, recoverSubmission, taskStatus, taskRows } from "./submission.js";
-import { routeModel, validateCapabilities } from "./models.js";
+import { findModel, matchesModelType, registryEntry, routeModel, validateCapabilities } from "./models.js";
 import { initProject, readProject, recordCreation } from "./project.js";
 import { guideRegistry, guideInfo, showGuide } from "./guides.js";
 import { prepareVideoPayload, videoSubmitTimeout } from "./video-payload.js";
@@ -76,11 +76,29 @@ keys.command("list").action(async () => output(await (await apiFor(keys)).get("/
 keys.command("revoke").argument("<id>").action(async id => output(await (await apiFor(keys)).delete(`/auth-token/${enc(id)}`), keys));
 
 const models = program.command("models");
-models.command("list").option("--type <type>").action(async o => output(await (await apiFor(models)).get(o.type ? `/v1/models?type=${enc(o.type)}` : "/v1/models"), models));
-models.command("show").argument("<id>").action(async id => { const result = await (await apiFor(models)).get<unknown>("/v1/models"); await output(taskRows(result).find((x: any) => x.id === id || x.model === id || x.modelName === id) ?? { found: false, id }, models); });
+models.command("list").option("--type <type>", "image, video, or a raw platform modelType").action(async (o, c) => {
+  const result = await (await apiFor(c)).get<any>("/v1/models");
+  // The platform accepts but currently ignores ?type=, so filter locally and keep the flag honest.
+  const rows = taskRows(result);
+  if (!o.type) { await output(result, c); return; }
+  const filtered = rows.filter((row: any) => matchesModelType(row, o.type));
+  await output({ ...(result && typeof result === "object" ? result : {}), data: filtered, total: filtered.length }, c);
+});
+models.command("show").argument("<id>").action(async (id, _o, c) => {
+  const result = await (await apiFor(c)).get<unknown>("/v1/models");
+  const found = findModel(result, id);
+  if (!found) { await output({ found: false, id }, c); return; }
+  const entry = registryEntry(found);
+  await output(entry ? { ...found, guide: entry.guide, guideInfo: guideInfo(entry.guide.replace(/^references\//, "").replace(/\.md$/, "")) } : found, c);
+});
 models.command("route").requiredOption("--kind <image|video>").option("--model <name>").action(async (o, c) => { const defaults = await creativeDefaults(); await output(routeModel(await (await apiFor(c)).get("/v1/models"), o.kind, o.model || defaults[o.kind as "image" | "video"]), c); });
 const tasks = program.command("tasks").description("Persisted submissions; recovery never submits another task");
 tasks.command("list").action(async (_o, c) => output(await listSubmissions(await apiFor(c)), c));
+tasks.command("remote").description("List this account's tasks from the server (read-only)").option("--page <n>", "page number", "1").option("--page-size <n>", "rows per page", "20").action(async (o, c) => {
+  const page = Number(o.page), size = Number(o.pageSize);
+  if (!Number.isInteger(page) || page < 1 || !Number.isInteger(size) || size < 1 || size > 200) throw new CliError("--page must be a positive integer and --page-size must be between 1 and 200.", ExitCode.Usage);
+  await output(await (await apiFor(c)).get(`/v1/tasks?page=${page}&page_size=${size}`), c);
+});
 tasks.command("resume").argument("<idempotencyKey>").action(async (key, _o, c) => output((await recoverSubmission(await apiFor(c), key)), c));
 program.command("balance").action(async (_o, c) => output(await (await apiFor(c)).get("/v1/balance"), c));
 
@@ -120,7 +138,7 @@ async function preflight(api: EasyAiApi, kind: Quote["kind"], path: string, payl
     quote.submissionPath = kind === "video" ? "/v1/video/generations" : kind === "image" ? "/v1/images/generations" : path.replace(/\/preflight$/, "");
     await saveQuote(quote); return quote;
   } catch (error) {
-    if (!(error instanceof CliError) || !/HTTP 404/.test(error.message)) throw error;
+    if (!isNotFound(error)) throw error;
     const quote = localQuote(kind, payload); await saveQuote(quote); return quote;
   }
 }

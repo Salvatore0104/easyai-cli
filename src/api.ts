@@ -7,6 +7,13 @@ import { createHash } from "node:crypto";
 import { classifyHttpError, CliError, ExitCode } from "./errors.js";
 
 export interface ApiOptions { baseUrl: string; token?: string; timeoutMs: number; }
+const redirectStatuses = new Set([301, 302, 303, 307, 308]);
+// Compare registrable-ish sites so a platform host alias may keep its credentials,
+// while a redirect to an unrelated operator is refused.
+function sameSite(from: string, to: string): boolean {
+  const site = (value: string) => new URL(value).hostname.toLowerCase().split(".").slice(-2).join(".");
+  try { return site(from) === site(to); } catch { return false; }
+}
 export class EasyAiApi {
   constructor(private readonly options: ApiOptions) {}
   get scope(): string { return createHash("sha256").update(this.options.baseUrl + "\n" + (this.options.token || "")).digest("hex"); }
@@ -18,17 +25,28 @@ export class EasyAiApi {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetch(this.url(path), {
-        method,
-        signal: controller.signal,
-        headers: {
-          Accept: "application/json",
-          ...(body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-          ...(this.options.token ? { Authorization: `Bearer ${this.options.token}` } : {}),
-          ...headers,
-        },
-        body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
-      });
+      const requestHeaders = {
+        Accept: "application/json",
+        ...(body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+        ...(this.options.token ? { Authorization: `Bearer ${this.options.token}` } : {}),
+        ...headers,
+      };
+      const requestBody = body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body);
+      // Follow redirects by hand. Native fetch drops Authorization whenever a
+      // redirect changes the origin, which silences every call when a platform
+      // host alias (for example ai.wowidea.top -> wowidea.top) is configured.
+      let target = this.url(path);
+      let response: Response | undefined;
+      for (let hop = 0; hop <= 5; hop++) {
+        response = await fetch(target, { method, signal: controller.signal, redirect: "manual", headers: requestHeaders, body: requestBody as RequestInit["body"] });
+        const location = response.headers.get("location");
+        if (!redirectStatuses.has(response.status) || !location) break;
+        const next = new URL(location, target);
+        if (!sameSite(target, next.toString())) throw new CliError(`Refusing to follow a credential-bearing redirect to ${next.origin}; point --base-url at the canonical host instead.`, ExitCode.Auth);
+        target = next.toString();
+      }
+      if (!response) throw new CliError("No response was received.", ExitCode.Service);
+      if (redirectStatuses.has(response.status)) throw new CliError(`Too many redirects while reaching ${this.url(path)}; point --base-url at the canonical host.`, ExitCode.Service);
       const text = await response.text();
       let data: unknown = text;
       try { data = text ? JSON.parse(text) : null; } catch { /* preserve text */ }

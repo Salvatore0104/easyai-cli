@@ -6,6 +6,18 @@ import { CliError, ExitCode } from "./errors.js";
 export interface ProfileConfig { baseUrl: string; authMode?: "login" | "api-key"; }
 interface ConfigFile { currentProfile: string; profiles: Record<string, ProfileConfig>; }
 const service = "easyai-cli";
+export const defaultBaseUrl = "https://wowidea.top";
+// Legacy host aliases that answer with a cross-origin redirect. Clients drop the
+// Authorization header on such redirects, so normalize to the canonical host.
+const hostAliases: Record<string, string> = { "ai.wowidea.top": defaultBaseUrl };
+
+export function canonicalBaseUrl(value: string): string {
+  const trimmed = value.trim().replace(/\/+$/, "");
+  try {
+    const parsed = new URL(trimmed);
+    return hostAliases[parsed.hostname.toLowerCase()] || trimmed;
+  } catch { return trimmed; }
+}
 
 export function configDir(): string {
   return process.env.EASYAI_CONFIG_DIR || join(homedir(), ".config", "easyai");
@@ -13,20 +25,20 @@ export function configDir(): string {
 
 async function loadConfigFile(): Promise<ConfigFile> {
   try { return JSON.parse(await readFile(join(configDir(), "config.json"), "utf8")) as ConfigFile; }
-  catch { return { currentProfile: "default", profiles: { default: { baseUrl: "https://ai.wowidea.top" } } }; }
+  catch { return { currentProfile: "default", profiles: { default: { baseUrl: defaultBaseUrl } } }; }
 }
 
 export async function getProfile(name?: string, baseUrl?: string): Promise<{ name: string; config: ProfileConfig }> {
   const file = await loadConfigFile();
   const profileName = name || process.env.EASYAI_PROFILE || file.currentProfile || "default";
-  const config = file.profiles[profileName] || { baseUrl: "https://ai.wowidea.top" };
-  return { name: profileName, config: { ...config, baseUrl: (baseUrl || process.env.EASYAI_BASE_URL || config.baseUrl).replace(/\/+$/, "") } };
+  const config = file.profiles[profileName] || { baseUrl: defaultBaseUrl };
+  return { name: profileName, config: { ...config, baseUrl: canonicalBaseUrl(baseUrl || process.env.EASYAI_BASE_URL || config.baseUrl) } };
 }
 
 export async function saveProfile(name: string, update: Partial<ProfileConfig>): Promise<void> {
   const file = await loadConfigFile();
   file.currentProfile = name;
-  file.profiles[name] = { baseUrl: "https://ai.wowidea.top", ...file.profiles[name], ...update };
+  file.profiles[name] = { baseUrl: defaultBaseUrl, ...file.profiles[name], ...update };
   await mkdir(configDir(), { recursive: true });
   await writeFile(join(configDir(), "config.json"), JSON.stringify(file, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
 }

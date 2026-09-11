@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyHttpError, ExitCode, redact } from "../src/errors.js";
+import { classifyHttpError, ExitCode, isNotFound, redact } from "../src/errors.js";
 
 describe("redaction", () => {
   it("removes credentials and signed URL values recursively", () => {
@@ -14,5 +14,14 @@ describe("redaction", () => {
     const error = classifyHttpError(409, { message: "stale" });
     expect(error.exitCode).toBe(ExitCode.Conflict);
     expect(error.message).toContain("baseVersion");
+  });
+
+  // Optional endpoints such as /v1/images/preflight may be absent, and the server
+  // replaces the generic "HTTP 404" text with its own message.
+  it("detects a missing optional endpoint from the response body", () => {
+    expect(isNotFound(classifyHttpError(404, { statusCode: 404, message: "Cannot POST /v1/images/preflight", diagnosticCode: "NotFoundException" }))).toBe(true);
+    expect(isNotFound(classifyHttpError(404, { message: "Cannot POST /v1/images/preflight" }))).toBe(true);
+    expect(isNotFound(classifyHttpError(422, { statusCode: 422, message: "invalid" }))).toBe(false);
+    expect(isNotFound(new Error("HTTP 404"))).toBe(false);
   });
 });
