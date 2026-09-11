@@ -17,7 +17,7 @@ describe("installed creative resources", () => {
     const routed = routeModel([{ id: "MiniMax-H3" }], "video", "MiniMax");
     expect(routed.guide).toBe("references/minimax-h3.md");
     expect(routed.guideInfo.id).toBe("minimax-h3");
-    expect(routed.guideInfo.version).toBe("0.4.3");
+    expect(routed.guideInfo.version).toBe("0.5.0");
   });
 });
 
