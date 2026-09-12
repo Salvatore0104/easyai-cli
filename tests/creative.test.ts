@@ -38,6 +38,14 @@ describe('creative routing and accounting',()=>{
   expect(await usageResult(api,{status:'succeeded'})).toMatchObject({pointsUsage:{total:12.5,actualPoints:null}});
   api.request=async()=>{throw Error('offline')};expect(await usageResult(api,{status:'succeeded'})).toMatchObject({status:'succeeded',pointsUsage:{balanceStatus:'unavailable'}});
  });
+ it('reads the platform billings array for charges and refunds',()=>{
+  expect(pointsUsage({task:{billings:[{billing_calculations:{image:{amount:1}},billing_discounts:{image:{discountedAmount:1,originalAmount:1}}}]}}))
+    .toMatchObject({actualPoints:1,refundedPoints:null,settlementStatus:'provided'});
+  expect(pointsUsage({billings:[{billing_calculations:{image:{amount:2},video:{amount:5}}}]}).actualPoints).toBe(7);
+  expect(pointsUsage({billings:[{billing_calculations:{image:{amount:-3}}}]})).toMatchObject({actualPoints:null,refundedPoints:3});
+  expect(pointsUsage({billings:[{billing_type:'external-api'}]})).toMatchObject({actualPoints:null,settlementStatus:'pending'});
+  expect(pointsUsage({billings:[]})).toMatchObject({actualPoints:null,settlementStatus:'unavailable'});
+ });
  it('installs locally, honors override and preserves customizations across updates',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'wowidea-setup-'));dirs.push(dir);
   await writeFile(join(dir,'AGENTS.override.md'),'Existing instructions\n');
