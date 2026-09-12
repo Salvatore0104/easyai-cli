@@ -49,7 +49,7 @@ paths:
   /v1/images/preflight:
     post:
       operationId: preflightImageGeneration
-      description: Optional side-effect-free quote for an explicitly requested image budget. Normal image generation does not call this endpoint or require confirmation. The default cost gate applies only to Seedance video above 200 points. Bind quotes to the account and exact serialized payload; never charge or enqueue generation here.
+      description: Optional side-effect-free quote for an explicitly requested image budget. Normal image generation does not call this endpoint or require confirmation. There is no client-side points confirmation threshold for any model. Bind quotes to the account and exact serialized payload; never charge or enqueue generation here.
       security: [{ bearer: [] }]
       requestBody:
         required: true

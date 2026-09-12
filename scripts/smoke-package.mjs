@@ -1,13 +1,16 @@
 import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve, relative, isAbsolute, basename } from 'node:path';
+import { join, resolve, relative, isAbsolute, basename, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 
 // Run via npm run package:smoke -- <archive>. No account access or generation.
 const npm = process.env.npm_execpath;
 if (!npm) throw new Error('Run through npm run package:smoke so the npm CLI path is known.');
-const archive = resolve(process.argv[2] || 'easyai-cli-0.5.0.tgz');
+const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const version = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8')).version;
+const archive = resolve(process.argv[2] || `easyai-cli-${version}.tgz`);
 const temp = await mkdtemp(join(tmpdir(), 'wowidea-package-smoke-'));
 try {
   execFileSync(process.execPath, [npm, 'install', '--prefix', temp, archive, '--ignore-scripts', '--omit=optional', '--no-audit', '--no-fund'], { stdio: 'pipe' });
@@ -15,11 +18,11 @@ try {
   const work = join(temp, 'programme'); await mkdir(work);
   const run = (...args) => JSON.parse(execFileSync(process.execPath, [join(pkg, 'dist/cli.js'), '--json', ...args], { cwd: work, encoding: 'utf8' })).data;
   assert.equal(run('guides', 'list').length, 21);
-  assert.equal(run('guides', 'show', 'minimax-h3').version, '0.5.0');
+  assert.equal(run('guides', 'show', 'minimax-h3').version, version);
   for (const id of ['design-tasks', 'production-rounds', 'recipe-authoring']) {
     const guide = run('guides', 'show', id);
     assert.equal(guide.content, await readFile(guide.path, 'utf8'));
-    assert.equal(guide.version, '0.5.0');
+    assert.equal(guide.version, version);
   }
   assert.equal(run('project', 'init', '--name', '演示节目').project.name, '演示节目');
   assert.equal(run('project', 'validate').valid, true);
@@ -28,7 +31,7 @@ try {
   const env = { ...process.env, WOWIDEA_SKILLS_DIR: join(temp, 'skills'), EASYAI_CONFIG_DIR: join(temp, 'config') };
   const install = () => JSON.parse(execFileSync(process.execPath, [join(pkg, 'scripts/install-skills.mjs')], { env, cwd: work, encoding: 'utf8' }));
   const installed = install();
-    assert.equal(installed.version, '0.5.0');
+    assert.equal(installed.version, version);
   assert.equal(installed.installedSkills.length, 2);
   // Every model guide is an internal Wowidea reference reached through the single
   // $wowidea entry, so each one must resolve inside both the package and the install.

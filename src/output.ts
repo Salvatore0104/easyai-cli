@@ -16,5 +16,10 @@ export async function emit(value: unknown, options: OutputOptions = {}): Promise
 function summarize(value: unknown): string {
   if (!value || typeof value !== "object") return String(value);
   const o = value as Record<string, unknown>;
+  if (o.pointsUsage) {
+    const { pointsUsage, ...rest } = o;
+    const u = pointsUsage as Record<string, any>;
+    return `${summarize(rest)}\n余额=${u.total ?? '查询不可用'} 可用=${u.available ?? '接口未提供'} 预占=${u.reserved ?? '接口未提供'} 实际扣费=${u.actualPoints ?? (u.settlementStatus === 'pending' ? '待结算' : '接口未提供')} 退款=${u.refundedPoints ?? '接口未提供'}`;
+  }
   return Object.entries(o).filter(([, v]) => ["string", "number", "boolean"].includes(typeof v)).slice(0, 8).map(([k, v]) => `${k}=${String(v)}`).join(" ") || JSON.stringify(o);
 }

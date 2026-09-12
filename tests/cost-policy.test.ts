@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { pointsUsage, withPointsUsage } from "../src/usage.js";
 
-describe("generation responses do not expose billing", () => {
-  it("does not interpret or return provider accounting fields", () => {
-    expect(pointsUsage({ billing: { actualPoints: 12.5 } })).toBeNull();
-    expect(withPointsUsage({ taskId: "x", billing: { actualPoints: 12.5 } })).toEqual({ taskId: "x", billing: { actualPoints: 12.5 } });
+describe("generation responses expose sourced billing", () => {
+  it("preserves raw data and adds known accounting fields", () => {
+    expect(pointsUsage({ billing: { actualPoints: 12.5 } }).actualPoints).toBe(12.5);
+    expect(withPointsUsage({ taskId: "x", billing: { actualPoints: 12.5 } })).toMatchObject({ taskId: "x", billing: { actualPoints: 12.5 }, pointsUsage: { actualPoints: 12.5 } });
   });
 });

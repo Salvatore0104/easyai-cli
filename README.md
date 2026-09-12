@@ -95,7 +95,7 @@ $wowidea 继续查看刚才的视频任务
 
 ## 异步任务与生成
 
-生成不设置积分、报价或费用阈值；结果只返回任务状态、媒体路径和质量检查。
+生成不设置积分确认阈值。结果返回任务状态、媒体路径、预估价格与可查询余额；实际扣费未知时明确标记。
 ## 安装保存了什么
 
 系统凭据库保存账号 API Key；~/.config/easyai（或 EASYAI_CONFIG_DIR）保存非秘密默认模型、安装版本、任务索引与报价 hash。任务索引按服务器及凭据分区，换 Key 后可用已知 taskId 查询；不会把旧 Key 的任务错误关联到新账号。
@@ -111,10 +111,14 @@ npm run check
 npm pack --dry-run
 ```
 
-当前发布只保留[使用与维护](docs/usage.md)、[验证范围](docs/validation.md)和必要示例。英文Skill与内部模型提示词指南随包安装，由 `$wowidea` 单一入口选择；既有实测不扩大为所有模型或模式均已验收。
+当前发布保留[使用与维护](docs/usage.md)、[项目创作闭环](docs/creative-workflow.md)、[验证范围](docs/validation.md)和必要示例。英文Skill与内部模型提示词指南随包安装，由 `$wowidea` 单一入口选择；既有实测不扩大为所有模型或模式均已验收。
 
-退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 缺少创意审批。
+退出码：0 成功，2 参数错误，3 认证失败，4 版本/幂等冲突，5 服务错误或结果不确定，6 能力未验证或需要补充确认。
 
 ## 卸载
 
 `npm uninstall -g @easyai/cli` 删除三个 CLI 命令。需要移除 Skill 时，让 Codex 只删除实际安装目录中的 安装记录 installedSkills 列出的本包目录；先保留自定义修改。凭据和任务索引默认不删除。撤销账号 Key 是独立操作，需用户明确要求。
+
+## 项目创作闭环
+
+运行 `wowidea project setup --dir <项目目录>` 将 CLI 和 Skill 固定到项目，后续媒体需求自动使用 Wowidea。详见 docs/creative-workflow.md。

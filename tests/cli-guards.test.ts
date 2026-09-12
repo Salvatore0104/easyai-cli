@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
+import { mkdirSync } from "node:fs";
 import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -8,7 +9,11 @@ const dirs: string[] = [];
 afterEach(async () => { for (const dir of dirs.splice(0)) await rm(dir, { recursive: true, force: true }); });
 async function run(args: string[], env: Record<string, string>) {
   return new Promise<{ code: number | null; out: string; err: string }>(done => {
-    const p = spawn(process.execPath, [resolve("dist/cli.js"), ...args], { env: { ...process.env, ...env }, windowsHide: true });
+    // Isolate project records from the repository, but only after the working
+    // directory exists: spawn() cannot start a process inside a missing cwd.
+    const cwd = env.EASYAI_CONFIG_DIR || process.cwd();
+    mkdirSync(cwd, { recursive: true });
+    const p = spawn(process.execPath, [resolve("dist/cli.js"), ...args], { env: { ...process.env, ...env }, cwd, windowsHide: true });
     let out = "", err = ""; p.stdout.on("data", d => out += d); p.stderr.on("data", d => err += d); p.on("close", code => done({ code, out, err }));
   });
 }
@@ -45,15 +50,15 @@ describe("CLI gates with a mock website", () => {
       expect(preflights).toBe(kind === "video" ? 1 : 0);
       if (code === 0) {
         const watched = await run(["--jsonl", kind === "image" ? "image" : "video", "watch", "job"], env);
-        expect(JSON.parse(watched.out).data).not.toHaveProperty("pointsUsage");
+        expect(JSON.parse(watched.out).data).toHaveProperty("pointsUsage");
       } else expect(result.err).not.toContain("200");
     } finally { await new Promise<void>(r => server.close(() => r())); }
   });
-  it("blocks direct Seedance and image-endpoint bypass before network access", async () => {
+  it("does not require a manifest before contacting the website", async () => {
     for (const kind of ["video", "image"]) {
       const args = [kind, "generate", "--data", JSON.stringify({ model: "doubao-seedance-2-5-260628" }), "--idempotency-key", "key"];
       const result = await run(args, { EASYAI_BASE_URL: "http://127.0.0.1:1", EASYAI_API_KEY: "test" });
-      expect(result.code).toBe(6); expect(result.err).toContain("manifest");
+      expect(result.code).toBe(5); expect(result.err).not.toContain("manifest");
     }
   });
   it("keeps one POST across real CLI process restart and uncertain recovery", async () => {

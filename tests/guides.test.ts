@@ -3,6 +3,7 @@ import { guideRegistry, guideInfo, showGuide, promptSkills } from "../src/guides
 import { readFile } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 import { routeModel } from "../src/models.js";
+const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
 describe("installed creative resources", () => {
   it("locates and reads every guide without relying on cwd or authentication", async () => {
@@ -17,7 +18,7 @@ describe("installed creative resources", () => {
     const routed = routeModel([{ id: "MiniMax-H3" }], "video", "MiniMax");
     expect(routed.guide).toBe("references/minimax-h3.md");
     expect(routed.guideInfo.id).toBe("minimax-h3");
-    expect(routed.guideInfo.version).toBe("0.5.0");
+    expect(routed.guideInfo.version).toBe(version);
   });
 });
 

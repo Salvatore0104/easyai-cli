@@ -4,4 +4,5 @@ coverage/
 release/
 *.tgz
 .easyai-test/
+.wowidea/
 nano2-test-output/

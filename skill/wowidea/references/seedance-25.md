@@ -45,4 +45,4 @@ For edit, replace the premise with a precise source edit and write only affected
 
 ## Execution and review
 
-Route the exact 2.5 ID; validate mode, roles, counts, duration, resolution, ratio and audio combinations against EasyAI. Unsupported modes remain prompt-only. Follow [Seedance approval](seedance-gate.md). Inspect actual continuity and any requested timing; a successful task does not prove accurate keyframe alignment, seamless looping or final assembly.
+Route the exact 2.5 ID; validate mode, roles, counts, duration, resolution, ratio and audio combinations against EasyAI. Unsupported modes remain prompt-only. Use [optional storyboard tools](seedance-gate.md) only when requested. Inspect actual continuity and any requested timing; a successful task does not prove accurate keyframe alignment, seamless looping or final assembly.

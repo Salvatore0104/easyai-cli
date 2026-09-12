@@ -3,6 +3,7 @@ import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
+const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 describe("bundled Skill installer", () => {
   it("installs self-contained guides, preserves customizations and leaves account config alone", async () => {
     const dir = await mkdtemp(join(tmpdir(), "wowidea-install-test-"));
@@ -10,7 +11,7 @@ describe("bundled Skill installer", () => {
     const run = () => JSON.parse(execFileSync(process.execPath, [resolve("scripts/install-skills.mjs")], { env, encoding: "utf8" }));
     try {
       const first = run();
-      expect(first.version).toBe("0.5.0");
+      expect(first.version).toBe(version);
       expect(first.installedSkills).toHaveLength(2);
       for (const name of first.installedSkills) {
         expect(await readFile(join(dir, "skills", name, "SKILL.md"), "utf8")).toBe(await readFile(resolve("skill", name, "SKILL.md"), "utf8"));

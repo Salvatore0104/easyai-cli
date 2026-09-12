@@ -19,9 +19,15 @@ import { initProject, readProject, recordCreation } from "./project.js";
 import { guideRegistry, guideInfo, showGuide } from "./guides.js";
 import { prepareVideoPayload, videoSubmitTimeout } from "./video-payload.js";
 
+import { setupProject } from './setup.js';
+import { usageResult } from './usage.js';
+import { loadPrices, importPrices, estimate, syncPrices } from './pricing.js';
+import { autoRoute } from './routing.js';
+import { prepareReferences, uploadMedia, writeRun } from './media.js';
+
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.5.0")
+program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.6.0")
   .option("--profile <name>", "configuration profile")
   .option("--base-url <url>", "EasyAI server URL")
   .option("--json", "stable JSON output")
@@ -55,6 +61,13 @@ localProject.command("init").option("--dir <path>", "programme directory", ".").
 localProject.command("show").option("--dir <path>", "programme directory", ".").action(async (o, c) => output(await readProject(o.dir), c));
 localProject.command("validate").option("--dir <path>", "programme directory", ".").action(async (o, c) => { const result = await readProject(o.dir); await output({ valid: true, ...result }, c); });
 localProject.command("record").requiredOption("--file <path>", "creation JSON").option("--dir <path>", "programme directory", ".").action(async (o, c) => output(await recordCreation(o.dir, await jsonInput(o)), c));
+localProject.command('setup').option('--dir <path>', 'project directory', '.').option('--update', 'explicitly update managed runtime and unmodified skills').action(async (o,c) => output(await setupProject(o.dir, o.update),c));
+const prices = program.command('prices');
+prices.command('sync').requiredOption('--url <https-url>', 'verified public wowidea.prices/v1 snapshot URL').action(async(o,c)=>output(await syncPrices(o.url),c));
+prices.command('show').action(async (_o,c) => output(await loadPrices() || { available: false, reason: 'Import a website price snapshot; public price endpoint not verified.' },c));
+prices.command('import').argument('<file>').action(async (f,_o,c) => output(await importPrices(resolve(f)),c));
+const files = program.command('files');
+files.command('upload').argument('<file>').option('--project-dir <path>', 'project root', '.').action(async(f,o,c) => output(await uploadMedia(await apiFor(c),f,o.projectDir),c));
 const guides = program.command("guides").description("Bundled versioned creative resources; works offline");
 guides.command("list").action(async (_o, c) => output(guideRegistry.map(g => guideInfo(g.id)), c));
 guides.command("show").argument("<id>").action(async (id, _o, c) => output(await showGuide(id), c));
@@ -91,7 +104,7 @@ models.command("show").argument("<id>").action(async (id, _o, c) => {
   const entry = registryEntry(found);
   await output(entry ? { ...found, guide: entry.guide, guideInfo: guideInfo(entry.guide.replace(/^references\//, "").replace(/\.md$/, "")) } : found, c);
 });
-models.command("route").requiredOption("--kind <image|video>").option("--model <name>").action(async (o, c) => { const defaults = await creativeDefaults(); await output(routeModel(await (await apiFor(c)).get("/v1/models"), o.kind, o.model || defaults[o.kind as "image" | "video"]), c); });
+dataOptions(models.command('route')).requiredOption('--kind <image|video>').option('--model <name>').option('--purpose <text>').option('--stage <preview|final|edit|refine>').option('--speed').option('--prices <file>').action(async(o,c) => { const catalog = await (await apiFor(c)).get('/v1/models'); await output(autoRoute(catalog,{kind:o.kind, model:o.model, purpose:o.purpose, stage:o.stage, speed:o.speed, payload:await jsonInput(o)},await (o.prices ? loadPrices(o.prices) : syncPrices())),c); });
 const tasks = program.command("tasks").description("Persisted submissions; recovery never submits another task");
 tasks.command("list").action(async (_o, c) => output(await listSubmissions(await apiFor(c)), c));
 tasks.command("remote").description("List this account's tasks from the server (read-only)").option("--page <n>", "page number", "1").option("--page-size <n>", "rows per page", "20").action(async (o, c) => {
@@ -99,30 +112,21 @@ tasks.command("remote").description("List this account's tasks from the server (
   if (!Number.isInteger(page) || page < 1 || !Number.isInteger(size) || size < 1 || size > 200) throw new CliError("--page must be a positive integer and --page-size must be between 1 and 200.", ExitCode.Usage);
   await output(await (await apiFor(c)).get(`/v1/tasks?page=${page}&page_size=${size}`), c);
 });
-tasks.command("resume").argument("<idempotencyKey>").action(async (key, _o, c) => output((await recoverSubmission(await apiFor(c), key)), c));
+tasks.command("resume").argument("<idempotencyKey>").action(async (key, _o, c) => (async()=>{const api=await apiFor(c);await output(await usageResult(api,await recoverSubmission(api,key)),c)})());
 program.command("balance").action(async (_o, c) => output(await (await apiFor(c)).get("/v1/balance"), c));
 
 function taskCommands(parent: Command, media: "image" | "video") {
-  parent.command("status").argument("<taskId>").action(async (id, _o, c) => output((await (await apiFor(c)).get(`/v1/tasks/${enc(id)}`)), c));
-  parent.command("download").argument("<taskId>").option("--dir <path>", "download directory", ".").action(async (id, o, c) => { const value = await (await apiFor(c)).get(`/v1/tasks/${enc(id)}`); await output({ taskId: id, paths: await downloadUrls(findUrls(value), resolve(o.dir)) }, c); });
+  parent.command("status").argument("<taskId>").action(async (id, _o, c) => (async()=>{const api=await apiFor(c);await output(await usageResult(api,await api.get(`/v1/tasks/${enc(id)}`)),c)})());
+  parent.command("download").argument("<taskId>").option("--dir <path>", "download directory", ".").action(async (id, o, c) => { const api=await apiFor(c); const value = await api.get(`/v1/tasks/${enc(id)}`); await output(await usageResult(api,{ taskId: id, task:value, paths: await downloadUrls(findUrls(value), resolve(o.dir,id)) }), c); });
   parent.command("watch").argument("<taskId>").option("--interval <ms>", "poll interval", "2000").action(async (id, o, c) => watchTask(await apiFor(c), id, Number(o.interval), c));
   if (media === "video") {
     parent.command("cancel").argument("<taskId>").action(async (id, _o, c) => output(await (await apiFor(c)).post(`/v1/tasks/${enc(id)}/cancel`), c));
   }
 }
-const image = program.command("image");
-dataOptions(image.command("preflight")).action(async (o, c) => output(await preflight(await apiFor(c), "image", "/v1/images/preflight", await jsonInput(o)), c));
-dataOptions(image.command("generate")).requiredOption("--idempotency-key <key>").option("--dir <path>", "download directory", "wowidea-output").option("--no-wait", "return after task acceptance without polling or download").option("--allow-reroll", "allow an identical payload only after explicit user intent").action(async (o, c) => {
-  const payload = await jsonInput(o);
-  if (/seedance/i.test(String(payload.model))) throw new CliError("Seedance requires video generate --manifest.", ExitCode.Approval);
-  const api = await apiFor(c);
-  // A repeated invocation recovers the same task before any new submission.
-  if ((await listSubmissions(api)).some(r => r.idempotencyKey === o.idempotencyKey)) { const recovered = await recoverSubmission(api, o.idempotencyKey); await output(o.wait ? await completeGeneration(api, recovered, "image", o.dir) : (recovered), c); return; }
-  const selected = routeModel(await api.get("/v1/models"), "image", payload.model ? String(payload.model) : (await creativeDefaults()).image); payload.model = selected.model; validateCapabilities(selected, payload);
-  const submitted = await submitDirect(api, "/v1/images/generations", payload, o);
-  await output(o.wait ? await completeGeneration(api, submitted, "image", o.dir) : (submitted), c);
-});
-taskCommands(image, "image");
+const image = program.command('image');
+dataOptions(image.command('preflight')).action(async(o,c)=>output(await preflight(await apiFor(c),'image','/v1/images/preflight',await jsonInput(o)),c));
+registerMedia(image, 'image');
+taskCommands(image,'image');
 
 async function preflight(api: EasyAiApi, kind: Quote["kind"], path: string, payload: Record<string, unknown>): Promise<Quote> {
   if (kind === "video") payload = prepareVideoPayload(payload);
@@ -151,43 +155,47 @@ async function submitDirect(api: EasyAiApi, path: string, payload: Record<string
   const kind = path.includes("video") ? "video" : "image";
   return submitAsyncWithRecovery(api, path, payload, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : videoSubmitTimeout(payload), recoveryWaitMs: 90_000, allowDuplicatePayload: opts.allowReroll });
 }
-const video = program.command("video");
-dataOptions(video.command("preflight")).action(async (o, c) => output(await preflight(await apiFor(c), "video", "/v1/video/preflight", await jsonInput(o)), c));
-dataOptions(video.command("generate")).requiredOption("--idempotency-key <key>").option("--manifest <path>").option("--dir <path>", "download directory", "wowidea-output").option("--no-wait", "return after task acceptance without polling or download").option("--allow-reroll", "allow an identical non-Seedance payload only after explicit user intent").action(async (o, c) => {
-  let payload = await jsonInput(o);
-  let manifestPath: string | undefined;
-  let approvalKey: string | undefined;
-  if (/seedance/i.test(String(payload.model)) && !o.manifest) throw new CliError("Seedance requires an approved --manifest; direct payload submission is disabled.", ExitCode.Approval);
-  if (!o.manifest) {
-    const api = await apiFor(c);
-    const selected = routeModel(await api.get("/v1/models"), "video", String(payload.model || ""));
-    if (selected.approvalRequired) throw new CliError("Seedance requires an approved manifest.", ExitCode.Approval);
-    payload.model = selected.model; payload = prepareVideoPayload(payload); validateCapabilities(selected, payload);
-    const submitted = await submitDirect(api, "/v1/video/generations", payload, o);
-    await output(o.wait ? await completeGeneration(api, submitted, "video", o.dir) : (submitted), c); return;
-  }
-  let initialCreativeHash: string | undefined;
-  if (o.manifest) {
-    manifestPath = resolve(o.manifest); const manifest = await readManifest(manifestPath); await validateManifest(manifest, true);
-    const prepared = manifest;
-    if (prepared.state !== "approved" || prepared.approval?.creativeHash !== creativeHash(prepared) || prepared.approval?.confirmation !== "I APPROVE STORYBOARD") throw new CliError("Seedance requires the user to explicitly approve the reviewed storyboard before generation.", ExitCode.Approval);
-    payload = seedancePayload(prepared); initialCreativeHash = creativeHash(prepared);
-    approvalKey = `seedance-${payloadHash(prepared.approval)}`;
-  }
-  const api = await apiFor(c);
-  const selected = routeModel(await api.get("/v1/models"), "video", String(payload.model || ""));
-  validateCapabilities(selected, payload);
-  if (selected.approvalRequired && !manifestPath) throw new CliError("Seedance requires an approved manifest.", ExitCode.Approval);
-  if (manifestPath) { const latest = await readManifest(manifestPath); await validateManifest(latest, true); if (latest.state !== "approved" || creativeHash(latest) !== initialCreativeHash || `seedance-${payloadHash(latest.approval)}` !== approvalKey || payloadHash(seedancePayload(latest)) !== payloadHash(payload)) throw new CliError("Manifest changed during preflight; prepare the revised request and obtain storyboard approval again.", ExitCode.Approval); }
-  const result = await submitOnce(api, "/v1/video/generations", payload, approvalKey || o.idempotencyKey);
-  if (manifestPath) {
-    const manifest = await readManifest(manifestPath); const taskId = findTaskId(result);
-    if (!taskId) throw new CliError("Submission returned no task ID; the manifest was not advanced and no retry was made.", ExitCode.Service);
-    manifest.state = "submitted"; manifest.taskId = taskId; await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
-  }
-  await output(o.wait ? await completeGeneration(api, result, "video", o.dir) : (result), c);
-});
-taskCommands(video, "video");
+const video = program.command('video');
+dataOptions(video.command('preflight')).action(async(o,c)=>output(await preflight(await apiFor(c),'video','/v1/video/preflight',await jsonInput(o)),c));
+registerMedia(video, 'video');
+taskCommands(video,'video');
+
+function registerMedia(parent: Command, kind: 'image'|'video') {
+  for (const action of ['generate','edit']) dataOptions(parent.command(action)).requiredOption('--idempotency-key <key>').option('--manifest <path>').option('--dir <path>', 'download directory','wowidea-output').option('--project-dir <path>', 'record directory','.').option('--parent <taskId>', 'source version task ID').option('--change <text>', 'revision summary').option('--purpose <text>').option('--stage <preview|final|edit|refine>').option('--prices <file>').option('--no-wait').option('--allow-reroll').action(async(o,c) => {
+    const api = await apiFor(c), startedAt = new Date().toISOString();
+    const prior = (await listSubmissions(api)).find(r=>r.idempotencyKey===o.idempotencyKey);
+    if(prior) { const recovered=await recoverSubmission(api,o.idempotencyKey); await output(await usageResult(api,o.wait?await completeGeneration(api,recovered,kind,o.dir):recovered),c); return; }
+    let payload = await jsonInput(o);
+    if(o.manifest) { if(o.file || o.data) throw new CliError('Use manifest or request JSON, not both.',ExitCode.Usage); const m = await readManifest(resolve(o.manifest)); payload = seedancePayload(m); }
+    const prepared = await prepareReferences(api,payload,o.projectDir); payload=prepared.payload;
+    if(action==='edit') {
+      if(kind==='image' && !Array.isArray(payload.image_urls)) throw new CliError('Image editing requires image/image_urls references.',ExitCode.Usage);
+      if(kind==='image' && !(payload.image_urls as any[]).length) throw new CliError('Image editing requires a source image.',ExitCode.Usage);
+      if(kind==='video') { if(!(payload.video_urls as any[])?.length) throw new CliError('Video editing requires video_urls.',ExitCode.Usage); payload.mode ??= 'video_edit'; }
+    }
+    const catalog = await api.get('/v1/models'); const book = await loadPrices(o.prices);
+    let routing: any;
+    if(o.stage || o.purpose) {
+      routing = autoRoute(catalog,{kind, model:payload.model as string, stage:o.stage || (action==='edit'?'edit':undefined), purpose:o.purpose, payload},book);
+      if(routing.needsInput) { await output(routing,c); return; } payload=routing.payload;
+    }
+    const selected=routeModel(catalog,kind,payload.model ? String(payload.model) : (await creativeDefaults())[kind]);
+    payload.model=selected.model;
+    if(kind==='video') { const caps=selected.capabilities.capabilities?.omni_video; if(action==='edit' && caps?.omni_reference_task_type?.constraints?.edit) { const rule=caps.omni_reference_task_type.constraints.edit; payload.omni_reference_task_type='edit'; if(rule.forced_duration!==undefined && payload.duration===undefined)payload.duration=rule.forced_duration; if(rule.forced_aspect_ratio && payload.aspect_ratio===undefined)payload.aspect_ratio=rule.forced_aspect_ratio; } payload=prepareVideoPayload(payload); }
+    validateCapabilities(selected,payload);
+    if(kind==='image' && payload.image_urls) { payload.image=payload.image_urls; delete payload.image_urls; }
+    const pricing=estimate(book,selected.model,kind,payload);
+    const record:any={schemaVersion:'wowidea.run/v1',kind,action,startedAt,parentTaskId:o.parent||null,change:o.change||null,stage:o.stage||action,purpose:o.purpose||null,routing,model:selected.model,payload,references:prepared.sources,pricing,qc:{verdict:'not_reviewed'},state:'prepared'};
+    const recordPath=await writeRun(o.projectDir,o.idempotencyKey,record);
+    try {
+      const submitted=await submitDirect(api,kind==='image'?'/v1/images/generations':'/v1/video/generations',payload,o);
+      record.taskId=findTaskId(submitted);record.state='submitted';await writeRun(o.projectDir,o.idempotencyKey,record);
+      const result=await usageResult(api,o.wait?await completeGeneration(api,submitted,kind,o.dir):submitted);
+      Object.assign(record,{state:taskStatus(result),result,elapsedMs:Date.now()-Date.parse(startedAt)});await writeRun(o.projectDir,o.idempotencyKey,record);
+      await output({...result,pricing,recordPath},c);
+    } catch(error) { record.state='interrupted';record.error=String((error as Error).message);await writeRun(o.projectDir,o.idempotencyKey,record).catch(()=>{});throw error; }
+  });
+}
 
 async function watchTask(api: EasyAiApi, id: string, interval: number, cmd: Command) {
   if (!Number.isFinite(interval) || interval < 250) throw new CliError("Poll interval must be at least 250ms.", ExitCode.Usage);
@@ -196,8 +204,8 @@ async function watchTask(api: EasyAiApi, id: string, interval: number, cmd: Comm
   while (Date.now() < deadline) {
     const task = await api.get<any>(`/v1/tasks/${enc(id)}`); const status = taskStatus(task);
     const terminal = ["completed", "succeeded", "success", "failed", "error", "cancelled", "canceled"].includes(status);
-    if (globals(cmd).jsonl) await output({ taskId: id, status, cursor,  }, cmd);
-    if (terminal) { if (!globals(cmd).jsonl) await output((task), cmd); return; }
+    if (globals(cmd).jsonl) await output(terminal ? await usageResult(api, { taskId: id, status, task }) : { taskId: id, status, cursor }, cmd);
+    if (terminal) { if (!globals(cmd).jsonl) await output(await usageResult(api, task), cmd); return; }
     await new Promise(r => setTimeout(r, Math.max(250, interval)));
   }
   throw new CliError(`Watch deadline reached; resume status/watch for task ${id}. No new task was submitted.`, ExitCode.Service);
@@ -222,7 +230,7 @@ async function completeGeneration(api: EasyAiApi, submitted: unknown, kind: "ima
   if (["failed", "error", "cancelled", "canceled"].includes(status)) return { taskId: id, status, paths: [], task };
   if (!urls.length) throw new CliError(`Task ${id || "response"} reported ${status || "success"} but returned no downloadable ${kind} URL. Query this task again; do not resubmit.`, ExitCode.Service);
   const target = resolve(directory, id || `${kind}-${Date.now()}`);
-  return { taskId: id, status: status === "unknown" ? "completed" : status, paths: await downloadUrls(urls, target) };
+  return { taskId: id, status: status === "unknown" ? "completed" : status, paths: await downloadUrls(urls, target), task };
 }
 
 const canvas = program.command("canvas");
@@ -262,7 +270,7 @@ dataOptions(canvas.command("run")).argument("<projectId>").addOption(new Option(
   const payload = { ...(await jsonInput(o)), ...(o.node ? { nodeId: o.node } : o.group ? { groupId: o.group } : { all: true }) }; const api = await apiFor(c);
   if (o.preflight) { await output(await preflight(api, "canvas", `/v1/canvas-workflow/projects/${enc(p)}/executions/preflight`, payload), c); return; }
   const state = await api.get(`/v1/canvas-workflow/projects/${enc(p)}/state`);
-  if (/seedance/i.test(JSON.stringify(state))) throw new CliError("Canvas containing Seedance must use video generate --manifest; canvas approval bridging is not implemented.", ExitCode.Approval);
+
   await output((await submitDirect(api, `/v1/canvas-workflow/projects/${enc(p)}/executions`, payload, o)), c);
 });
 const canvasTask = canvas.command("task");

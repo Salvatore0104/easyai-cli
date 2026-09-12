@@ -1,20 +1,9 @@
 # Execute and recover
 
-Use installed wowidea (easyai compatible). Check help when uncertain. Use the website account key through existing credentials or hidden auth use-key --prompt. No provider keys or browser login. Run models route for exact current capability; guides are not API schemas.
+Use project-local node .wowidea/runtime/dist/cli.js when initialized, otherwise installed wowidea. Determine purpose and stage before automatic routing; explicit settings take priority. Use UTF-8 JSON request files and persist one UUID key per generation before submitting.
 
-Write a UTF-8 request and save one UUID key before submission. Authorized images and non-Seedance videos:
+Commands: image generate, image edit, video generate, video edit --file <request> --idempotency-key <UUID> --project-dir <project> --dir <outputs>. Edits use --parent <taskId> --change <summary> and actual source references. Image image/image_urls and video video_urls accept local paths or HTTPS URLs. files upload can upload explicitly; local references refresh after 24-hour expiry. Keep original files.
 
-```text
-wowidea --json image generate --file request.json --idempotency-key <UUID> --dir <directory>
-wowidea --json video generate --file request.json --idempotency-key <UUID> --dir <directory>
-```
+Seedance submits directly without storyboard or price approval. --manifest is optional. Default waits and downloads; --no-wait returns acceptance only. Retain the running process until completion. After acceptance use status/watch/download or tasks resume, never generate again for a timeout or missing output. If a user explicitly requests another identical result, use a new key with --allow-reroll.
 
-Default generation waits and downloads. --no-wait is only for explicit background requests, with later recovery/delivery. Present returned absolute paths as local media. Keep stdout as the final JSON envelope; do not merge stderr into it.
-
-Seedance follows [approval](seedance-gate.md), manifest and creative approval and technical validation.
-
-Once an ID exists, query only it using image/video status, watch or download. watch can end after 30 minutes; continue observation of the same ID. For uncertainty use tasks list and tasks resume <idempotencyKey>, both read-only. Unique task deltas can recover acceptance; ambiguous candidates stay unresolved. Known rejected requests must not recover an unrelated task. Never POST again because of timeout, restart, missing URL or failed download.
-
-Validation errors do not authorize changing creative/billable settings. No automatic paid retries, model switches or aesthetic rerolls. Successful tasks temporarily missing URLs are queried again, not regenerated. Failed result downloads are retrieval problems.
-
-Report task status and media paths; do not report billing. Save task/settings/references/outputs/QC in project records when used. Inspect media before quality claims. Partial completion remains partial.
+Show local media, task state, pricing and pointsUsage. Missing actual charge/refund means interface unavailable; do not infer charges from balance differences. No automatic aesthetic rerolls. Inspect outputs and use [review](visual-review.md). Runs in .wowidea/runs retain task and revision context; never overwrite original media to implement a revision.
