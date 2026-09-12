@@ -37,6 +37,8 @@ Skill结构、链接和安装通过不等于审美或模型行为已充分评测
 
 已知服务端缺口：`GET /v1/tasks?idempotencyKey=`未按契约过滤且任务行不返回幂等键，恢复因此依赖本地记录或快照差集；`?type=`被忽略，过滤在CLI本地完成；`/v1/images/preflight`与`/v1/video/preflight`尚未部署，preflight按设计回退为本地报价。
 
+本次不修改网站后端。后续建议补充的最小只读接口：任务详情与列表返回 `billing: { actualPoints, refundedPoints, status }`（无结算时为 `null`，不要用 0 表示未知），`GET /v1/tasks?idempotencyKey=` 按幂等键过滤并在每行返回 `idempotencyKey`，以及一个普通 Key 可读的模型定价列表（如 `GET /v1/pricing`，按模型标识返回计费单位、规格加价与更新时间）。这些接口稳定后即可去除显式价格快照的临时依赖。
+
 ## 执行边界
 
 H3已验证文本和仅图片参考的原生content映射。严格关键帧、视频/音频混合、编辑、延长及H3-Max不能仅凭目录或官方提示词格式宣称已测通。Seedance官方2.5能力不等于当前EasyAI映射；未取得官方sd25-pe原包。Flova模型限制和引用语法不直接迁移。当前包不修改网站后端，也不自动开展后期或额外付费生成。
