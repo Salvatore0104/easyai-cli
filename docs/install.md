@@ -2,11 +2,15 @@
 
 主入口与日常用法见 [README](../README.md)；命令、模型与评审口径见 [使用与维护](usage.md)。
 
-## 让 Codex 代你安装（可选）
+## 让 Codex 代你安装（推荐）
 
-把下面这段发给 Codex：
+先取得账号 Key：登录 [wowidea.top](https://wowidea.top) → 用户中心 → **API Key**（[wowidea.top/user/api-key](https://wowidea.top/user/api-key)）→ 新建并复制。
 
-> 帮我安装 https://github.com/Salvatore0104/easyai-cli 的 CLI 和 wowidea Skill。使用账号 API Key，不走浏览器登录；需要密钥时提供本机输入方式。默认图片用 Nano Banana 2，视频用 Seedance 2.0。安装后验证模型、余额和任务查询，并告诉我如何使用 `$wowidea`。
+把下面这段发给 Codex（替换其中的 Key）：
+
+> 帮我安装 https://github.com/Salvatore0104/easyai-cli 的 CLI 和 wowidea Skill。我的账号 API Key 是 `sk-你的Key`，请直接用它完成认证（`wowidea auth use-key`），不要走浏览器登录。安装后验证模型、余额和任务查询，并告诉我怎么在项目里持续使用。
+
+Codex 会克隆仓库、构建并全局安装 CLI、安装随包 Skill，再用你给的 Key 写入系统凭据库。Key 不会写进项目、Skill、请求记录或 Git；如担心聊天泄露，可在同一页面立即吊销并重建。
 
 ## 环境要求
 
@@ -43,6 +47,8 @@ node "$(npm root -g)/@easyai/cli/scripts/install-skills.mjs"
 不要使用 `npm install -g .` 从临时目录安装，会留下失效链接。Codex 也可以克隆仓库后查看并运行对应安装脚本。
 
 ## 账号密钥
+
+Key 在网站生成：登录 [wowidea.top](https://wowidea.top) → 用户中心 → **API Key**（[wowidea.top/user/api-key](https://wowidea.top/user/api-key)）→ 新建并复制。也可以让 Codex 直接用你提供的 Key 完成认证。
 
 在自己的交互终端隐藏输入并保存到系统凭据库：
 

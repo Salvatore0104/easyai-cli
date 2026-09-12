@@ -4,6 +4,18 @@
 
 ## 安装
 
+### 方式一：让 Codex 代你安装（推荐，自动写入 Key）
+
+先在网站获取账号 Key：登录 [wowidea.top](https://wowidea.top) → 用户中心 → **API Key**（[wowidea.top/user/api-key](https://wowidea.top/user/api-key)）→ 新建并复制。
+
+然后把下面这段发给 Codex，把 `sk-你的Key` 换成刚复制的 Key：
+
+> 帮我安装 https://github.com/Salvatore0104/easyai-cli 的 CLI 和 wowidea Skill。我的账号 API Key 是 `sk-你的Key`，请直接用它完成认证（`wowidea auth use-key`），不要走浏览器登录。安装后验证模型、余额和任务查询，并告诉我怎么在项目里持续使用。
+
+Codex 会克隆仓库、构建并全局安装 CLI、安装随包 Skill，再用你给的 Key 写入系统凭据库完成认证——**Key 不会写进项目、Skill、请求记录或 Git**。完成后可用 `wowidea --json auth status` 确认。Key 是账号级自动化权限：聊天中发送后如不放心，可在同一页面立即吊销并重建。
+
+### 方式二：自己运行安装脚本
+
 需要 Node.js 20+、npm 和 Git。安装器从源码构建 npm 实包，同时安装 CLI 与随包 Skill；重复执行即为更新，会保留系统凭据和你自定义的 Skill。
 
 macOS：
