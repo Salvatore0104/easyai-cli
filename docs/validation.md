@@ -8,13 +8,13 @@ Skill结构、链接和安装通过不等于审美或模型行为已充分评测
 
 ## 0.6.0 创作闭环验证
 
-`npm run check`覆盖类型检查、构建、资源一致性（34 个 Skill 文件、11 条来源记录）与 85 项行为测试。新增 `tests/creative-cli.test.ts` 以真实 CLI 进程驱动 mock 站点，验证：项目初始化一次即建立绑定且重复初始化幂等、`AGENTS.md` 管理段唯一、`models route` 按用途与阶段选择模型并在阶段不明时返回 `needsInput`、`prices import/show` 读取带来源的快照、`image edit` 携带参考图提交并下载结果、Seedance 无需分镜审批即可直接提交、相同幂等键恢复不重复提交，以及 `.wowidea/runs` 记录保留父版本与修改说明且不写入密钥。`tests/cli-guards.test.ts` 与 `tests/creative.test.ts` 覆盖取消积分门槛、非法参数拦截、恢复、余额缺失与失败展示。
+`npm run check`覆盖类型检查、构建、资源一致性（34 个 Skill 文件、11 条来源记录）与 87 项行为测试。新增 `tests/creative-cli.test.ts` 以真实 CLI 进程驱动 mock 站点，验证：项目初始化一次即建立绑定且重复初始化幂等、`AGENTS.md` 管理段唯一、`models route` 按用途与阶段选择模型并在阶段不明时返回 `needsInput`、`prices import/show` 读取带来源的快照、`image edit` 携带参考图提交并下载结果、Seedance 无需分镜审批即可直接提交、相同幂等键恢复不重复提交，以及 `.wowidea/runs` 记录保留父版本与修改说明且不写入密钥。`tests/cli-guards.test.ts` 与 `tests/creative.test.ts` 覆盖取消积分门槛、非法参数拦截、恢复、余额缺失与失败展示。
 
-定价来源已查明：网站公开模型目录不返回价格，管理员页面 `/admin/platform/pricing-rules` 背后是 `GET /api/model-runtime/pricing-rules`，普通 Key 返回 401，需管理员令牌；其余 `/v1/pricing` 等候选路径均为 404。按计划不把管理员凭据变成普通创作依赖，仍通过显式导出的 `wowidea.prices/v1` 快照接入：由管理员规则转换出 32 条按分辨率（图片另含质量档）展开的规则，`prices import` 后估算即为真实规则价。规则要点：Nano Banana 2 = 1/张、Nano Banana Pro = 3/张、GPT Image 2 = 0.5/张、GPT Image 2.5 = 2/张（2K ×1.5、4K ×2，质量档 ×1/1.2/1.6）、Midjourney = 1/张；视频按每 5 秒价 ÷5 换算为每秒，例如 Seedance 2.0 480p 23.1、720p 49.7、1080p 123.9 每 5 秒，Seedance 2.5 720p 75.6、1080p 187.1 每 5 秒，Wan3.0 480p 15、720p 30 每 5 秒。快照文件：`价格规则/wowidea-prices-2026-09-12.json`。
+定价来源已查明：公开模型目录不返回价格；管理员页面 `/admin/platform/pricing-rules` 对应 `GET /api/model-runtime/pricing-rules`（需管理员令牌，普通 Key 为 401）；而网站 UI 的“预计扣费”使用 `POST /api/integration-platform/models/estimatedBilling`，**普通账号 Key 即可调用**，返回实付积分并附带 `rawAmount` 与 `platformModelDiscount`（平台/型号折扣）。因此 CLI 生成与选模现在优先调用该接口取实价（`pricing.source = platform /integration-platform/models/estimatedBilling`），折扣自动包含，无需人工折算；接口不可用时回退到显式导出的 `wowidea.prices/v1` 快照。快照文件：`价格规则/wowidea-prices-2026-09-12.json`（32 条，按分辨率展开，图片另含质量档）。
 
-MiniMax H3 与 Google Omni 的定价在 2026-09-12 由用户修正并复核：H3 实际生效规则是 `rmb-minimax-h3-v2`（基础价 25/5 秒，音频权重 ×2、参考视频 ×1.5、指定音色 ×1.2；平台任务详情显示 `formula: 1 × 1 × 25 × 2`），而 `rmb-minimax-h3-official-v1` 同时存在但不生效，因此快照改用 v2 并按 H3 强制有声折算为 720p 每秒 10、1440p 每秒 16。Google Omni 修正为基础价 5/5 秒、各分辨率权重 1，即每秒 1。快照已按新规则重新生成并导入。
+规则要点：Nano Banana 2 = 1/张、Pro = 3/张、GPT Image 2 = 0.5/张、GPT Image 2.5 = 2/张（2K ×1.5、4K ×2，质量档 ×1/1.2/1.6）、Midjourney = 1/张。视频每 5 秒价 ÷5 换算为每秒：Seedance 2.0 480p 4.62、720p 9.94、1080p 24.78；2.0-fast 480p 3.72、720p 8；2.0-mini 480p 2.3、720p 5；2.5 480p 6.72、720p 15.12、1080p 37.42；Wan3.0 480p 3、720p 6。2026-09-12 用户修正两处并复核：MiniMax-H3 的音频加价权重由 ×2 改回 ×1（实际生效规则为 `rmb-minimax-h3-v2`，现为 720p 5/秒、1440p 8/秒）；Google Omni 改为基础价 5/5 秒、各分辨率权重 1，即每秒 1。
 
-实测核对：图片规则与实扣完全一致（Nano Banana 2 4K = 1 积分）。MiniMax-H3 720p/5 秒 + 音频估价 50，任务 6aa525d5d75e4fc24a162232 实扣 50，`pointsUsage.actualPoints = 50`（首次出现平台提供实际扣费，`billings` 解析生效）。Google Omni 720p/10 秒估价 10，首次提交因上游“速创未返回任务 ID”失败、无扣费；第二次任务 6aa52496d75e4fc24a161af4 扣 10 后失败并全额退回，任务详情 `errorMessage` 误写为“成功”，属平台/上游问题而非 CLI 或定价问题。Seedance 2.0-fast 实测扣费恒为规则值的 0.75 倍（480p/5s 规则 18.6 实扣 13.95；720p/5s 规则 40 实扣 30），未在规则接口中体现，未写入快照。`reference_video`/`voice` 乘数当前 CLI 快照无法表达，列为后续可补充项。
+实测核对：图片规则与实扣完全一致（Nano Banana 2 4K = 1）。MiniMax-H3 修正后 720p/5 秒 + 音频：平台任务详情计费公式为 `1 × 1 × 25 × 1`，任务 6aa52f25d75e4fc24a164def 实扣 **25**，估价 25，`pointsUsage.actualPoints = 25`。Google Omni 720p/10 秒估价 10，任务 6aa52496d75e4fc24a161af4 扣 10 后因上游失败全额退回（该任务 `errorMessage` 误写为“成功”，属平台问题）。Seedance 折扣期实测（**打折为平台促销，非异常**）：2.0 480p/5 秒实扣 23.1（原价）、2.0-mini 4.6（4 折）、2.0-fast 13.95（7.5 折）、2.5 33.6（原价），与 `estimatedBilling` 返回值完全一致；CLI 现已直接显示 `13.95 points (7.5 折 of 18.6)`。验收中还遇到一次上游“预扣费额度失败”瞬时错误（平台侧余额不足），未扣用户积分，CLI 保持 uncertain 且未重复提交。
 
 超时恢复在真实验收中暴露并加固：一次视频提交 POST 超时后，平台把该任务标为 `task_type: image`，自动恢复因此无法确认归属。现在不确定错误会列出提交时间窗内的候选任务 ID 供人工确认，且快照窗口按该次提交的超时上限收敛、候选任务若带执行链则要求模型名一致，避免把之后生成的同类型任务错误关联（曾观察到 `tasks resume` 误绑后续 H3 任务，已修正并补回归）。
 
@@ -26,7 +26,9 @@ MiniMax H3 与 Google Omni 的定价在 2026-09-12 由用户修正并复核：H3
 | 图片修改 | 以上图为本地参考，4K、1:1，`--parent` 与 `--change` | 成功，任务 6aa52065d75e4fc24a15eaef，参考图经网站上传（24 小时有效），下载 2.36MB PNG；余额 95374.80761→95373.80761 |
 | 视频测试 | Seedance 2.0-fast，480p、5 秒、16:9、无声、text_to_video | 成功，任务 6aa52133d75e4fc24a15ed9e，下载 h264 864×496、约 5.04 秒；余额 95373.80761→95359.85761 |
 | 视频计价核对 | Seedance 2.0-fast，720p、5 秒、16:9、无声 | 成功，任务 6aa52273d75e4fc24a15f40b；规则估价 40 积分，实扣 30；余额 95359.85761→95329.85761 |
-| MiniMax-H3 定价核对 | MiniMax-H3，720p、5 秒、16:9、有声 | 成功，任务 6aa525d5d75e4fc24a162232，下载 h264 1344×768 + AAC、约 5.17 秒；估价 50 = 实扣 50；余额 95329.85761→95279.85761 |
+| MiniMax-H3 定价核对（修正后） | MiniMax-H3，720p、5 秒、16:9、有声 | 成功，任务 6aa52f25d75e4fc24a164def，下载 h264 + AAC、约 5 秒；计费公式 `1 × 1 × 25 × 1`，估价 = 实扣 = **25**；余额 95218.55761→95193.55761 |
+| Seedance 折扣核对 | 2.0 / 2.0-fast / 2.0-mini / 2.5，480p、5 秒 | 实扣 23.1 / 13.95（7.5 折）/ 4.6（4 折）/ 33.6，均与平台 `estimatedBilling` 一致；折扣为促销期平台行为 |
+| MiniMax-H3 修正前记录 | MiniMax-H3，720p、5 秒、有声（音频权重误为 ×2） | 任务 6aa525d5d75e4fc24a162232 实扣 50（`1 × 1 × 25 × 2`），已由用户修正为 ×1 |
 | Google Omni 定价核对 | Google Omni，720p、10 秒、16:9、无声 | 估价 10；首次上游无任务 ID、无扣费；任务 6aa52496d75e4fc24a161af4 扣 10 后失败并全额退回，余额回到 95329.85761；生成失败属平台/上游问题 |
 | 恢复 | 同一幂等键重跑视频请求 | 返回同一任务，未再次提交，余额不变 |
 

@@ -25,6 +25,7 @@ describe("CLI gates with a mock website", () => {
     const server = createServer((req, res) => {
       res.setHeader("Content-Type", "application/json");
       if (req.url?.endsWith("/preflight")) { preflights++; let body = ""; req.on("data", d => body += d); req.on("end", () => res.end(JSON.stringify({ quoteId: "cost-quote", estimatedCost: cost, currency: "points", expiresAt: new Date(Date.now() + 60000).toISOString(), normalizedRequest: JSON.parse(body) }))); return; }
+      if (req.url === "/api/integration-platform/models/estimatedBilling") { let body = ""; req.on("data", d => body += d); req.on("end", () => res.end(JSON.stringify({ amount: cost, estimatedPower: cost, calculation: {} }))); return; }
       if (req.method === "POST") { submissions++; res.end(JSON.stringify({ taskId: "job", status: "queued" })); return; }
       if (req.url === "/api/v1/models") { res.end(JSON.stringify({ data: catalog })); return; }
       res.end(JSON.stringify({ taskId: "job", status: "succeeded", billing: { actualPoints: 37.5 } }));
@@ -66,6 +67,7 @@ describe("CLI gates with a mock website", () => {
     const server = createServer((req, res) => {
       res.setHeader("Content-Type", "application/json");
       if (req.url === "/api/v1/images/preflight") { let body = ""; req.on("data", d => body += d); req.on("end", () => res.end(JSON.stringify({ quoteId: "quote", estimatedCost: 20, currency: "points", expiresAt: new Date(Date.now() + 60000).toISOString(), normalizedRequest: JSON.parse(body) }))); return; }
+      if (req.url === "/api/integration-platform/models/estimatedBilling") { let body = ""; req.on("data", d => body += d); req.on("end", () => res.end(JSON.stringify({ amount: 20, estimatedPower: 20, calculation: {} }))); return; }
       if (req.method === "POST") { posts++; res.statusCode = 503; res.end('{}'); return; }
       if (req.url === "/api/v1/models") { res.end(JSON.stringify({ data: [{ id: "Nano Banana 2", capabilities: { image_generate: {} } }] })); return; }
       res.end(JSON.stringify({ items: [{ id: "unrelated-task" }] }));

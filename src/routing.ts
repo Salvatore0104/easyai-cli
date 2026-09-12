@@ -1,5 +1,6 @@
 import { routeModel, validateCapabilities } from './models.js';
-import { estimate, PriceBook } from './pricing.js';
+import { EasyAiApi } from './api.js';
+import { estimate, platformEstimate, PriceBook } from './pricing.js';
 import { CliError, ExitCode } from './errors.js';
 
 export interface RoutingInput { kind: 'image' | 'video'; purpose?: string; stage?: 'preview' | 'final' | 'edit' | 'refine'; model?: string; speed?: boolean; payload?: Record<string, any>; }
@@ -45,4 +46,30 @@ export function autoRoute(catalog: unknown, input: RoutingInput, prices: PriceBo
   });
   if (!candidates.length) throw new CliError('No model satisfies the requested settings; no substitution submitted.', ExitCode.Usage, rejected);
   return { needsInput: false, ...candidates[0], candidates, rejected, stage: input.stage, purpose };
+}
+
+/**
+ * Replace snapshot estimates with the website's own cost preview. Cost is the
+ * last routing criterion, so candidates are only re-ordered for a video
+ * preview (where the list is explicitly a set of economical alternatives);
+ * otherwise the purpose-fit order from autoRoute is preserved.
+ */
+export async function applyPlatformEstimates(api: EasyAiApi, routing: any): Promise<any> {
+  const candidates = Array.isArray(routing?.candidates) ? routing.candidates : [];
+  if (!candidates.length) return routing;
+  for (const candidate of candidates.slice(0, 4)) {
+    const live = await platformEstimate(api, candidate.payload as Record<string, unknown>);
+    if (!live) continue;
+    candidate.pricing = { ...candidate.pricing, estimatedPoints: live.estimatedPoints, rawEstimatedPoints: live.raw, reason: live.reason, source: live.source, discount: live.discount };
+  }
+  // Keep the purpose-fit order, but refresh the reported choice's pricing.
+  if (routing.stage !== 'preview') return { ...routing, ...candidates[0], candidates };
+  const ranked = [...candidates].sort((a, b) => {
+    const av = a.pricing?.estimatedPoints, bv = b.pricing?.estimatedPoints;
+    const known = typeof av === 'number', other = typeof bv === 'number';
+    if (known !== other) return known ? -1 : 1;
+    if (known && other && av !== bv) return av - bv;
+    return (a.rank ?? 0) - (b.rank ?? 0);
+  });
+  return { ...routing, ...ranked[0], candidates: ranked };
 }

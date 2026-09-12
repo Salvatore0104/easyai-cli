@@ -1,5 +1,6 @@
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { EasyAiApi } from './api.js';
 import { configDir } from './config.js';
 import { CliError, ExitCode } from './errors.js';
 export interface PriceRule { model: string; operation: 'image' | 'video'; unit: 'request' | 'image' | 'second'; points: number; when?: Record<string, string | number | boolean>; }
@@ -40,4 +41,37 @@ export function estimate(book: PriceBook | null, model: string, operation: 'imag
   const amount = r.unit === 'second' ? payload.duration : r.unit === 'image' ? payload.n ?? 1 : 1;
   if (!Number.isFinite(amount) || amount <= 0) return { ...base, reason: 'Billing quantity is unknown' };
   return { ...base, estimatedPoints: Math.round(r.points * amount * 1e8) / 1e8, reason: `${r.points} points/${r.unit}`, unit: r.unit, quantity: amount };
+}
+
+export interface PlatformEstimate {
+  estimatedPoints: number; raw: number | null; reason: string;
+  source: string; discount: { originalAmount: number; discountedAmount: number; factor: number } | null;
+}
+const asNumber = (v: unknown): number | null => typeof v === 'number' && Number.isFinite(v) ? v : null;
+/**
+ * The website's own cost preview (the number its UI shows before you click
+ * generate). Read-only, available to a normal account key, and it already
+ * includes active platform/model discounts, so it replaces guessing discounts
+ * from balance deltas. Returns null when the endpoint is unavailable so callers
+ * can fall back to the offline snapshot.
+ */
+export async function platformEstimate(api: EasyAiApi, params: Record<string, unknown>): Promise<PlatformEstimate | null> {
+  try {
+    const response = await api.request<any>('POST', '/integration-platform/models/estimatedBilling', { params }, {}, 15000);
+    const body = response?.data ?? response;
+    const amount = asNumber(body?.amount ?? body?.estimatedPower);
+    if (amount === null || amount < 0) return null;
+    const calculation = body?.calculation ?? {};
+    const raw = asNumber(calculation?.rawAmount);
+    const info = calculation?.platformModelDiscount ?? calculation?.userBillingDiscount;
+    const factor = asNumber(info?.combinedDiscountFactor ?? info?.userDiscountFactor);
+    const discounted = factor !== null && factor > 0 && factor < 1;
+    return {
+      estimatedPoints: amount,
+      raw,
+      reason: discounted ? `${amount} points (${(factor * 10).toLocaleString('zh-CN', { maximumFractionDigits: 2 })} 折 of ${raw ?? amount})` : `${amount} points (platform estimate)`,
+      source: 'platform /integration-platform/models/estimatedBilling',
+      discount: discounted ? { originalAmount: raw ?? amount, discountedAmount: amount, factor } : null,
+    };
+  } catch { return null; }
 }

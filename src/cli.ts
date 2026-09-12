@@ -21,8 +21,8 @@ import { prepareVideoPayload, videoSubmitTimeout, withOmniContent } from "./vide
 
 import { setupProject } from './setup.js';
 import { usageResult } from './usage.js';
-import { loadPrices, importPrices, estimate, syncPrices } from './pricing.js';
-import { autoRoute } from './routing.js';
+import { loadPrices, importPrices, estimate, syncPrices, platformEstimate } from './pricing.js';
+import { autoRoute, applyPlatformEstimates } from './routing.js';
 import { prepareReferences, uploadMedia, writeRun } from './media.js';
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
@@ -104,7 +104,7 @@ models.command("show").argument("<id>").action(async (id, _o, c) => {
   const entry = registryEntry(found);
   await output(entry ? { ...found, guide: entry.guide, guideInfo: guideInfo(entry.guide.replace(/^references\//, "").replace(/\.md$/, "")) } : found, c);
 });
-dataOptions(models.command('route')).requiredOption('--kind <image|video>').option('--model <name>').option('--purpose <text>').option('--stage <preview|final|edit|refine>').option('--speed').option('--prices <file>').action(async(o,c) => { const catalog = await (await apiFor(c)).get('/v1/models'); await output(autoRoute(catalog,{kind:o.kind, model:o.model, purpose:o.purpose, stage:o.stage, speed:o.speed, payload:await jsonInput(o)},await (o.prices ? loadPrices(o.prices) : syncPrices())),c); });
+dataOptions(models.command('route')).requiredOption('--kind <image|video>').option('--model <name>').option('--purpose <text>').option('--stage <preview|final|edit|refine>').option('--speed').option('--prices <file>').action(async(o,c) => { const api = await apiFor(c); const catalog = await api.get('/v1/models'); const routed = autoRoute(catalog,{kind:o.kind, model:o.model, purpose:o.purpose, stage:o.stage, speed:o.speed, payload:await jsonInput(o)},await (o.prices ? loadPrices(o.prices) : syncPrices())); await output(routed.needsInput ? routed : await applyPlatformEstimates(api, routed), c); });
 const tasks = program.command("tasks").description("Persisted submissions; recovery never submits another task");
 tasks.command("list").action(async (_o, c) => output(await listSubmissions(await apiFor(c)), c));
 tasks.command("remote").description("List this account's tasks from the server (read-only)").option("--page <n>", "page number", "1").option("--page-size <n>", "rows per page", "20").action(async (o, c) => {
@@ -184,7 +184,9 @@ function registerMedia(parent: Command, kind: 'image'|'video') {
     if(kind==='video') { const caps=selected.capabilities.capabilities?.omni_video; if(action==='edit' && caps?.omni_reference_task_type?.constraints?.edit) { const rule=caps.omni_reference_task_type.constraints.edit; payload.omni_reference_task_type='edit'; if(rule.forced_duration!==undefined && payload.duration===undefined)payload.duration=rule.forced_duration; if(rule.forced_aspect_ratio && payload.aspect_ratio===undefined)payload.aspect_ratio=rule.forced_aspect_ratio; } payload=prepareVideoPayload(payload); if(caps) payload=withOmniContent(payload); }
     validateCapabilities(selected,payload);
     if(kind==='image' && payload.image_urls) { payload.image=payload.image_urls; delete payload.image_urls; }
-    const pricing=estimate(book,selected.model,kind,payload);
+    const offlinePricing=estimate(book,selected.model,kind,payload);
+    const livePricing=await platformEstimate(api,payload);
+    const pricing=livePricing?{...offlinePricing,estimatedPoints:livePricing.estimatedPoints,rawEstimatedPoints:livePricing.raw,reason:livePricing.reason,source:livePricing.source,discount:livePricing.discount}:offlinePricing;
     const record:any={schemaVersion:'wowidea.run/v1',kind,action,startedAt,parentTaskId:o.parent||null,change:o.change||null,stage:o.stage||action,purpose:o.purpose||null,routing,model:selected.model,payload,references:prepared.sources,pricing,qc:{verdict:'not_reviewed'},state:'prepared'};
     const recordPath=await writeRun(o.projectDir,o.idempotencyKey,record);
     try {

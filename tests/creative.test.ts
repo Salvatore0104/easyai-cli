@@ -3,8 +3,8 @@ import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { setupProject } from '../src/setup.js';
-import { autoRoute } from '../src/routing.js';
-import { estimate, PriceBook, validatePrices } from '../src/pricing.js';
+import { autoRoute, applyPlatformEstimates } from '../src/routing.js';
+import { estimate, platformEstimate, PriceBook, validatePrices } from '../src/pricing.js';
 import { pointsUsage, usageResult } from '../src/usage.js';
 import { routeModel } from '../src/models.js';
 const dirs: string[]=[];
@@ -45,6 +45,20 @@ describe('creative routing and accounting',()=>{
   expect(pointsUsage({billings:[{billing_calculations:{image:{amount:-3}}}]})).toMatchObject({actualPoints:null,refundedPoints:3});
   expect(pointsUsage({billings:[{billing_type:'external-api'}]})).toMatchObject({actualPoints:null,settlementStatus:'pending'});
   expect(pointsUsage({billings:[]})).toMatchObject({actualPoints:null,settlementStatus:'unavailable'});
+ });
+ it('uses the website cost preview, including active model discounts',async()=>{
+  const api:any={request:async()=>({amount:4.6,estimatedPower:4.6,calculation:{rawAmount:11.5,platformModelDiscount:{originalAmount:11.5,discountedAmount:4.6,combinedDiscountFactor:0.4}}})};
+  expect(await platformEstimate(api,{model:'豆包Seedance-2.0-mini'})).toMatchObject({estimatedPoints:4.6,raw:11.5,discount:{factor:0.4}});
+  const offline:any={request:async()=>{throw Error('offline')}};
+  expect(await platformEstimate(offline,{model:'x'})).toBeNull();
+ });
+ it('re-orders only video preview candidates by live cost',async()=>{
+  const api:any={request:async(_m:string,_p:string,body:any)=>({amount:body.params.cost,calculation:{}})};
+  const routing=()=>({needsInput:false,stage:'preview',purpose:'产品',model:'a',payload:{model:'a'},pricing:{estimatedPoints:99},rank:0,candidates:[{rank:0,model:'a',payload:{model:'a',cost:30},pricing:{estimatedPoints:99}},{rank:1,model:'b',payload:{model:'b',cost:5},pricing:{estimatedPoints:99}}]});
+  const preview=await applyPlatformEstimates(api,routing());
+  expect(preview.model).toBe('b'); expect(preview.pricing.estimatedPoints).toBe(5);
+  const final=await applyPlatformEstimates(api,{...routing(),stage:'final'});
+  expect(final.model).toBe('a'); expect(final.pricing.estimatedPoints).toBe(30);
  });
  it('installs locally, honors override and preserves customizations across updates',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'wowidea-setup-'));dirs.push(dir);
