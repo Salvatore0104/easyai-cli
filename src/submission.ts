@@ -52,17 +52,33 @@ export async function recoverSubmission(api: EasyAiApi, key: string): Promise<un
   const exact = rows.filter((r: any) => (r.idempotencyKey || r.idempotency_key || r.clientMutationId) === key && rowId(r));
   let matches = exact;
   let recovery = "idempotency-key";
+  let candidates: any[] = [];
   if (!matches.length && record.baselineCaptured && Array.isArray(record.baselineTaskIds)) {
     const baseline = new Set<string>(record.baselineTaskIds);
     const earliest = Date.parse(record.createdAt) - 2_000;
-    const latest = Date.now() + 5_000;
-    matches = rows.filter((r: any) => {
+    // A manually resumed submission must not adopt anything created long after
+    // the original attempt: the task can only appear while that POST was in
+    // flight (its timeout) plus the recovery poll. Cap "now" against that.
+    const grace = (typeof record.submitTimeoutMs === "number" ? record.submitTimeoutMs : 120_000) + 120_000;
+    const latest = Math.min(Date.now() + 5_000, Date.parse(record.createdAt) + grace);
+    candidates = rows.filter((r: any) => {
       const id = rowId(r), created = createdMs(r);
-      return Boolean(id && !baseline.has(id) && created !== undefined && created >= earliest && created <= latest && matchesKind(r, record.kind));
+      if (!id || baseline.has(id) || created === undefined || created < earliest || created > latest) return false;
+      // When the platform exposes the execution chain, the recorded model must
+      // appear there; otherwise a later task of the same media kind could match.
+      const chainModels = Array.isArray(r.execution_chain) ? r.execution_chain.map((c: any) => c?.model).filter(Boolean) : [];
+      return !(record.model && chainModels.length && !chainModels.includes(record.model));
     });
+    matches = candidates.filter((r: any) => matchesKind(r, record.kind));
     recovery = "unique-task-snapshot-delta";
   }
-  if (matches.length !== 1) throw new CliError(`Submission ${key} is uncertain; lookup did not identify exactly one matching task. Do not resubmit.`, ExitCode.Service);
+  if (matches.length !== 1) {
+    // Some platforms label an in-flight video task with a different task_type
+    // (observed: "image"). Never attach it automatically, but surface the
+    // candidates so the owner can confirm and download by task ID.
+    const seen = candidates.map((r: any) => `${rowId(r)}(${[r.task_type, r.taskType, r.task_status].filter(Boolean).join("/") || "unknown"})`).slice(0, 5);
+    throw new CliError(`Submission ${key} is uncertain; lookup did not identify exactly one matching task. Do not resubmit.${seen.length ? ` New tasks in the submission window: ${seen.join(", ")}. Confirm which one belongs to this request, then download it by task ID.` : ""}`, ExitCode.Service);
+  }
   const id = rowId(matches[0]);
   await writeFile(file, JSON.stringify({ ...record, state: "accepted", taskId: id, recoveredBy: recovery }), { mode: 0o600 });
   return matches[0];
@@ -100,7 +116,7 @@ export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payl
     const duplicate = (await listSubmissions(api)).find(row => row.idempotencyKey !== idempotencyKey && row.path === path && row.payloadHash === requestHash);
     if (duplicate) throw new CliError(`An identical request already exists under idempotency key ${duplicate.idempotencyKey}${duplicate.taskId ? ` (task ${duplicate.taskId})` : ""}. Resume it instead of submitting again; use --allow-reroll only after the user explicitly requests another generation.`, ExitCode.Conflict);
   }
-  const record = { idempotencyKey, path, kind, payloadHash: requestHash, state: "preparing", createdAt: new Date().toISOString(), baselineCaptured: false, baselineTaskIds: [] as string[] };
+  const record = { idempotencyKey, path, kind, model: typeof payload.model === "string" ? payload.model : undefined, submitTimeoutMs: options.submitTimeoutMs, payloadHash: requestHash, state: "preparing", createdAt: new Date().toISOString(), baselineCaptured: false, baselineTaskIds: [] as string[] };
   try { await writeFile(file, JSON.stringify(record), { flag: "wx", mode: 0o600 }); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;

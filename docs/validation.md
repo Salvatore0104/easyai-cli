@@ -8,11 +8,15 @@ Skill结构、链接和安装通过不等于审美或模型行为已充分评测
 
 ## 0.6.0 创作闭环验证
 
-`npm run check`覆盖类型检查、构建、资源一致性（34 个 Skill 文件、11 条来源记录）与 83 项行为测试。新增 `tests/creative-cli.test.ts` 以真实 CLI 进程驱动 mock 站点，验证：项目初始化一次即建立绑定且重复初始化幂等、`AGENTS.md` 管理段唯一、`models route` 按用途与阶段选择模型并在阶段不明时返回 `needsInput`、`prices import/show` 读取带来源的快照、`image edit` 携带参考图提交并下载结果、Seedance 无需分镜审批即可直接提交、相同幂等键恢复不重复提交，以及 `.wowidea/runs` 记录保留父版本与修改说明且不写入密钥。`tests/cli-guards.test.ts` 与 `tests/creative.test.ts` 覆盖取消积分门槛、非法参数拦截、恢复、余额缺失与失败展示。
+`npm run check`覆盖类型检查、构建、资源一致性（34 个 Skill 文件、11 条来源记录）与 85 项行为测试。新增 `tests/creative-cli.test.ts` 以真实 CLI 进程驱动 mock 站点，验证：项目初始化一次即建立绑定且重复初始化幂等、`AGENTS.md` 管理段唯一、`models route` 按用途与阶段选择模型并在阶段不明时返回 `needsInput`、`prices import/show` 读取带来源的快照、`image edit` 携带参考图提交并下载结果、Seedance 无需分镜审批即可直接提交、相同幂等键恢复不重复提交，以及 `.wowidea/runs` 记录保留父版本与修改说明且不写入密钥。`tests/cli-guards.test.ts` 与 `tests/creative.test.ts` 覆盖取消积分门槛、非法参数拦截、恢复、余额缺失与失败展示。
 
-定价来源已查明：网站公开模型目录不返回价格，管理员页面 `/admin/platform/pricing-rules` 背后是 `GET /api/model-runtime/pricing-rules`，普通 Key 返回 401，需管理员令牌；其余 `/v1/pricing` 等候选路径均为 404。按计划不把管理员凭据变成普通创作依赖，仍通过显式导出的 `wowidea.prices/v1` 快照接入：由管理员规则转换出 32 条按分辨率（图片另含质量档）展开的规则，`prices import` 后估算即为真实规则价。规则要点：Nano Banana 2 = 1/张、Nano Banana Pro = 3/张、GPT Image 2 = 0.5/张、GPT Image 2.5 = 2/张（2K ×1.5、4K ×2，质量档 ×1/1.2/1.6）、Midjourney = 1/张；视频按每 5 秒价 ÷5 换算为每秒，例如 Seedance 2.0 480p 23.1、720p 49.7、1080p 123.9 每 5 秒，Seedance 2.5 720p 75.6、1080p 187.1 每 5 秒，Wan3.0 480p 15、720p 30 每 5 秒，MiniMax-H3 720p 25、1440p 40 每 5 秒。快照文件：`价格规则/wowidea-prices-2026-09-12.json`。
+定价来源已查明：网站公开模型目录不返回价格，管理员页面 `/admin/platform/pricing-rules` 背后是 `GET /api/model-runtime/pricing-rules`，普通 Key 返回 401，需管理员令牌；其余 `/v1/pricing` 等候选路径均为 404。按计划不把管理员凭据变成普通创作依赖，仍通过显式导出的 `wowidea.prices/v1` 快照接入：由管理员规则转换出 32 条按分辨率（图片另含质量档）展开的规则，`prices import` 后估算即为真实规则价。规则要点：Nano Banana 2 = 1/张、Nano Banana Pro = 3/张、GPT Image 2 = 0.5/张、GPT Image 2.5 = 2/张（2K ×1.5、4K ×2，质量档 ×1/1.2/1.6）、Midjourney = 1/张；视频按每 5 秒价 ÷5 换算为每秒，例如 Seedance 2.0 480p 23.1、720p 49.7、1080p 123.9 每 5 秒，Seedance 2.5 720p 75.6、1080p 187.1 每 5 秒，Wan3.0 480p 15、720p 30 每 5 秒。快照文件：`价格规则/wowidea-prices-2026-09-12.json`。
 
-实测核对：图片规则与实扣完全一致（Nano Banana 2 4K = 1 积分）。视频实测扣费恒为规则值的 0.75 倍（Seedance 2.0-fast 480p/5s 规则 18.6、实扣 13.95；720p/5s 规则 40、实扣 30），推测为账号或活动折扣，未在规则接口中体现，因此未写入快照；若确认为长期折扣，可按 0.75 重新生成快照。`reference_video`/`voice` 乘数当前 CLI 快照无法表达，列为后续可补充项。
+MiniMax H3 与 Google Omni 的定价在 2026-09-12 由用户修正并复核：H3 实际生效规则是 `rmb-minimax-h3-v2`（基础价 25/5 秒，音频权重 ×2、参考视频 ×1.5、指定音色 ×1.2；平台任务详情显示 `formula: 1 × 1 × 25 × 2`），而 `rmb-minimax-h3-official-v1` 同时存在但不生效，因此快照改用 v2 并按 H3 强制有声折算为 720p 每秒 10、1440p 每秒 16。Google Omni 修正为基础价 5/5 秒、各分辨率权重 1，即每秒 1。快照已按新规则重新生成并导入。
+
+实测核对：图片规则与实扣完全一致（Nano Banana 2 4K = 1 积分）。MiniMax-H3 720p/5 秒 + 音频估价 50，任务 6aa525d5d75e4fc24a162232 实扣 50，`pointsUsage.actualPoints = 50`（首次出现平台提供实际扣费，`billings` 解析生效）。Google Omni 720p/10 秒估价 10，首次提交因上游“速创未返回任务 ID”失败、无扣费；第二次任务 6aa52496d75e4fc24a161af4 扣 10 后失败并全额退回，任务详情 `errorMessage` 误写为“成功”，属平台/上游问题而非 CLI 或定价问题。Seedance 2.0-fast 实测扣费恒为规则值的 0.75 倍（480p/5s 规则 18.6 实扣 13.95；720p/5s 规则 40 实扣 30），未在规则接口中体现，未写入快照。`reference_video`/`voice` 乘数当前 CLI 快照无法表达，列为后续可补充项。
+
+超时恢复在真实验收中暴露并加固：一次视频提交 POST 超时后，平台把该任务标为 `task_type: image`，自动恢复因此无法确认归属。现在不确定错误会列出提交时间窗内的候选任务 ID 供人工确认，且快照窗口按该次提交的超时上限收敛、候选任务若带执行链则要求模型名一致，避免把之后生成的同类型任务错误关联（曾观察到 `tasks resume` 误绑后续 H3 任务，已修正并补回归）。
 
 真实站点付费验收（2026-09-12，临时 Key，范围限于三类任务）：
 
@@ -22,6 +26,8 @@ Skill结构、链接和安装通过不等于审美或模型行为已充分评测
 | 图片修改 | 以上图为本地参考，4K、1:1，`--parent` 与 `--change` | 成功，任务 6aa52065d75e4fc24a15eaef，参考图经网站上传（24 小时有效），下载 2.36MB PNG；余额 95374.80761→95373.80761 |
 | 视频测试 | Seedance 2.0-fast，480p、5 秒、16:9、无声、text_to_video | 成功，任务 6aa52133d75e4fc24a15ed9e，下载 h264 864×496、约 5.04 秒；余额 95373.80761→95359.85761 |
 | 视频计价核对 | Seedance 2.0-fast，720p、5 秒、16:9、无声 | 成功，任务 6aa52273d75e4fc24a15f40b；规则估价 40 积分，实扣 30；余额 95359.85761→95329.85761 |
+| MiniMax-H3 定价核对 | MiniMax-H3，720p、5 秒、16:9、有声 | 成功，任务 6aa525d5d75e4fc24a162232，下载 h264 1344×768 + AAC、约 5.17 秒；估价 50 = 实扣 50；余额 95329.85761→95279.85761 |
+| Google Omni 定价核对 | Google Omni，720p、10 秒、16:9、无声 | 估价 10；首次上游无任务 ID、无扣费；任务 6aa52496d75e4fc24a161af4 扣 10 后失败并全额退回，余额回到 95329.85761；生成失败属平台/上游问题 |
 | 恢复 | 同一幂等键重跑视频请求 | 返回同一任务，未再次提交，余额不变 |
 
 任务详情未返回实际扣费字段，`pointsUsage.actualPoints` 保持 `null` 并显示“接口未提供”，未用余额差额推算单任务费用。首次直接提交视频时网站返回“视频生成内容为空”，CLI 判为参数错误并未重试；补齐 omni 视频的 `content` 映射后同一请求成功提交。未批量生成模型对比样本。

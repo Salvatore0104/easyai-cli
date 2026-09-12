@@ -37,6 +37,21 @@ describe("durable async lifecycle", () => {
     const restarted = mock([{ id: "late", idempotency_key: "key" }]);
     expect(await recoverSubmission(restarted, "key")).toMatchObject({ id: "late" }); expect(restarted.post).not.toHaveBeenCalled();
   });
+  it("lists window candidates when a unique task cannot be trusted", async () => {
+    const api = mock([{ id: "old" }]);
+    api.post.mockRejectedValue(new CliError("Request timed out after 60000ms", ExitCode.Service));
+    api.get
+      .mockResolvedValueOnce({ data: { items: [{ id: "old" }] } })
+      .mockResolvedValue({ data: { items: [{ id: "old" }, { id: "new-video", task_type: "image", task_status: "running", created: Date.now() }] } });
+    await expect(submitAsyncWithRecovery(api, "/v1/video/generations", { prompt: "hello" }, "video-key", "video")).rejects.toThrow(/new-video\(image\/running\)/);
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
+  it("adopts a same-kind new task only when the execution chain names the requested model", async () => {
+    const withRow = (row: unknown) => { const api = mock(); api.get.mockResolvedValueOnce({ items: [] }).mockResolvedValueOnce({ items: [row] }); return api; };
+    const chain = (model: string) => ({ id: model, task_type: "generation", status: "succeeded", created: Date.now(), execution_chain: [{ model }], output: ["https://cdn.test/a.mp4"] });
+    expect(await submitAsyncWithRecovery(withRow(chain("Google Omni")), "/v1/video/generations", { model: "Google Omni", prompt: "mine" }, "video-mine", "video")).toMatchObject({ id: "Google Omni" });
+    await expect(submitAsyncWithRecovery(withRow(chain("MiniMax-H3")), "/v1/video/generations", { model: "Google Omni", prompt: "other" }, "video-other", "video")).rejects.toThrow(/uncertain/);
+  });
   it("prevents concurrent consumption of a Seedance approval", async () => {
     const api = mock(); api.post.mockResolvedValue({ taskId: "one" });
     await Promise.allSettled(Array.from({ length: 5 }, () => submitAsyncWithRecovery(api, "/v1/video/generations", {}, "seedance-approved", "video")));
