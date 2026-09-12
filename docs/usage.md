@@ -32,3 +32,30 @@ Skill 指令为英文，默认仍用用户语言交流。`$wowidea` 是唯一创
 安装器从当前包发现全部Skill入口并安装，默认保留用户修改与账号状态。新旧冲突文件进入配置目录skill-updates等待合并。随包入口为 `wowidea` 与兼容用 `easyai`，不覆盖用户原装的Flova、H3、Seedance或GRSAI工具。升级后在新对话中使用新Skill；是否即时刷新由宿主决定。
 
 维护者更新来源摘要、许可与资源链接后运行resources:lock，再运行check、Skill校验及实际package:smoke。不得在运行时自动同步上游。当前资料只保留最终说明；源代码历史仍可通过Git查询。
+
+## 随包模型指南
+
+模型提示词方法随包安装为 `$wowidea` 的内部参考，由单一入口按任务选择；指令为英文，交流和准确文案仍保留用户语言：
+
+| 模型 | 随包指南 | CLI读取 |
+| --- | --- | --- |
+| MiniMax H3 / H3-Max | `references/minimax-h3.md` | `wowidea --json guides show minimax-h3` |
+| Seedance 2.0 系列 | `references/seedance-20.md` | `wowidea --json guides show seedance-20` |
+| Seedance 2.5 | `references/seedance-25.md` | `wowidea --json guides show seedance-25` |
+| GPT Image 2 / 2.5 系列 | `references/gpt-image.md` | `wowidea --json guides show gpt-image` |
+| Nano Banana 系列 | `references/nano-banana.md` | `wowidea --json guides show nano-banana` |
+| Midjourney v8.2 / 8.2-fast | `references/midjourney.md` | `wowidea --json guides show midjourney` |
+
+只写提示词不会调用付费生成。例如：“用 $wowidea 为咖啡新品写海报提示词，标题保留中文，使用 GPT Image 2.5。”或“用 $wowidea 整理 MiniMax H3 图片全能参考，图1保留商品，背景可以改变。”每份指南包含模式、参考绑定、完整例子与平台缺口。可用 `wowidea --json guides list` 查看全部随包资源。
+
+## 内置模型与默认
+
+内置 Nano Banana 2/Pro/2 Lite、GPT Image 2 与 2.5（含 Sunburst／Flare）、Midjourney v8.2/8.2-fast、MiniMax H3/H3-Max、Google Omni、Wan3.0/Prime、Seedance 2.0/2.0-fast/2.0-mini/2.5 指南。运行时以当前账号模型目录为准：Google Omni 不推定上游型号，Seedance 2.5 不继承 2.0 的参数限制，Midjourney 只走参数尾部语法。图片默认 Nano Banana 2，视频默认 Seedance 2.0；用户指定的模型、比例、分辨率、时长和素材优先，模型不可用时明确提示，不擅自替换。
+
+## 异步任务与生成
+
+生成不设置积分确认阈值。结果返回任务状态、媒体路径、预估价格与可查询余额；实际扣费未知时明确标记为“接口未提供”，不用余额差额推算单任务费用。定价优先取网站计价接口，折扣自动包含；接口不可用时回退到带来源与时间的价格快照。
+
+## 安装与更新
+
+安装、密钥、自检、卸载与退出码见 [安装与维护](install.md)。
