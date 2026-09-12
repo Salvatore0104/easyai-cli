@@ -17,7 +17,7 @@ import { submitAsyncWithRecovery, submitImageWithRecovery, listSubmissions, reco
 import { findModel, matchesModelType, registryEntry, routeModel, validateCapabilities } from "./models.js";
 import { initProject, readProject, recordCreation } from "./project.js";
 import { guideRegistry, guideInfo, showGuide } from "./guides.js";
-import { prepareVideoPayload, videoSubmitTimeout } from "./video-payload.js";
+import { prepareVideoPayload, videoSubmitTimeout, withOmniContent } from "./video-payload.js";
 
 import { setupProject } from './setup.js';
 import { usageResult } from './usage.js';
@@ -181,7 +181,7 @@ function registerMedia(parent: Command, kind: 'image'|'video') {
     }
     const selected=routeModel(catalog,kind,payload.model ? String(payload.model) : (await creativeDefaults())[kind]);
     payload.model=selected.model;
-    if(kind==='video') { const caps=selected.capabilities.capabilities?.omni_video; if(action==='edit' && caps?.omni_reference_task_type?.constraints?.edit) { const rule=caps.omni_reference_task_type.constraints.edit; payload.omni_reference_task_type='edit'; if(rule.forced_duration!==undefined && payload.duration===undefined)payload.duration=rule.forced_duration; if(rule.forced_aspect_ratio && payload.aspect_ratio===undefined)payload.aspect_ratio=rule.forced_aspect_ratio; } payload=prepareVideoPayload(payload); }
+    if(kind==='video') { const caps=selected.capabilities.capabilities?.omni_video; if(action==='edit' && caps?.omni_reference_task_type?.constraints?.edit) { const rule=caps.omni_reference_task_type.constraints.edit; payload.omni_reference_task_type='edit'; if(rule.forced_duration!==undefined && payload.duration===undefined)payload.duration=rule.forced_duration; if(rule.forced_aspect_ratio && payload.aspect_ratio===undefined)payload.aspect_ratio=rule.forced_aspect_ratio; } payload=prepareVideoPayload(payload); if(caps) payload=withOmniContent(payload); }
     validateCapabilities(selected,payload);
     if(kind==='image' && payload.image_urls) { payload.image=payload.image_urls; delete payload.image_urls; }
     const pricing=estimate(book,selected.model,kind,payload);

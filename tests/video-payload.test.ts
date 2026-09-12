@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { prepareVideoPayload, videoSubmitTimeout } from "../src/video-payload.js";
+import { prepareVideoPayload, videoSubmitTimeout, withOmniContent } from "../src/video-payload.js";
 describe("live H3 text contract", () => {
   it("allows H3 slow acceptance without changing other video timeouts", () => {
     expect(videoSubmitTimeout({ model: "MiniMax-H3" })).toBe(300000);
@@ -18,6 +18,24 @@ describe("live H3 text contract", () => {
     expect(prepareVideoPayload(p)).toEqual({ ...p, videoGenerateMode: "omni_reference", content: [{ type: "text", text: "rotate" }, { type: "image_url", role: "reference_image", image_url: { url: p.image_urls[0] } }] });
     expect(() => prepareVideoPayload({ model: "MiniMax-H3", prompt: "rotate", content: [{ type: "image_url" }] })).toThrow(/must match/);
     expect(() => prepareVideoPayload({ model: "MiniMax-H3", prompt: " " })).toThrow(/non-empty/);
+  });
+});
+
+describe("omni-video content contract", () => {
+  it("builds the multimodal content array from the prompt and ordered references", () => {
+    const p = { model: "豆包Seedance-2.0-fast", mode: "text_to_video", prompt: "slow push-in", duration: 5, resolution: "480p", aspect_ratio: "16:9", audio: false };
+    expect(withOmniContent(p)).toEqual({ ...p, content: [{ type: "text", text: "slow push-in" }] });
+    const withRefs = { ...p, image_urls: ["https://example.test/a.png", "https://example.test/b.png"] };
+    expect((withOmniContent(withRefs).content as any[]).slice(1)).toEqual([
+      { type: "image_url", role: "reference_image", image_url: { url: "https://example.test/a.png" } },
+      { type: "image_url", role: "reference_image", image_url: { url: "https://example.test/b.png" } },
+    ]);
+  });
+  it("leaves an explicit content array, a missing prompt or a local path untouched", () => {
+    const explicit = { model: "豆包Seedance-2.0", prompt: "x", content: [{ type: "text", text: "given" }] };
+    expect(withOmniContent(explicit)).toEqual(explicit);
+    expect(withOmniContent({ model: "豆包Seedance-2.0", prompt: " " })).toEqual({ model: "豆包Seedance-2.0", prompt: " " });
+    expect(withOmniContent({ model: "豆包Seedance-2.0", prompt: "x", image_urls: ["./local.png"] })).toEqual({ model: "豆包Seedance-2.0", prompt: "x", image_urls: ["./local.png"], content: [{ type: "text", text: "x" }] });
   });
 });
 

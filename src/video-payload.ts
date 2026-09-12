@@ -28,3 +28,17 @@ export function prepareVideoPayload(payload: Record<string, unknown>): Record<st
   if (payload.content !== undefined && JSON.stringify(payload.content) !== JSON.stringify(content)) throw new CliError("H3 content must match the prompt and ordered reference arrays.", ExitCode.Usage);
   return { ...payload, ...(mode === "image_reference" ? { videoGenerateMode: nativeMode } : {}), content };
 }
+
+// Omni-video models (Seedance and friends) take the prompt as a multimodal
+// `content` array rather than a bare `prompt`. Build it from the ordered
+// reference arrays so direct `video generate --file` works without a manifest.
+export function withOmniContent(payload: Record<string, unknown>): Record<string, unknown> {
+  if (payload.content !== undefined) return payload;
+  if (typeof payload.prompt !== "string" || !payload.prompt.trim()) return payload;
+  const imageUrls = Array.isArray(payload.image_urls)
+    ? payload.image_urls.filter((url): url is string => typeof url === "string" && /^https?:\/\//.test(url))
+    : [];
+  const content: Record<string, unknown>[] = [{ type: "text", text: payload.prompt }];
+  for (const url of imageUrls) content.push({ type: "image_url", role: "reference_image", image_url: { url } });
+  return { ...payload, content };
+}
