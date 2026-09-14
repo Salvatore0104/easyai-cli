@@ -42,7 +42,7 @@ Inspect references and define [roles/order](references/reference-planning.md). U
 
 Read [execution/recovery](references/workflow.md). Use UTF-8 request files and one key per authorized task. Default generate waits and downloads; retain its process handle until the terminal result. Existing tasks are observed/recovered, not submitted again. No duplicate polling owners, automatic paid retries or aesthetic rerolls.
 
-Seedance follows the mandatory [storyboard and approval gate](references/seedance-gate.md). Never submit its paid call from raw request JSON. Reference arrays accept HTTPS URLs or local files; approved local files use the private store and verified temporary URLs. Use image edit or video edit for requested modifications, with --parent <sourceTaskId> --change <summary>. Preserve the selected version as reference; do not merely restate the prompt.
+Seedance directly uses video generate --file; storyboard, visual QC and manifest are optional. There is no creative approval or points gate. Technical capability checks still apply and `watermark:false` remains the default. Reference arrays accept HTTPS URLs or local files; local files are uploaded through the website and refreshed after expiry. Use image edit or video edit for requested modifications, with --parent <sourceTaskId> --change <summary>. Preserve the selected version as reference; do not merely restate the prompt.
 
 ## Review and deliver
 

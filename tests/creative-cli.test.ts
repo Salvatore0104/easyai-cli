@@ -25,7 +25,7 @@ const catalog = { data: [
 ] };
 
 describe("creative CLI loop with a mock website", () => {
-  it("initializes a project once, then routes, prices, edits and applies the Seedance gate", async () => {
+  it("initializes a project once, then routes, prices, edits and submits without gates", async () => {
     let lastImagePost = "", videoPosts = 0;
     const server = createServer((req, res) => {
       const base = `http://127.0.0.1:${(server.address() as any).port}`;
@@ -80,9 +80,10 @@ describe("creative CLI loop with a mock website", () => {
 
       const video = ["--json", "video", "generate", "--data", JSON.stringify({ model: "豆包Seedance-2.0", prompt: "shot", duration: 5, resolution: "720p", aspect_ratio: "16:9", audio: false }), "--idempotency-key", "sd-1", "--no-wait", "--project-dir", project];
       const submitted = await runCli(video, env, work);
-      expect(submitted.code).toBe(6);
-      expect(submitted.err).toContain("approved storyboard manifest");
-      expect(videoPosts, "unapproved Seedance must not be submitted").toBe(0);
+      expect(submitted.code, submitted.err).toBe(0);
+      expect(JSON.parse(submitted.out).data).toMatchObject({ taskId: "sd-job", status: "queued" });
+      expect((await runCli(video, env, work)).code, "resume must not fail").toBe(0);
+      expect(videoPosts, "one accepted Seedance submission only").toBe(1);
 
       const records = (await readdir(join(project, ".wowidea", "runs"))).map(async f => JSON.parse(await readFile(join(project, ".wowidea", "runs", f), "utf8")));
       const runs = await Promise.all(records);

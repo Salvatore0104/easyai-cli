@@ -7,8 +7,8 @@
     "easyai/agents/openai.yaml": "1481c25b8bc9255633c011cdfbe29fd49d5b394596606689f23fc36b0026913f",
     "easyai/references/commands.md": "ccc5841337eb42e85beeff2e7b68febc457e12b3b16a430598dbf8882baae5f1",
     "easyai/references/first-run-zh.md": "1a22fa06c3df8ae7ba5f2407899d4e8168e132b0efbe50876edaa079da333433",
-    "easyai/references/seedance.md": "02ec1703e8c04550290adf543df3cb34e0dd9ea88c02f36131b8f2b3605bc923",
-    "wowidea/SKILL.md": "bcf8baea1f754d2508722b5b0d6da43f3f7f82419c5cb0e1e2b7b208daad9099",
+    "easyai/references/seedance.md": "677c27977371f763e167552167ba9d4a29bc3bca2f75412bef6e93d898173825",
+    "wowidea/SKILL.md": "a08f63c1cc580148087496ed1c85d0be0d8ce9a8938babbbcade811820ea7212",
     "wowidea/agents/openai.yaml": "234234ee072c84bda01013083e5521d817d377d49e66234958c7c75c1ce72c7d",
     "wowidea/references/auto-routing.md": "0b6eab20cd818b62676421f67a4be00abdf2484ca63982d675ae18941a40aa74",
     "wowidea/references/creative-direction.md": "f9d34350af7750cd0d7b69a586609456e52196ab1ea23e0dc875ff8c8d91301c",
@@ -27,16 +27,16 @@
     "wowidea/references/project-workflow.md": "1a637824457718740506cf554e0a64a4d9448e375ec60c8340a0d8d90192fd65",
     "wowidea/references/recipe-authoring.md": "37c81e7b72b30bea0979ce4ea63306adacdef705061a21a63fad98bd3cdbc004",
     "wowidea/references/reference-planning.md": "742d3f462bee823d090a498eeb4cd14e1175b33e8011dd8fa11ed3f80e0ae81f",
-    "wowidea/references/seedance-20.md": "9cb105ab3440e17a7ca23eb2ea226cc2290dacceb07a0c51c8aa9a87f46e4299",
-    "wowidea/references/seedance-25.md": "9468e0b1f982f9b679d3e502fc91dd9f64a199281a94a1f6bfd404527c269bb9",
+    "wowidea/references/seedance-20.md": "744df3a5dc66541b3b97d73088836bf0c4c9935dd6921ac3eaf975fa2d8cab84",
+    "wowidea/references/seedance-25.md": "1c9a8620cd0989f5eace72c6d96f1bc1be901ab667b1cb2e49ab74c528b69f60",
     "wowidea/references/seedance-MIT.txt": "c84a6216f6e006b4e4a65e9d056837a61ee9c4ca79f43f386df2992bc690a7f6",
-    "wowidea/references/seedance-gate.md": "ffbdfaa392cc7c85b49f088fb6ec6400f830d3db69de16f9d90f666044984315",
+    "wowidea/references/seedance-gate.md": "f51b61fc8ec6ddef3e108ccb911c1f3e98cebe9121fb4d9f5381aab073d2da69",
     "wowidea/references/sources.md": "694feb4632f885e5969bdd5f940dd21137ea2a619bed5f5b8fea11c6f0a7efe5",
     "wowidea/references/storyboard-quality.md": "cf663754c857514b841074634951a5640721db572dc4ed8586f45f5588e478e2",
     "wowidea/references/upstream-lock.json": "ad4c62443181063eb49e6289b988edc374debb08fcdc0f6e23bbc7147ef5192a",
     "wowidea/references/visual-review.md": "ef9ed321f0a5eb68963ed31b22df0935fc2aa146cd7f16f686983637af7ab95c",
     "wowidea/references/vj-recipes.md": "20ac4ee7a0767af75b95f7e287e469684421e394c53f28b92e887a52c1e77e0b",
     "wowidea/references/wan.md": "1146cd0cf6c0342a41ed1225b61bcd30d0ed3c14287a445a65f37b56da0a3d88",
-    "wowidea/references/workflow.md": "ec9b250ca340e139accbda164299208ff2b204e28e5d0c5f143a769c3db2722a"
+    "wowidea/references/workflow.md": "c2be701d5d2fde3eeede035101b7c4b708a4faec0c23afda2310b3e73bd45b60"
   }
 }
