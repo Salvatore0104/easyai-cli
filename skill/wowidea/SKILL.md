@@ -34,13 +34,15 @@ Read only the relevant guide. Model prompt methods are bundled as internal Wowid
 
 Other routes: [Google Omni](references/google-omni.md), [Wan](references/wan.md). Use `wowidea guides list|show` to locate bundled references. Prompt-only requests make no paid call. Check API capability independently from official creative guidance.
 
+Before an image call, read [image parameters](references/image-parameters.md). Submit the canonical `resolution` and `aspect_ratio` fields. Treat `size` only as user input shorthand: derive both canonical fields, reject conflicts or unsupported ratios, and never send `size`. Default to one output. Self-review non-Seedance payloads and proceed without an extra user gate unless the request conflicts with verified capabilities.
+
 Inspect references and define [roles/order](references/reference-planning.md). Use [case methods](references/image-case-index.md) only when helpful. Keep exact copy, labels and approved constraints intact. Choose proportions from the task; choose high supported image resolution; final defaults to 4K.
 
 ## Execute the authorized scope
 
 Read [execution/recovery](references/workflow.md). Use UTF-8 request files and one key per authorized task. Default generate waits and downloads; retain its process handle until the terminal result. Existing tasks are observed/recovered, not submitted again. No duplicate polling owners, automatic paid retries or aesthetic rerolls.
 
-Seedance directly uses video generate --file; storyboard, visual QC and manifest are optional. There is no creative approval or points gate. Technical capability checks still apply. Reference arrays accept HTTPS URLs or local files; local files are uploaded through the website and refreshed after expiry. Use image edit or video edit for requested modifications, with --parent <sourceTaskId> --change <summary>. Preserve the selected version as reference; do not merely restate the prompt.
+Seedance follows the mandatory [storyboard and approval gate](references/seedance-gate.md). Never submit its paid call from raw request JSON. Reference arrays accept HTTPS URLs or local files; approved local files use the private store and verified temporary URLs. Use image edit or video edit for requested modifications, with --parent <sourceTaskId> --change <summary>. Preserve the selected version as reference; do not merely restate the prompt.
 
 ## Review and deliver
 

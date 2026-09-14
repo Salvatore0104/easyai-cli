@@ -23,11 +23,12 @@ import { setupProject } from './setup.js';
 import { usageResult } from './usage.js';
 import { loadPrices, importPrices, estimate, syncPrices, platformEstimate } from './pricing.js';
 import { autoRoute, applyPlatformEstimates } from './routing.js';
+import { normalizeRequest } from './request-normalization.js';
 import { prepareReferences, uploadMedia, writeRun } from './media.js';
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.6.0")
+program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.6.1")
   .option("--profile <name>", "configuration profile")
   .option("--base-url <url>", "EasyAI server URL")
   .option("--json", "stable JSON output")
@@ -129,6 +130,7 @@ registerMedia(image, 'image');
 taskCommands(image,'image');
 
 async function preflight(api: EasyAiApi, kind: Quote["kind"], path: string, payload: Record<string, unknown>): Promise<Quote> {
+  if (kind === "image" || kind === "video") payload = normalizeRequest(payload, kind);
   if (kind === "video") payload = prepareVideoPayload(payload);
   if (kind === "image") { const selected = routeModel(await api.get("/v1/models"), "image", payload.model ? String(payload.model) : (await creativeDefaults()).image); payload.model = selected.model; validateCapabilities(selected, payload); }
   if (kind === "video") validateCapabilities(routeModel(await api.get("/v1/models"), "video", String(payload.model || "")), payload);
@@ -165,8 +167,9 @@ function registerMedia(parent: Command, kind: 'image'|'video') {
     const api = await apiFor(c), startedAt = new Date().toISOString();
     const prior = (await listSubmissions(api)).find(r=>r.idempotencyKey===o.idempotencyKey);
     if(prior) { const recovered=await recoverSubmission(api,o.idempotencyKey); await output(await usageResult(api,o.wait?await completeGeneration(api,recovered,kind,o.dir):recovered),c); return; }
-    let payload = await jsonInput(o);
-    if(o.manifest) { if(o.file || o.data) throw new CliError('Use manifest or request JSON, not both.',ExitCode.Usage); const m = await readManifest(resolve(o.manifest)); payload = seedancePayload(m); }
+    let payload = await jsonInput(o), seedanceManifest: Awaited<ReturnType<typeof readManifest>> | undefined, seedanceManifestPath: string | undefined;
+    if(o.manifest) { if(o.file || o.data) throw new CliError('Use manifest or request JSON, not both.',ExitCode.Usage); seedanceManifestPath=resolve(o.manifest); seedanceManifest=await readManifest(seedanceManifestPath); await validateManifest(seedanceManifest, true); if(seedanceManifest.state !== 'approved') throw new CliError('Seedance manifest must be explicitly approved before paid submission.',ExitCode.Approval); payload = seedancePayload(seedanceManifest); }
+    if(kind==='video' && !o.manifest && /seedance/i.test(String(payload.model || (await creativeDefaults()).video))) throw new CliError('Seedance paid generation requires an approved storyboard manifest.',ExitCode.Approval);
     const prepared = await prepareReferences(api,payload,o.projectDir); payload=prepared.payload;
     if(action==='edit') {
       if(kind==='image' && !Array.isArray(payload.image_urls)) throw new CliError('Image editing requires image/image_urls references.',ExitCode.Usage);
@@ -180,9 +183,10 @@ function registerMedia(parent: Command, kind: 'image'|'video') {
       if(routing.needsInput) { await output(routing,c); return; } payload=routing.payload;
     }
     const selected=routeModel(catalog,kind,payload.model ? String(payload.model) : (await creativeDefaults())[kind]);
+    if(kind==='video' && /seedance/i.test(selected.model) && !o.manifest) throw new CliError('Seedance paid generation requires an approved storyboard manifest.',ExitCode.Approval);
     payload.model=selected.model;
     if(kind==='video') { const caps=selected.capabilities.capabilities?.omni_video; if(action==='edit' && caps?.omni_reference_task_type?.constraints?.edit) { const rule=caps.omni_reference_task_type.constraints.edit; payload.omni_reference_task_type='edit'; if(rule.forced_duration!==undefined && payload.duration===undefined)payload.duration=rule.forced_duration; if(rule.forced_aspect_ratio && payload.aspect_ratio===undefined)payload.aspect_ratio=rule.forced_aspect_ratio; } payload=prepareVideoPayload(payload); if(caps) payload=withOmniContent(payload); }
-    validateCapabilities(selected,payload);
+    payload=normalizeRequest(payload,kind); validateCapabilities(selected,payload);
     if(kind==='image' && payload.image_urls) { payload.image=payload.image_urls; delete payload.image_urls; }
     const offlinePricing=estimate(book,selected.model,kind,payload);
     const livePricing=await platformEstimate(api,payload);
@@ -192,6 +196,7 @@ function registerMedia(parent: Command, kind: 'image'|'video') {
     try {
       const submitted=await submitDirect(api,kind==='image'?'/v1/images/generations':'/v1/video/generations',payload,o);
       record.taskId=findTaskId(submitted);record.state='submitted';await writeRun(o.projectDir,o.idempotencyKey,record);
+      if(seedanceManifest && seedanceManifestPath && record.taskId) { seedanceManifest.taskId=record.taskId; seedanceManifest.state='submitted'; await writeFile(seedanceManifestPath,JSON.stringify(seedanceManifest,null,2)+'\n','utf8'); }
       const result=await usageResult(api,o.wait?await completeGeneration(api,submitted,kind,o.dir):submitted);
       Object.assign(record,{state:taskStatus(result),result,elapsedMs:Date.now()-Date.parse(startedAt)});await writeRun(o.projectDir,o.idempotencyKey,record);
       await output({...result,pricing,recordPath},c);

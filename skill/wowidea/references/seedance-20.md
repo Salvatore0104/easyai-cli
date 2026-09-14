@@ -49,4 +49,4 @@ Continuation skeleton: `Append to the approved source video from its observed [p
 
 Compress duplicate adjectives, generic quality boosters and already visible background details before removing reference roles or action causality. Report mode, reference plan, final prompt and capability gaps. Prompts may be English or another user-requested language; do not translate binding tokens or supplied text.
 
-Official editing/extension availability does not prove an EasyAI mapping. Check exact model, supported modes, reference limits, audio combinations and duration in the live catalogue and adapter. Seedance submits directly through video generate; storyboards are optional. Use current platform capabilities and watermark:false by default.
+Official editing/extension availability does not prove an EasyAI mapping. Check exact model, supported modes, reference limits, audio combinations and duration in the live catalogue and adapter. Follow the mandatory [Seedance gate](seedance-gate.md), submit only an approved manifest, and set watermark:false.

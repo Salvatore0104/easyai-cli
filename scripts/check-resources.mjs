@@ -9,6 +9,7 @@ async function walk(dir) {
   const files = [];
   for (const e of await readdir(dir, { withFileTypes: true })) {
     const p = join(dir, e.name);
+    if (dir === root && e.isFile() && e.name.toLowerCase().endsWith('.zip')) continue;
     if (e.isDirectory()) files.push(...await walk(p));
     else if (p !== lockPath) files.push(p);
   }

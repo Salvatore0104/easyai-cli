@@ -1,3 +1,3 @@
 # Seedance execution
 
-Follow the single maintained [Seedance gate](../../wowidea/references/seedance-gate.md) and [storyboard review](../../wowidea/references/storyboard-quality.md). Storyboard approval is optional; Seedance submits directly. No points threshold or cost gate applies. Do not copy project-specific repair preferences into global guidance.
+Follow the mandatory [Seedance gate](../../wowidea/references/seedance-gate.md) and [storyboard review](../../wowidea/references/storyboard-quality.md). Explicit storyboard approval and a cost-aware final settings review are required before exactly one paid submission. Do not copy project-specific repair preferences into global guidance.

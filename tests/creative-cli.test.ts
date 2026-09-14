@@ -20,12 +20,12 @@ function runCli(args: string[], env: Record<string, string>, cwd: string) {
 
 const catalog = { data: [
   { id: "Nano Banana 2", capabilities: { image_generate: { output_resolutions: ["1K", "2K", "4K"] }, image_edit: { output_resolutions: ["1K", "2K", "4K"], input_max_images_count: 14 } } },
-  { id: "gpt-image-2.5", capabilities: { image_generate: { output_resolutions: ["1K", "2K", "4K"] } } },
+  { id: "gpt-image-2.5", capabilities: { image_generate: { output_resolutions: ["1K", "2K", "4K"], aspect_ratio_allowed: ["1:1", "16:9"], quality_options: ["high"], output_format_allowed: ["png"] } } },
   { id: "豆包Seedance-2.0", capabilities: { omni_video: { supported_modes: ["text_to_video"], output_resolutions: ["720p"], duration_range: [4, 15], aspect_ratio_allowed: ["16:9"], output_audio: true } } },
 ] };
 
 describe("creative CLI loop with a mock website", () => {
-  it("initializes a project once, then routes, prices, edits and submits without gates", async () => {
+  it("initializes a project once, then routes, prices, edits and applies the Seedance gate", async () => {
     let lastImagePost = "", videoPosts = 0;
     const server = createServer((req, res) => {
       const base = `http://127.0.0.1:${(server.address() as any).port}`;
@@ -73,12 +73,16 @@ describe("creative CLI loop with a mock website", () => {
       expect(edited.paths).toHaveLength(1);
       expect(JSON.parse(lastImagePost)).toMatchObject({ model: "Nano Banana 2", image: ["https://cdn.example.com/source.png"] });
 
+      const generated = await runCli(["--json", "image", "generate", "--data", JSON.stringify({ model: "gpt-image-2.5", prompt: "wide poster", size: "3840x2160", quality: "high", output_format: "png" }), "--idempotency-key", "wide-1", "--no-wait", "--project-dir", project], env, work);
+      expect(generated.code, generated.err).toBe(0);
+      expect(JSON.parse(lastImagePost)).toMatchObject({ model: "gpt-image-2.5", resolution: "4K", aspect_ratio: "16:9", n: 1 });
+      expect(JSON.parse(lastImagePost)).not.toHaveProperty("size");
+
       const video = ["--json", "video", "generate", "--data", JSON.stringify({ model: "豆包Seedance-2.0", prompt: "shot", duration: 5, resolution: "720p", aspect_ratio: "16:9", audio: false }), "--idempotency-key", "sd-1", "--no-wait", "--project-dir", project];
       const submitted = await runCli(video, env, work);
-      expect(submitted.code, submitted.err).toBe(0);
-      expect(JSON.parse(submitted.out).data).toMatchObject({ taskId: "sd-job", status: "queued" });
-      expect((await runCli(video, env, work)).code, "resume must not fail").toBe(0);
-      expect(videoPosts, "one accepted Seedance submission only").toBe(1);
+      expect(submitted.code).toBe(6);
+      expect(submitted.err).toContain("approved storyboard manifest");
+      expect(videoPosts, "unapproved Seedance must not be submitted").toBe(0);
 
       const records = (await readdir(join(project, ".wowidea", "runs"))).map(async f => JSON.parse(await readFile(join(project, ".wowidea", "runs", f), "utf8")));
       const runs = await Promise.all(records);

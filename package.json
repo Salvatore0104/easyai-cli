@@ -1,6 +1,6 @@
 {
   "name": "@easyai/cli",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Codex-driven visual design agent for images, brands, products, illustration, video and stage visuals",
   "type": "module",
   "bin": {
@@ -10,7 +10,8 @@
   },
   "files": [
     "dist",
-    "skill",
+    "skill/easyai",
+    "skill/wowidea",
     "openapi",
     "docs",
     "scripts"

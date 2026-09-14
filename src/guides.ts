@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CliError, ExitCode } from "./errors.js";
 
-export const guideVersion = "0.6.0";
+export const guideVersion = "0.6.1";
 export const guideRegistry = [
   ["design-tasks", "Design task routing"],
   ["production-rounds", "Creative rounds"], ["recipe-authoring", "Recipe authoring"],
@@ -11,7 +11,7 @@ export const guideRegistry = [
   ["project-workflow", "Project records"], ["reference-planning", "Reference roles and order"],
   ["visual-review", "Purpose-specific review"], ["seedance-20", "Seedance 2.0"],
   ["seedance-25", "Seedance 2.5"], ["minimax-h3", "MiniMax H3 / H3-Max"],
-  ["nano-banana", "Nano Banana"], ["gpt-image", "GPT Image 2"],
+  ["nano-banana", "Nano Banana"], ["gpt-image", "GPT Image 2"], ["image-parameters", "Image request parameters"],
   ["midjourney", "Midjourney v8.2"],
   ["google-omni", "Google Omni"], ["wan", "Wan3.0"],
   ["seedance-gate", "Seedance approval and execution"], ["storyboard-quality", "Storyboard quality"],

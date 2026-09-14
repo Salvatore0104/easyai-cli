@@ -55,11 +55,12 @@ describe("CLI gates with a mock website", () => {
       } else expect(result.err).not.toContain("200");
     } finally { await new Promise<void>(r => server.close(() => r())); }
   });
-  it("does not require a manifest before contacting the website", async () => {
+  it("rejects raw Seedance before network submission while other media reaches the website", async () => {
     for (const kind of ["video", "image"]) {
       const args = [kind, "generate", "--data", JSON.stringify({ model: "doubao-seedance-2-5-260628" }), "--idempotency-key", "key"];
       const result = await run(args, { EASYAI_BASE_URL: "http://127.0.0.1:1", EASYAI_API_KEY: "test" });
-      expect(result.code).toBe(5); expect(result.err).not.toContain("manifest");
+      expect(result.code).toBe(kind === "video" ? 6 : 5);
+      if (kind === "video") expect(result.err).toContain("approved storyboard manifest");
     }
   });
   it("keeps one POST across real CLI process restart and uncertain recovery", async () => {

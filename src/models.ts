@@ -80,9 +80,21 @@ export function validateCapabilities(selected: ReturnType<typeof routeModel>, pa
   const operationRules = capability.omni_reference_task_type?.constraints?.[payload.omni_reference_task_type];
   const rules = { ...capability, ...capability.mode_constraints?.[mode], ...operationRules };
   if (rules.forced_aspect_ratio && payload.aspect_ratio !== rules.forced_aspect_ratio) throw new CliError(`Mode requires aspect_ratio=${rules.forced_aspect_ratio}.`, ExitCode.Usage);
+  if (rules.prompt_required && (typeof payload.prompt !== "string" || !payload.prompt.trim())) throw new CliError("This mode requires a non-empty prompt.", ExitCode.Usage);
+  if (rules.forced_duration !== undefined && payload.duration !== rules.forced_duration) throw new CliError(`Mode requires duration=${rules.forced_duration}.`, ExitCode.Usage);
   if (rules.requires_reference_video && !videos.length) throw new CliError("This operation requires a reference video.", ExitCode.Usage);
   const qualities = rules.quality_allowed || rules.quality_options;
   if (payload.quality !== undefined && (!Array.isArray(qualities) || !qualities.includes(payload.quality))) throw new CliError("Unsupported quality setting.", ExitCode.Usage);
+  if (selected.kind === "image") {
+    const formats = rules.output_format_allowed || rules.output_formats || rules.format_options;
+    const backgrounds = rules.background_allowed || rules.background_options;
+    if (payload.output_format !== undefined && (!Array.isArray(formats) || !formats.includes(payload.output_format))) throw new CliError("Unsupported output_format setting.", ExitCode.Usage);
+    if (payload.background !== undefined && (!Array.isArray(backgrounds) || !backgrounds.includes(payload.background))) throw new CliError("Unsupported background setting.", ExitCode.Usage);
+    // The public model capability aggregates providers. Since platform routing is
+    // automatic and several enabled adapters are single-output, only one result
+    // is portable across every candidate platform.
+    if (payload.n !== 1) throw new CliError("n>1 is not portable across the enabled automatic platform routes; submit one output.", ExitCode.Usage);
+  }
   for (const [field, allowed] of [["resolution", rules.output_resolutions], ["aspect_ratio", rules.aspect_ratio_allowed], ["duration", rules.duration_options]] as const) {
     if (!(field === "duration" && payload.duration === rules.forced_duration) && payload[field] !== undefined && Array.isArray(allowed) && !allowed.includes(payload[field])) throw new CliError(`${field} is not supported by ${selected.id}.`, ExitCode.Usage);
   }
@@ -90,13 +102,17 @@ export function validateCapabilities(selected: ReturnType<typeof routeModel>, pa
     if (!Number.isFinite(payload.duration) || !payload.resolution || !payload.aspect_ratio || typeof payload.audio !== "boolean") throw new CliError("Video requires explicit duration, resolution, aspect_ratio and audio.", ExitCode.Usage);
     if (!rules.duration_options && !rules.duration_range) throw new CliError("Model duration limits are unverified.", ExitCode.Approval);
     if (payload.duration !== rules.forced_duration && rules.duration_range && (payload.duration < rules.duration_range[0] || payload.duration > rules.duration_range[1])) throw new CliError("Duration is outside the platform range.", ExitCode.Usage);
+    if (rules.duration_step && !Number.isInteger((payload.duration - (rules.duration_range?.[0] || 0)) / rules.duration_step)) throw new CliError("Duration does not match the supported step.", ExitCode.Usage);
     if (rules.output_audio_mode === "always" && payload.audio !== true) throw new CliError("This model requires audio; changing the approved settings needs confirmation.", ExitCode.Approval);
     if (payload.audio && rules.output_audio !== true) throw new CliError("Audio output capability is unverified.", ExitCode.Approval);
   }
   if (selected.kind === "video" && mode === "text_to_video" && (images.length || videos.length || audios.length)) throw new CliError("Text-only mode cannot include references.", ExitCode.Usage);
   if (mode === "first_last_frame" && (images.length !== 2 || videos.length || audios.length)) throw new CliError("First/last mode requires exactly two images and no other references.", ExitCode.Usage);
+  if (mode === "image_reference" && !images.length) throw new CliError("Image-reference mode requires images.", ExitCode.Usage);
+  if (["video_reference", "video_edit", "continuation"].includes(mode) && !videos.length) throw new CliError(`${mode} requires a reference video.`, ExitCode.Usage);
+  if (mode === "audio_reference" && !audios.length) throw new CliError("Audio-reference mode requires audio.", ExitCode.Usage);
   for (const [kind, refs, limit] of [["image", images, rules.max_images || rules.input_max_images_count], ["video", videos, rules.max_videos], ["audio", audios, rules.max_audios]] as const) {
-    const mediaRules = rules.input_media_constraints?.[kind]; const maximum = limit ?? mediaRules?.max_count;
+    const mediaRules = rules.input_media_constraints?.[kind]; const maximum = limit ?? mediaRules?.max_count ?? (kind === "image" && rules.input_multiple_images === false ? 1 : undefined);
     if (refs.length && (!Number.isFinite(maximum) || refs.length > maximum) && !(mode === "first_last_frame" && kind === "image" && rules.input_first_last_frame)) throw new CliError(`Reference ${kind} count exceeds or lacks a verified limit.`, ExitCode.Approval);
     if (kind === "audio" && refs.length && (rules.input_audio !== true || (mediaRules?.requires_visual_reference && !images.length && !videos.length))) throw new CliError("Audio reference combination is not supported.", ExitCode.Approval);
   }

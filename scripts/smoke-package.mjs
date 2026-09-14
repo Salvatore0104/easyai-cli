@@ -17,7 +17,7 @@ try {
   const pkg = join(temp, 'node_modules/@easyai/cli');
   const work = join(temp, 'programme'); await mkdir(work);
   const run = (...args) => JSON.parse(execFileSync(process.execPath, [join(pkg, 'dist/cli.js'), '--json', ...args], { cwd: work, encoding: 'utf8' })).data;
-  assert.equal(run('guides', 'list').length, 21);
+  assert.equal(run('guides', 'list').length, 22);
   assert.equal(run('guides', 'show', 'minimax-h3').version, version);
   for (const id of ['design-tasks', 'production-rounds', 'recipe-authoring']) {
     const guide = run('guides', 'show', id);
@@ -47,7 +47,7 @@ try {
   assert.equal(await readFile(skill, 'utf8'), 'custom programme skill');
   assert.equal(await readFile(path, 'utf8'), before);
   execFileSync(process.execPath, [join(pkg, 'scripts/check-resources.mjs')], { cwd: work, stdio: 'pipe' });
-  console.log(JSON.stringify({ valid: true, archive, guides: 21, installedSkills: 2, separateInstallation: true, differentCwd: true, projectRoundTrip: true, customSkillPreserved: true, credentialsTested: false, paidCalls: 0 }));
+  console.log(JSON.stringify({ valid: true, archive, guides: 22, installedSkills: 2, separateInstallation: true, differentCwd: true, projectRoundTrip: true, customSkillPreserved: true, credentialsTested: false, paidCalls: 0 }));
 } finally {
   const rel = relative(resolve(tmpdir()), resolve(temp));
   if (!rel || rel.startsWith('..') || isAbsolute(rel) || !basename(temp).startsWith('wowidea-package-smoke-')) throw new Error('Unexpected cleanup target');
