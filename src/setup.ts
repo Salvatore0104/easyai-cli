@@ -29,6 +29,7 @@ export async function setupProject(directory: string, update = false, packageRoo
     await copy(join(packageRoot, 'dist'), '.wowidea/runtime/dist');
     await copy(join(packageRoot, 'skill'), '.wowidea/runtime/skill');
     await copy(join(packageRoot, 'skill', 'wowidea'), '.agents/skills/wowidea');
+    await copy(join(packageRoot, 'skill', 'gpt-image-25-prompt'), '.agents/skills/gpt-image-25-prompt');
     const runtimePackage = join(root, '.wowidea/runtime/package.json');
     await writeFile(runtimePackage, JSON.stringify({ name: pkg.name, version: pkg.version, type: 'module' }, null, 2));
   }
@@ -42,5 +43,5 @@ export async function setupProject(directory: string, update = false, packageRoo
   await writeFile(instructions, next);
   const version = previous && !update ? previous.version : pkg.version;
   await writeFile(statePath, JSON.stringify({ version, hashes, preserved, installedAt: previous?.installedAt || new Date().toISOString(), updatedAt: new Date().toISOString() }, null, 2));
-  return { root, version, instructions, skill: join(root, '.agents/skills/wowidea/SKILL.md'), command: `node "${join(root, '.wowidea/runtime/dist/cli.js')}"`, preserved, next: 'Read the project instructions now. Missing authentication: use auth use-key --prompt or EASYAI_API_KEY; never store a key in this project.' };
+  return { root, version, instructions, skill: join(root, '.agents/skills/wowidea/SKILL.md'), promptSkill: join(root, '.agents/skills/gpt-image-25-prompt/SKILL.md'), command: `node "${join(root, '.wowidea/runtime/dist/cli.js')}"`, preserved, next: 'Read the project instructions now. Missing authentication: use auth use-key --prompt or EASYAI_API_KEY; never store a key in this project.' };
 }

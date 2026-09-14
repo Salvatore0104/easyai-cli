@@ -28,7 +28,7 @@ import { prepareReferences, uploadMedia, writeRun } from './media.js';
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.6.1")
+program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.6.2")
   .option("--profile <name>", "configuration profile")
   .option("--base-url <url>", "EasyAI server URL")
   .option("--json", "stable JSON output")

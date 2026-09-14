@@ -19,6 +19,10 @@ describe("installed creative resources", () => {
     expect(routed.guide).toBe("references/minimax-h3.md");
     expect(routed.guideInfo.id).toBe("minimax-h3");
     expect(routed.guideInfo.version).toBe(version);
+    const gpt25 = routeModel([{ id: "gpt-image-2.5" }], "image", "GPT Image 2.5");
+    expect(gpt25.guideInfo).toMatchObject({ id: "gpt-image-25", promptSkill: "gpt-image-25-prompt" });
+    expect(isAbsolute(gpt25.guideInfo.promptSkillPath!)).toBe(true);
+    expect(routeModel([{ id: "GPT Image 2" }], "image", "GPT Image 2").guideInfo.promptSkill).toBeUndefined();
   });
 });
 

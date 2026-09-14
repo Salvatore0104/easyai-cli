@@ -1,6 +1,6 @@
 # Wowidea 使用与维护
 
-Skill 指令为英文，默认仍用用户语言交流。`$wowidea` 是唯一创作入口，负责按任务选择模型提示词方法；只写提示词时不产生费用。
+Skill 指令为英文，默认仍用用户语言交流。`$wowidea` 是媒体执行与自动选模入口；GPT Image 2.5 的纯提示词润色也可直接调用 `$gpt-image-25-prompt`，不会产生费用。
 
 ## 提示词指南
 
@@ -11,7 +11,8 @@ Skill 指令为英文，默认仍用用户语言交流。`$wowidea` 是唯一创
 | H3 | `wowidea --json guides show minimax-h3` |
 | Seedance 2.0 | `wowidea --json guides show seedance-20` |
 | Seedance 2.5 | `wowidea --json guides show seedance-25` |
-| GPT Image 2 / 2.5 | `wowidea --json guides show gpt-image` |
+| GPT Image 2 | `wowidea --json guides show gpt-image` |
+| GPT Image 2.5 | `wowidea --json guides show gpt-image-25`，提示词润色使用 `$gpt-image-25-prompt` |
 | Nano Banana | `wowidea --json guides show nano-banana` |
 | Midjourney v8.2 | `wowidea --json guides show midjourney` |
 
@@ -42,7 +43,8 @@ Skill 指令为英文，默认仍用用户语言交流。`$wowidea` 是唯一创
 | MiniMax H3 / H3-Max | `references/minimax-h3.md` | `wowidea --json guides show minimax-h3` |
 | Seedance 2.0 系列 | `references/seedance-20.md` | `wowidea --json guides show seedance-20` |
 | Seedance 2.5 | `references/seedance-25.md` | `wowidea --json guides show seedance-25` |
-| GPT Image 2 / 2.5 系列 | `references/gpt-image.md` | `wowidea --json guides show gpt-image` |
+| GPT Image 2 | `references/gpt-image.md` | `wowidea --json guides show gpt-image` |
+| GPT Image 2.5 / Flare / Sunburst | `references/gpt-image-25.md` + `$gpt-image-25-prompt` | `wowidea --json guides show gpt-image-25` |
 | Nano Banana 系列 | `references/nano-banana.md` | `wowidea --json guides show nano-banana` |
 | Midjourney v8.2 / 8.2-fast | `references/midjourney.md` | `wowidea --json guides show midjourney` |
 

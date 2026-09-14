@@ -1,0 +1,4 @@
+interface:
+  display_name: "GPT Image 2.5 Prompt Polisher"
+  short_description: "Write and refine precise GPT Image 2.5 prompts"
+  default_prompt: "Use $gpt-image-25-prompt to polish my GPT Image 2.5 prompt without changing its intent."

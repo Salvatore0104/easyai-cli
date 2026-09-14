@@ -48,6 +48,7 @@ describe("creative CLI loop with a mock website", () => {
       expect(setup.code, setup.err).toBe(0);
       expect(JSON.parse(setup.out).data.root).toBe(resolve(project));
       await access(join(project, ".agents", "skills", "wowidea", "SKILL.md"));
+      await access(join(project, ".agents", "skills", "gpt-image-25-prompt", "SKILL.md"));
       await access(join(project, ".wowidea", "runtime", "dist", "cli.js"));
       const agents = await readFile(join(project, "AGENTS.md"), "utf8");
       expect(agents).toContain("wowidea:begin");
@@ -57,7 +58,7 @@ describe("creative CLI loop with a mock website", () => {
 
       const route = await runCli(["--json", "models", "route", "--kind", "image", "--purpose", "文字排版", "--stage", "final"], env, work);
       expect(route.code, route.err).toBe(0);
-      expect(JSON.parse(route.out).data).toMatchObject({ model: "gpt-image-2.5", payload: { resolution: "4K" } });
+      expect(JSON.parse(route.out).data).toMatchObject({ model: "gpt-image-2.5", payload: { resolution: "4K" }, guide: { promptSkill: "gpt-image-25-prompt" } });
       const ask = await runCli(["--json", "models", "route", "--kind", "video"], env, work);
       expect(JSON.parse(ask.out).data.needsInput).toBe(true);
 

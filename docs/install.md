@@ -90,7 +90,7 @@ wowidea --json tasks remote --page 1 --page-size 20
 
 ## 更新与保留
 
-安装器从当前包发现全部 Skill 入口并安装，默认保留用户修改与账号状态；新旧冲突文件进入配置目录 `skill-updates` 等待合并。随包入口为 `wowidea` 与兼容用 `easyai`、`easyai-canvas`，不会覆盖你原装的 Flova、H3、Seedance 或 GRSAI 工具。升级后在新对话中使用新 Skill，是否即时刷新由宿主决定。
+安装器从当前包发现全部 Skill 入口并安装，包括 `wowidea`、兼容入口 `easyai` 和 `$gpt-image-25-prompt`，默认保留用户修改与账号状态；新旧冲突文件进入配置目录 `skill-updates` 等待合并。CLI 命令仍为 `wowidea`、`easyai`、`easyai-canvas`，不会覆盖你原装的 Flova、H3、Seedance 或 GRSAI 工具。升级后在新对话中使用新 Skill，是否即时刷新由宿主决定。
 
 维护者更新来源摘要、许可与资源链接后运行 `npm run resources:lock`，再运行 `npm run check`、Skill 校验与实际 `npm run package:smoke -- <tgz>`。不得在运行时自动同步上游；当前资料只保留最终说明，源代码历史仍可通过 Git 查询。
 

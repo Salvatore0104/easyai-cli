@@ -1,6 +1,6 @@
 {
   "name": "@easyai/cli",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Codex-driven visual design agent for images, brands, products, illustration, video and stage visuals",
   "type": "module",
   "bin": {
@@ -11,6 +11,7 @@
   "files": [
     "dist",
     "skill/easyai",
+    "skill/gpt-image-25-prompt",
     "skill/wowidea",
     "openapi",
     "docs",

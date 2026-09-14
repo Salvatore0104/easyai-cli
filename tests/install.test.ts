@@ -12,7 +12,7 @@ describe("bundled Skill installer", () => {
     try {
       const first = run();
       expect(first.version).toBe(version);
-      expect(first.installedSkills).toHaveLength(2);
+      expect(first.installedSkills).toEqual(["easyai", "gpt-image-25-prompt", "wowidea"]);
       for (const name of first.installedSkills) {
         expect(await readFile(join(dir, "skills", name, "SKILL.md"), "utf8")).toBe(await readFile(resolve("skill", name, "SKILL.md"), "utf8"));
       }

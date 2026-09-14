@@ -1,18 +1,22 @@
 # 验证范围与已知限制
 
+## 0.6.2 GPT Image 2.5 提示词 Skill
+
+新增可独立发现的 `$gpt-image-25-prompt`，随 npm 包、全局 Skill 安装和项目初始化一起交付。GPT Image 2.5、Flare、Sunburst 路由会返回该 Skill；GPT Image 2 与其他模型保持各自指南，不会误用 2.5 润色规则。生成提示词 Skill 的存在性、依赖边界和使用结论见 [生成提示词 Skill 审查](prompt-skill-audit.md)。
+
 ## 0.6.1 参数契约回归
 
 新增统一规范化层并覆盖路由、预检和最终提交。回归用例确认 `size=3840x2160` 最终序列化为 `resolution=4K + aspect_ratio=16:9`，且不残留 `size`；别名冲突、非法比例、不支持的质量/格式/背景、非单输出和参考数量在网络提交前失败。Seedance 沿用 0.6.0 规范，可通过原始请求直接生成；分镜、视觉 QC 和 manifest 是可选工具，`watermark:false` 与单任务幂等约束保留。`npm run check` 通过 18 个测试文件、90 项测试，资源清单包含 35 个 Skill 文件及 11 条来源记录。完整平台审计见 [平台与模型参数契约审计](platform-model-parameter-audit.md)。本轮不做付费生成，也不修改生产平台配置。
 
 ## 自动化与离线验证
 
-运行npm run check验证类型、构建、资源完整性和行为测试。实际tgz安装测试从不同工作目录读取指南、确认随包安装 wowidea 与 easyai 两个入口、验证每份模型指南在包内与安装目录都可读，并验证自定义Skill与项目资料保留。审批变更失效、单任务恢复、防重复、H3素材顺序及未支持组合有回归覆盖。
+运行npm run check验证类型、构建、资源完整性和行为测试。实际tgz安装测试从不同工作目录读取指南、确认随包安装 wowidea、easyai 与 GPT Image 2.5 提示词三个 Skill、验证每份模型指南在包内与安装目录都可读，并验证自定义Skill与项目资料保留。审批变更失效、单任务恢复、防重复、H3素材顺序及未支持组合有回归覆盖。
 
 Skill结构、链接和安装通过不等于审美或模型行为已充分评测。维护者离线走查覆盖海报、产品编辑、插画、普通视频、阶段创作、舞台与混合交付；舞台仅按需加载。新增英文提示词未单独开展付费或独立Agent质量评测。
 
 ## 0.6.0 创作闭环验证
 
-`npm run check`覆盖类型检查、构建、资源一致性（34 个 Skill 文件、11 条来源记录）与 87 项行为测试。0.6.0 当时的 CLI 进程测试曾允许 Seedance 直接提交；0.6.1 已由上方强制 manifest 门槛取代。其余覆盖包括项目初始化幂等、`AGENTS.md` 管理段唯一、用途路由、定价快照、图片编辑、单任务恢复、运行记录和密钥排除。
+`npm run check`覆盖类型检查、构建、资源一致性（34 个 Skill 文件、11 条来源记录）与 87 项行为测试。Seedance 延续 0.6.0 的直接提交规则，分镜和 manifest 仅为可选工具。其余覆盖包括项目初始化幂等、`AGENTS.md` 管理段唯一、用途路由、定价快照、图片编辑、单任务恢复、运行记录和密钥排除。
 
 定价来源已查明：公开模型目录不返回价格；管理员页面 `/admin/platform/pricing-rules` 对应 `GET /api/model-runtime/pricing-rules`（需管理员令牌，普通 Key 为 401）；而网站 UI 的“预计扣费”使用 `POST /api/integration-platform/models/estimatedBilling`，**普通账号 Key 即可调用**，返回实付积分并附带 `rawAmount` 与 `platformModelDiscount`（平台/型号折扣）。因此 CLI 生成与选模现在优先调用该接口取实价（`pricing.source = platform /integration-platform/models/estimatedBilling`），折扣自动包含，无需人工折算；接口不可用时回退到显式导出的 `wowidea.prices/v1` 快照。快照文件：`价格规则/wowidea-prices-2026-09-12.json`（32 条，按分辨率展开，图片另含质量档）。
 

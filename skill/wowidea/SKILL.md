@@ -28,7 +28,8 @@ Read only the relevant guide. Model prompt methods are bundled as internal Wowid
 | MiniMax H3 / H3-Max | [H3](references/minimax-h3.md) |
 | Seedance 2.0 family | [2.0](references/seedance-20.md) |
 | Seedance 2.5 | [2.5](references/seedance-25.md) |
-| GPT Image 2 / 2.5 family | [GPT Image](references/gpt-image.md) |
+| GPT Image 2 | [GPT Image](references/gpt-image.md) |
+| GPT Image 2.5 / Flare / Sunburst | [GPT Image 2.5](references/gpt-image-25.md), then `$gpt-image-25-prompt` for writing or polishing |
 | Nano Banana family | [Nano Banana](references/nano-banana.md) |
 | Midjourney v8.2 / 8.2-fast | [Midjourney](references/midjourney.md) |
 

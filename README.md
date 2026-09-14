@@ -45,7 +45,7 @@ wowidea --json auth status
 
 > 请将当前文件夹初始化为 Wowidea 创作项目，将所需的 CLI、Skill 和项目规则保存到当前项目。以后本项目的图片、视频生成、修改和生成任务提交默认使用 Wowidea，无需我重复调用 /wowidea。根据用途、模型能力和网站定价自动选择合适方案，兼顾质量、经济性与效率。用途或测试、成片阶段不明确时先简短询问，我明确指定的模型和规格优先。图片优先高质量，正式输出默认 4K；视频先按需要测试，确定方向后再出高清成片。所有模型自动审查参数后继续；Seedance 可直接生成，分镜和 manifest 仅为可选工具，并固定 watermark:false。每轮默认一个候选，保留原版和修改记录，不自动重复付费生成。
 
-Codex 会执行 `wowidea project setup --dir <项目目录>`：把固定版本的 CLI 写入 `.wowidea/runtime`，Skill 写入 `.agents/skills/wowidea`，并在 `AGENTS.md`（已存在 `AGENTS.override.md` 时用后者）维护一段可重复更新的 Wowidea 规则。重复初始化不会覆盖你的文件、偏好和历史记录。
+Codex 会执行 `wowidea project setup --dir <项目目录>`：把固定版本的 CLI 写入 `.wowidea/runtime`，把 Wowidea 与 GPT Image 2.5 提示词润色 Skill 写入 `.agents/skills`，并在 `AGENTS.md`（已存在 `AGENTS.override.md` 时用后者）维护一段可重复更新的 Wowidea 规则。重复初始化不会覆盖你的文件、偏好和历史记录。
 
 之后从该项目启动的任务会自动发现这些规则，直接用自然语言提出需求即可：
 
