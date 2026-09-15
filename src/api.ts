@@ -97,7 +97,7 @@ export function findUrls(value: unknown): string[] {
     if (typeof item === "string" && /^https?:\/\//i.test(item)) urls.add(item);
     else if (Array.isArray(item)) item.forEach(visit);
     else if (item && typeof item === "object") for (const [key, value] of Object.entries(item)) {
-      if (["data", "task", "result", "results", "output", "outputs", "images", "videos", "url", "image_url", "video_url", "download_url", "last_frame_url", "lastFrameUrl"].includes(key)) visit(value);
+      if (["data", "task", "result", "results", "output", "outputs", "out", "payload", "items", "nodeDataPatch", "images", "videos", "url", "image_url", "video_url", "download_url", "last_frame_url", "lastFrameUrl", "imageResultUrls", "selectedImageUrls", "videoResultUrls", "selectedVideoUrls"].includes(key)) visit(value);
     }
   };
   visit(value); return [...urls];

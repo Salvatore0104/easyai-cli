@@ -4,10 +4,9 @@ import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { Command, Option } from "commander";
+import { Command } from "commander";
 import { EasyAiApi, downloadUrls, findUrls } from "./api.js";
 import { accessToken, authStatus, browserLogin, logout, useApiKey } from "./auth.js";
-import { applyCanvasBatch, applyCanvasOperation, canvasMutationEnvelope } from "./canvas.js";
 import { getProfile, creativeDefaults } from "./config.js";
 import { CliError, ExitCode, isNotFound, redact } from "./errors.js";
 import { emit, OutputOptions } from "./output.js";
@@ -26,11 +25,14 @@ import { autoRoute, applyPlatformEstimates } from './routing.js';
 import { normalizeRequest } from './request-normalization.js';
 import { prepareReferences, uploadMedia, writeRun, refreshRun, referenceIdentity, runFile } from './media.js';
 import { mediaInput } from './media-input.js';
+import { bindCanvasProject, ensureCanvasBinding, readCanvasBinding, verifyCanvasBinding } from './canvas-binding.js';
+import { generateOnCanvas } from './canvas-generation.js';
 
-interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
+interface GlobalOptions extends OutputOptions { profile?: string; canvasProfile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.6.4")
+program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.7.0")
   .option("--profile <name>", "configuration profile")
+  .option("--canvas-profile <name>", "separate Canvas OAuth profile")
   .option("--base-url <url>", "EasyAI server URL")
   .option("--json", "stable JSON output")
   .option("--jsonl", "one JSON object per line")
@@ -55,7 +57,6 @@ async function jsonInput(opts: { data?: string; file?: string }): Promise<Record
   catch { throw new CliError("Input must be valid JSON.", ExitCode.Usage); }
 }
 function dataOptions(command: Command): Command { return command.option("--data <json>", "JSON request body").option("--file <path>", "JSON request body file"); }
-function mutationOptions(command: Command): Command { return dataOptions(command).option("--base-version <n>", "known canvas version", Number); }
 const enc = encodeURIComponent;
 
 program.command('doctor').description('Check authentication and website read-only interfaces; no generation').action(async (_o, c) => {
@@ -81,7 +82,11 @@ localProject.command("init").option("--dir <path>", "programme directory", ".").
 localProject.command("show").option("--dir <path>", "programme directory", ".").action(async (o, c) => output(await readProject(o.dir), c));
 localProject.command("validate").option("--dir <path>", "programme directory", ".").action(async (o, c) => { const result = await readProject(o.dir); await output({ valid: true, ...result }, c); });
 localProject.command("record").requiredOption("--file <path>", "creation JSON").option("--dir <path>", "programme directory", ".").action(async (o, c) => output(await recordCreation(o.dir, await jsonInput(o)), c));
-localProject.command('setup').option('--dir <path>', 'project directory', '.').option('--update', 'explicitly update managed runtime and unmodified skills').action(async (o,c) => output(await setupProject(o.dir, o.update),c));
+localProject.command('setup').option('--dir <path>', 'project directory', '.').option('--name <name>', 'local and remote Canvas project name').option('--update', 'explicitly update managed runtime and unmodified skills').option('--no-canvas', 'install files without creating a remote Canvas binding').action(async (o,c) => output(await setupProject(o.dir, o.update, undefined, o.name, globals(c).canvasProfile, o.canvas),c));
+const projectCanvas = localProject.command('canvas').description('Show, verify, or explicitly replace this directory Canvas binding');
+projectCanvas.command('show').option('--dir <path>', 'project directory', '.').action(async(o,c)=>output(await readCanvasBinding(o.dir),c));
+projectCanvas.command('verify').option('--dir <path>', 'project directory', '.').action(async(o,c)=>output(await verifyCanvasBinding(o.dir,globals(c).canvasProfile),c));
+for (const action of ['bind','switch'] as const) projectCanvas.command(action).argument('<projectId>').option('--dir <path>', 'project directory', '.').action(async(id,o,c)=>output(await bindCanvasProject(o.dir,id,globals(c).canvasProfile || 'default',action==='switch'),c));
 const prices = program.command('prices');
 prices.command('sync').requiredOption('--url <https-url>', 'verified public wowidea.prices/v1 snapshot URL').action(async(o,c)=>output(await syncPrices(o.url),c));
 prices.command('show').action(async (_o,c) => output(await loadPrices() || { available: false, reason: 'Import a website price snapshot; public price endpoint not verified.' },c));
@@ -189,15 +194,21 @@ taskCommands(video,'video');
 
 function registerMedia(parent: Command, kind: 'image'|'video') {
   const collect = (value: string, prior: string[]) => [...prior, value];
-  for (const action of ['generate','edit']) dataOptions(parent.command(action)).option('--idempotency-key <key>', 'optional request key; automatically persisted when omitted').option('--manifest <path>')
+  for (const action of ['generate','edit'] as const) dataOptions(parent.command(action)).option('--direct', 'use the legacy non-Canvas generation API explicitly').option('--idempotency-key <key>', 'optional request key; automatically persisted when omitted').option('--manifest <path>')
     .option('--prompt <text>').option('--model <name>').option('--resolution <value>').option('--ratio <value>').option('--duration <seconds>', 'video duration', Number).option('--mode <value>', 'website generation mode')
     .option('--audio', 'enable video audio').option('--no-audio', 'disable video audio').option('--quality <value>').option('--format <value>')
     .option('--reference <path-or-url>', 'image reference; repeat for multiple images', collect, []).option('--video-reference <path-or-url>', 'video reference', collect, []).option('--audio-reference <path-or-url>', 'audio reference', collect, [])
     .option('--dir <path>', 'download directory','wowidea-output').option('--project-dir <path>', 'record directory','.').option('--parent <taskId>', 'source version task ID').option('--change <text>', 'revision summary').option('--purpose <text>').option('--stage <preview|final|edit|refine>').option('--prices <file>').option('--no-wait').option('--allow-reroll').action(async(o,c) => {
     const api = await apiFor(c), startedAt = new Date().toISOString();
     let payload = await jsonInput(o);
-    if(o.manifest) { if(o.file || o.data) throw new CliError('Use manifest or request JSON, not both.',ExitCode.Usage); const m = await readManifest(resolve(o.manifest)); payload = seedancePayload(m); }
+    if(o.manifest) { if(o.file || o.data) throw new CliError('Use manifest or request JSON, not both.',ExitCode.Usage); const m = await readManifest(resolve(o.manifest)); await validateManifest(m, true); if (m.state !== 'approved' || m.approval?.creativeHash !== creativeHash(m)) throw new CliError('Seedance manifest requires current explicit approval before paid execution.', ExitCode.Approval); payload = seedancePayload(m); }
     payload = mediaInput(o, payload, kind);
+    if (/seedance/i.test(String(payload.model || '')) && !o.manifest) throw new CliError('Seedance generation requires an approved storyboard manifest in this project.', ExitCode.Approval);
+    if (!o.direct) {
+      const canvasKey = o.idempotencyKey || (o.allowReroll ? randomUUID() : `canvas-${payloadHash({ kind, action, payload })}`);
+      const result = await generateOnCanvas({ api, kind, action, payload, projectDir: o.projectDir, outputDir: o.dir, profile: globals(c).canvasProfile, wait: o.wait, requestKey: canvasKey });
+      await output(result,c); return;
+    }
     const requestHash = payloadHash({ kind, action, purpose: o.purpose, stage: o.stage, payload: await referenceIdentity(payload, o.projectDir) });
     o.idempotencyKey ||= o.allowReroll ? randomUUID() : `auto-${requestHash}`;
     const prior = (await listSubmissions(api)).find(r => r.idempotencyKey === o.idempotencyKey);
@@ -294,52 +305,6 @@ async function completeGeneration(api: EasyAiApi, submitted: unknown, kind: "ima
   const target = resolve(directory, id || `${kind}-${Date.now()}`);
   return { taskId: id, status: status === "unknown" ? "completed" : status, paths: await downloadUrls(urls, target), task };
 }
-
-const canvas = program.command("canvas");
-mutationOptions(canvas.command("operation")).argument("<projectId>").argument("<type>").description("Submit one low-level atomic canvas operation").action(async (p, type, o, c) => output(await applyCanvasOperation(await apiFor(c), p, type, await jsonInput(o), o.baseVersion), c));
-const project = canvas.command("project");
-project.command("list").action(async (_o, c) => output(await (await apiFor(c)).get("/v1/canvas-workflow/projects"), c));
-dataOptions(project.command("create")).requiredOption("--name <name>").action(async (o, c) => output(await (await apiFor(c)).post("/v1/canvas-workflow/projects", { name: o.name, ...(await jsonInput(o)) }), c));
-project.command("show").argument("<id>").action(async (id, _o, c) => output(await (await apiFor(c)).get(`/v1/canvas-workflow/projects/${enc(id)}/state`), c));
-project.command("open").argument("<id>").action(async (id, _o, c) => { const g = globals(c); const p = await getProfile(g.profile, g.baseUrl); openExternal(`${p.config.baseUrl}/canvas/${enc(id)}`); await output({ opened: true, projectId: id }, c); });
-const nodeTypes = canvas.command("node-types");
-nodeTypes.command("list").action(async (_o, c) => output(await (await apiFor(c)).get("/v1/canvas-workflow/node-types"), c));
-nodeTypes.command("show").argument("<kind>").action(async (kind, _o, c) => output(await (await apiFor(c)).get(`/v1/canvas-workflow/node-types/${enc(kind)}`), c));
-nodeTypes.command("options").argument("<kind>").action(async (kind, _o, c) => output(await (await apiFor(c)).get(`/v1/canvas-workflow/node-types/${enc(kind)}/options`), c));
-const node = canvas.command("node");
-mutationOptions(node.command("add")).argument("<projectId>").requiredOption("--kind <kind>").action(async (id, o, c) => output(await applyCanvasOperation(await apiFor(c), id, "node.add", { kind: o.kind, ...(await jsonInput(o)) }, o.baseVersion), c));
-mutationOptions(node.command("configure")).argument("<projectId>").argument("<nodeId>").action(async (p, n, o, c) => { const api = await apiFor(c); const body = await canvasMutationEnvelope(api, p, { configuration: await jsonInput(o) }, o.baseVersion); await output(await api.post(`/v1/canvas-workflow/projects/${enc(p)}/nodes/${enc(n)}/configure`, body, { "Idempotency-Key": String(body.clientMutationId) }), c); });
-node.command("inputs").argument("<projectId>").argument("<nodeId>").action(async (p, n, _o, c) => output(await (await apiFor(c)).get(`/v1/canvas-workflow/projects/${enc(p)}/nodes/${enc(n)}/inputs`), c));
-node.command("remove").argument("<projectId>").argument("<nodeId>").option("--base-version <n>", "known canvas version", Number).action(async (p, n, o, c) => output(await applyCanvasOperation(await apiFor(c), p, "node.remove", { nodeId: n }, o.baseVersion), c));
-for (const verb of ["move", "resize"] as const) mutationOptions(node.command(verb)).argument("<projectId>").argument("<nodeId>").action(async (p, n, o, c) => output(await applyCanvasOperation(await apiFor(c), p, "node.structure.patch", { nodeId: n, [verb]: await jsonInput(o) }, o.baseVersion), c));
-for (const verb of ["bind", "unbind"] as const) mutationOptions(canvas.command(verb)).argument("<projectId>").argument("<nodeId>").action(async (p, n, o, c) => output(await applyCanvasOperation(await apiFor(c), p, "node.data.update", { nodeId: n, action: verb, ...(await jsonInput(o)) }, o.baseVersion), c));
-const edge = canvas.command("edge");
-for (const verb of ["add", "remove"] as const) mutationOptions(edge.command(verb)).argument("<projectId>").action(async (p, o, c) => output(await applyCanvasOperation(await apiFor(c), p, `edge.${verb}`, await jsonInput(o), o.baseVersion), c));
-const group = canvas.command("group");
-for (const verb of ["create", "ungroup"] as const) mutationOptions(group.command(verb)).argument("<projectId>").action(async (p, o, c) => output(await applyCanvasOperation(await apiFor(c), p, `group.${verb}`, await jsonInput(o), o.baseVersion), c));
-const asset = canvas.command("asset");
-asset.command("list").argument("<projectId>").action(async (p, _o, c) => output(await (await apiFor(c)).get(`/v1/canvas-workflow/projects/${enc(p)}/assets`), c));
-mutationOptions(asset.command("add")).argument("<projectId>").action(async (p, o, c) => { const api = await apiFor(c); const body = await canvasMutationEnvelope(api, p, { asset: await jsonInput(o) }, o.baseVersion); await output(await api.post(`/v1/canvas-workflow/projects/${enc(p)}/assets`, body, { "Idempotency-Key": String(body.clientMutationId) }), c); });
-asset.command("remove").argument("<projectId>").argument("<assetId>").option("--base-version <n>", "known canvas version", Number).action(async (p, a, o, c) => { const api = await apiFor(c); const body = await canvasMutationEnvelope(api, p, {}, o.baseVersion); await output(await api.delete(`/v1/canvas-workflow/projects/${enc(p)}/assets/${enc(a)}`, body, { "Idempotency-Key": String(body.clientMutationId) }), c); });
-asset.command("upload").argument("<projectId>").argument("<file>").option("--base-version <n>", "known canvas version", Number).action(async (p, f, o, c) => { const api = await apiFor(c); const bytes = await readFile(resolve(f)); const envelope = await canvasMutationEnvelope(api, p, {}, o.baseVersion); await output(await api.upload(`/v1/canvas-workflow/projects/${enc(p)}/files`, new Blob([bytes]), resolve(f).split(/[\\/]/).pop()!, { baseVersion: String(envelope.baseVersion), clientMutationId: String(envelope.clientMutationId) }, { "Idempotency-Key": String(envelope.clientMutationId) }), c); });
-const template = canvas.command("template");
-template.command("list").action(async (_o, c) => output(await (await apiFor(c)).get("/v1/canvas-workflow/templates"), c));
-template.command("show").argument("<id>").action(async (id, _o, c) => output(await (await apiFor(c)).get(`/v1/canvas-workflow/templates/${enc(id)}`), c));
-mutationOptions(template.command("create")).argument("<projectId>").action(async (p, o, c) => { const api = await apiFor(c); const body = await canvasMutationEnvelope(api, p, { template: await jsonInput(o) }, o.baseVersion); await output(await api.post(`/v1/canvas-workflow/projects/${enc(p)}/templates`, body, { "Idempotency-Key": String(body.clientMutationId) }), c); });
-template.command("import").argument("<projectId>").argument("<templateId>").option("--base-version <n>", "known canvas version", Number).action(async (p, t, o, c) => { const api = await apiFor(c); const body = await canvasMutationEnvelope(api, p, {}, o.baseVersion); await output(await api.post(`/v1/canvas-workflow/projects/${enc(p)}/templates/${enc(t)}/import`, body, { "Idempotency-Key": String(body.clientMutationId) }), c); });
-dataOptions(canvas.command("batch")).argument("<projectId>").option("--base-version <n>", "known canvas version", Number).action(async (p, o, c) => { const body = await jsonInput(o); const operations = Array.isArray(body) ? body : body.operations; await output(await applyCanvasBatch(await apiFor(c), p, operations as unknown[], o.baseVersion), c); });
-dataOptions(canvas.command("run")).argument("<projectId>").addOption(new Option("--node <id>").conflicts(["group", "all"])).addOption(new Option("--group <id>").conflicts(["node", "all"])).option("--all").option("--preflight").action(async (p, o, c) => {
-  const payload = { ...(await jsonInput(o)), ...(o.node ? { nodeId: o.node } : o.group ? { groupId: o.group } : { all: true }) }; const api = await apiFor(c);
-  if (o.preflight) { await output(await preflight(api, "canvas", `/v1/canvas-workflow/projects/${enc(p)}/executions/preflight`, payload), c); return; }
-  const state = await api.get(`/v1/canvas-workflow/projects/${enc(p)}/state`);
-
-  await output((await submitDirect(api, `/v1/canvas-workflow/projects/${enc(p)}/executions`, payload, o)), c);
-});
-const canvasTask = canvas.command("task");
-canvasTask.command("show").argument("<projectId>").argument("<taskId>").action(async (p, t, _o, c) => output((await (await apiFor(c)).get(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}`)), c));
-canvasTask.command("events").argument("<projectId>").argument("<taskId>").option("--cursor <cursor>").action(async (p, t, o, c) => output(await (await apiFor(c)).get(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}/events${o.cursor ? `?cursor=${enc(o.cursor)}` : ""}`), c));
-canvasTask.command("watch").argument("<projectId>").argument("<taskId>").option("--interval <ms>", "poll interval", "2000").action(async (_p, t, o, c) => watchTask(await apiFor(c), t, Number(o.interval), c));
-canvasTask.command("cancel").argument("<projectId>").argument("<taskId>").action(async (p, t, _o, c) => output(await (await apiFor(c)).post(`/v1/canvas-workflow/projects/${enc(p)}/tasks/${enc(t)}/cancel`), c));
 
 const seedance = program.command("seedance").description("Validate and approve Seedance manifests without submitting paid tasks");
 seedance.command("payload").argument("<manifest>").requiredOption("--file <path>").action(async (p, o, c) => { const m = await readManifest(resolve(p)); await validateManifest(m, true); const path = resolve(o.file); await writeFile(path, JSON.stringify(seedancePayload(m), null, 2), { mode: 0o600 }); await output({ path }, c); });

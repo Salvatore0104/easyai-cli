@@ -34,7 +34,7 @@ describe('installed simple generation workflow', () => {
     let binary = resolve('dist/cli.js');
     const run = async (...args: string[]) => JSON.parse((await exec(process.execPath, [binary, '--json', ...args], { cwd: root, env, windowsHide: true })).stdout).data;
     try {
-      const setup = await run('project', 'setup', '--dir', root);
+      const setup = await run('project', 'setup', '--dir', root, '--no-canvas');
       binary = join(root, '.wowidea/runtime/dist/cli.js');
       expect(await run('doctor')).toMatchObject({ ok: true, checks: { models: { count: 2 }, balance: { ok: true }, tasks: { ok: true } } });
       if (setup.credentialRuntime.available) {
@@ -42,7 +42,7 @@ describe('installed simple generation workflow', () => {
         const loaded = await exec(process.execPath, ['-e', `console.log(typeof require(${JSON.stringify(native)}).getPassword)`], { cwd: root, env, windowsHide: true });
         expect(loaded.stdout.trim()).toBe('function');
       }
-      const args = ['image', 'generate', '--prompt', 'ceramic cup', '--model', 'Nano Banana 2', '--no-wait'];
+      const args = ['image', 'generate', '--direct', '--prompt', 'ceramic cup', '--model', 'Nano Banana 2', '--no-wait'];
       const first = await run(...args);
       expect(first.idempotencyKey).toMatch(/^auto-/); expect(posts).toBe(1);
       const submissions = await run('tasks', 'list');
@@ -51,11 +51,11 @@ describe('installed simple generation workflow', () => {
       expect(await readFile(resumed.paths[0], 'utf8')).toBe('downloaded-bytes');
       expect(JSON.parse(await readFile(first.recordPath, 'utf8'))).toMatchObject({ state: 'succeeded', result: { paths: resumed.paths } });
       expect((await run(...args)).taskId).toBe(first.taskId); expect(posts).toBe(1);
-      await expect(run('image', 'generate', '--prompt', 'changed', '--idempotency-key', first.idempotencyKey)).rejects.toMatchObject({ code: 4 });
-      await expect(run('image', 'generate', '--prompt', 'mixed', '--data', '{}')).rejects.toMatchObject({ code: 2 });
+      await expect(run('image', 'generate', '--direct', '--prompt', 'changed', '--idempotency-key', first.idempotencyKey)).rejects.toMatchObject({ code: 4 });
+      await expect(run('image', 'generate', '--direct', '--prompt', 'mixed', '--data', '{}')).rejects.toMatchObject({ code: 2 });
       expect(posts).toBe(1);
       await run(...args, '--allow-reroll'); expect(posts).toBe(2);
-      await run('video', 'generate', '--model', 'Wan3.0-Video', '--prompt', 'a cup', '--duration', '2', '--resolution', '480p', '--ratio', '16:9', '--no-audio', '--no-wait');
+      await run('video', 'generate', '--direct', '--model', 'Wan3.0-Video', '--prompt', 'a cup', '--duration', '2', '--resolution', '480p', '--ratio', '16:9', '--no-audio', '--no-wait');
       expect(payloads[2]).toMatchObject({ model: 'Wan3.0-Video', duration: 2, audio: false, watermark: false, mode: 'text_to_video' });
       expect(payloads[0]).toMatchObject({ resolution: '4K', aspect_ratio: '1:1', n: 1 });
       malformed = true;

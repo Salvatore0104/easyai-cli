@@ -5,15 +5,17 @@ description: Generate and edit images and videos through the user's Wowidea webs
 
 # Wowidea
 
-Turn the user's request into a website model call, then return the actual output. Reply in the user's language. The website handles provider redundancy and failover; never call providers directly.
+Turn the user's request into a model node on the bound Wowidea infinite Canvas, execute it once, and return the downloaded output. Reply in the user's language. The website handles provider redundancy and failover; never call providers directly.
 
 ## Understand the request
 
-Preserve the user's model, copy, references and output settings. Ask only when missing information materially changes the result. Prompt-only requests do not generate media. Simple generation needs no project archive, storyboard or manifest. These are optional for all models, including Seedance; respect additional user constraints.
+Preserve the user's model, copy, references and output settings. Ask only when missing information materially changes the result. Prompt-only requests do not generate media. Seedance follows the active project's storyboard and approval gate; never bypass it through Canvas execution.
 
 ## Prepare parameters and references
 
-Use `node <project>/.wowidea/runtime/dist/cli.js` in an initialized project, otherwise `wowidea`. Initialize with `project setup --dir <project>` only when requested; initialization is not required for generation. Use `doctor` for connection problems, not before every request. When the user provides an API key in chat for setup or replacement, configure it directly with `auth use-key --key-stdin`, feeding the value through process stdin, then run `doctor` using the saved credential. Do not require the user to re-enter it in a terminal or ask for confirmation again. Later commands use the saved key automatically; replacement overwrites the same profile key. A key explicitly limited to temporary testing stays in process injection. Do not echo keys or put them in project files, Skill text or Git. If OS credential storage is unavailable, use process injection and report that persistence is unavailable.
+Use `node <project>/.wowidea/runtime/dist/cli.js` for creation and `node <project>/.wowidea/runtime/dist/canvas-cli.js` for complete Canvas control. Before the first generation in a directory, run `project setup --dir <project> --name <name>` and retain its `.wowidea/canvas.json` binding. Existing bindings are verified and reused by ID; never guess by name. Use `project canvas show|verify|bind|switch` for explicit binding changes.
+
+The API key is only for model discovery, pricing and explicit `--direct`. Canvas uses its own scoped OAuth login at `https://wowidea.top/api`; tokens belong only in the OS credential manager or process environment. Never echo credentials or put them in project files, Skill text, logs or Git. If keytar is unavailable, use process environment injection and do not create a plaintext token file.
 
 Use `models list --type image|video` and `models show <model>` for current website capabilities. When model selection is needed, `models route --kind image|video --purpose <purpose> --stage preview|final|edit|refine` returns suitable settings. Explicit settings take precedence. Image final output defaults to supported 4K; choose video specifications appropriate to the requested stage. Do not add a separate paid preview to a request for final output.
 
@@ -31,7 +33,7 @@ Read only the selected model's prompt guide:
 
 For images read [image parameters](references/image-parameters.md). Inspect local references and keep roles/order; the CLI uploads them and checks accessibility. Use `--reference` for images, `--video-reference` for videos and `--audio-reference` for audio, repeating options in order. Advanced combinations use [reference planning](references/reference-planning.md) and UTF-8 request JSON.
 
-## Submit once
+## Create on Canvas and submit once
 
 Common commands (replace values with the user's request):
 
@@ -43,10 +45,12 @@ wowidea video generate --prompt "Camera slowly approaches a ceramic cup" --model
 
 Use direct generation options OR `--file request.json`, never both. Other supported JSON parameters remain available through the file interface. Request keys and local records are automatic; default execution waits and downloads. Retain the process handle until it exits. Use `--no-wait` only when asynchronous submission is useful, then track the returned task.
 
-One candidate per request by default. Keep `watermark:false` for video. No automatic reroll, model switch or second generation after a failure. If interrupted, use `tasks resume <returned-key> --wait`, or image/video status and download with a known task ID. An uncertain submission must not be guessed from nearby account tasks. An explicitly requested new identical generation uses `--allow-reroll`. See [recovery](references/workflow.md) when needed.
+The default flow reads the binding, queries `node-types describe`, `node options` and `node inputs`, creates visible local-reference nodes, binds the declared slots, configures a new generation node, and executes that node once. Results remain attached to the node and are also downloaded. Edits are non-destructive chains. Use `--direct` only when the user explicitly requests the legacy non-Canvas interface.
+
+One candidate per request by default. Keep `watermark:false` for video. No automatic reroll, model switch or second generation after a failure. Canvas request records preserve the exact project, node, request and task IDs; resume only that task through `easyai-canvas run status|events PROJECT TASK`. An explicitly requested new identical generation uses `--allow-reroll`. See [recovery](references/workflow.md) when needed.
 
 ## Deliver
 
 Open actual output before judging quality; see [visual review](references/visual-review.md). Return local media, status and available task pricing. Unknown billing is “接口未提供”, not zero. Preserve the original in edits; use it as an actual reference and optionally record `--parent <taskId> --change <summary>`. Records under `.wowidea/runs` support continuity but require no manual maintenance.
 
-For complex multi-round work read [project workflow](references/project-workflow.md); for explicit stage work read [VJ recipes](references/vj-recipes.md). These are not prerequisites for ordinary requests. Canvas operations, account administration, publication and Git changes require their own matching user request.
+For complex multi-round work read [project workflow](references/project-workflow.md); for explicit stage work read [VJ recipes](references/vj-recipes.md). For graph editing, groups, templates, assets or collaboration, use the bundled `canvas-agent-operator` Skill. Account administration, publication and Git changes require their own matching user request.

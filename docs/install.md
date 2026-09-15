@@ -93,13 +93,13 @@ wowidea --json tasks remote --page 1 --page-size 20
 
 ## 更新与保留
 
-安装器从当前包发现全部 Skill 入口并安装，包括 `wowidea`、兼容入口 `easyai` 和 `$gpt-image-25-prompt`，默认保留用户修改与账号状态；新旧冲突文件进入配置目录 `skill-updates` 等待合并。CLI 命令仍为 `wowidea`、`easyai`、`easyai-canvas`，不会覆盖你原装的 Flova、H3、Seedance 或 GRSAI 工具。升级后在新对话中使用新 Skill，是否即时刷新由宿主决定。
+安装器从当前包发现并安装 `wowidea`、`easyai`、`gpt-image-25-prompt` 和官方 `canvas-agent-operator` 四个 Skill，默认保留用户修改与账号状态；新旧冲突文件进入配置目录 `skill-updates` 等待合并。`easyai-canvas` 使用独立入口和 scoped OAuth，令牌只写系统凭据库。
 
 维护者更新来源摘要、许可与资源链接后运行 `npm run resources:lock`，再运行 `npm run check`、Skill 校验与实际 `npm run package:smoke -- <tgz>`。不得在运行时自动同步上游；当前资料只保留最终说明，源代码历史仍可通过 Git 查询。
 
 ## 卸载
 
-`npm uninstall -g @easyai/cli` 删除三个 CLI 命令。需要移除 Skill 时，让 Codex 只删除实际安装目录中安装记录 `installedSkills` 列出的本包目录，并先保留自定义修改。凭据和任务索引默认不删除；撤销账号 Key 是独立操作，需用户明确要求。
+`npm uninstall -g @easyai/cli` 删除三个 CLI 命令。需要移除 Skill 时，只删除安装记录 `installedSkills` 列出的本包目录，并先保留自定义修改。API Key、Canvas OAuth 会话和任务索引默认不删除；撤销凭据是独立操作。
 
 ## 开发与验证
 

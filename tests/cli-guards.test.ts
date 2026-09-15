@@ -34,8 +34,8 @@ describe("CLI gates with a mock website", () => {
     const dir = await mkdtemp(join(tmpdir(), "wowidea-cost-cli-")); dirs.push(dir);
     const env = { EASYAI_CONFIG_DIR: dir, EASYAI_API_KEY: "mock-account-key", EASYAI_BASE_URL: `http://127.0.0.1:${(server.address() as any).port}` };
     try {
-      let args = ["--json", "image", "generate", "--data", '{"prompt":"poster"}', "--idempotency-key", "one"];
-      if (kind === "minimax") args = ["--json", "video", "generate", "--data", JSON.stringify({ model: "MiniMax-H3", prompt: "product", duration: 9, resolution: "720p", aspect_ratio: "16:9", audio: false }), "--idempotency-key", "one"];
+      let args = ["--json", "image", "generate", "--direct", "--data", '{"prompt":"poster"}', "--idempotency-key", "one"];
+      if (kind === "minimax") args = ["--json", "video", "generate", "--direct", "--data", JSON.stringify({ model: "MiniMax-H3", prompt: "product", duration: 9, resolution: "720p", aspect_ratio: "16:9", audio: false }), "--idempotency-key", "one"];
       if (kind === "video") {
         const manifest = join(dir, "manifest.json"), request = join(dir, "request.json"), storyboard = join(dir, "shot.png");
         await writeFile(storyboard, "mock storyboard bytes");
@@ -43,7 +43,7 @@ describe("CLI gates with a mock website", () => {
         expect((await run(["seedance", "payload", manifest, "--file", request], env)).code).toBe(0);
         expect((await run(["video", "preflight", "--file", request], env)).code).toBe(0);
         expect((await run(["seedance", "approve", manifest, "--confirmation", "I APPROVE STORYBOARD"], env)).code).toBe(0);
-        args = ["--json", "video", "generate", "--manifest", manifest, "--idempotency-key", "one"];
+        args = ["--json", "video", "generate", "--direct", "--manifest", manifest, "--idempotency-key", "one"];
       }
       args.push("--no-wait");
       const result = await run(args, env); expect(result.code, result.err).toBe(code);
@@ -55,11 +55,11 @@ describe("CLI gates with a mock website", () => {
       } else expect(result.err).not.toContain("200");
     } finally { await new Promise<void>(r => server.close(() => r())); }
   });
-  it("does not require a manifest before contacting the website", async () => {
+  it("requires an approved manifest for Seedance before contacting the website", async () => {
     for (const kind of ["video", "image"]) {
       const args = [kind, "generate", "--data", JSON.stringify({ model: "doubao-seedance-2-5-260628" }), "--idempotency-key", "key"];
       const result = await run(args, { EASYAI_BASE_URL: "http://127.0.0.1:1", EASYAI_API_KEY: "test" });
-      expect(result.code).toBe(5); expect(result.err).not.toContain("manifest");
+      expect(result.code).toBe(6); expect(result.err).toContain("manifest");
     }
   });
   it("keeps one POST across real CLI process restart and uncertain recovery", async () => {
@@ -76,7 +76,7 @@ describe("CLI gates with a mock website", () => {
     const dir = await mkdtemp(join(tmpdir(), "wowidea-process-test-")); dirs.push(dir);
     const env = { EASYAI_CONFIG_DIR: dir, EASYAI_API_KEY: "mock-account-key", EASYAI_BASE_URL: `http://127.0.0.1:${(server.address() as any).port}` };
     try {
-      const args = ["--json", "image", "generate", "--data", '{"prompt":"poster"}', "--idempotency-key", "single-request"];
+      const args = ["--json", "image", "generate", "--direct", "--data", '{"prompt":"poster"}', "--idempotency-key", "single-request"];
       expect((await run(args, env)).code).toBe(5);
       expect((await run(args, env)).code).toBe(5);
       expect((await run(["tasks", "resume", "single-request"], env)).err).toContain("uncertain");
@@ -104,7 +104,7 @@ describe("CLI gates with a mock website", () => {
     const outputDir = join(dir, "outputs");
     const env = { EASYAI_CONFIG_DIR: join(dir, "config"), EASYAI_API_KEY: "mock-account-key", EASYAI_BASE_URL: `http://127.0.0.1:${(server.address() as any).port}` };
     try {
-      const result = await run(["--json", "image", "generate", "--data", '{"prompt":"poster"}', "--idempotency-key", "download-once", "--dir", outputDir], env);
+      const result = await run(["--json", "image", "generate", "--direct", "--data", '{"prompt":"poster"}', "--idempotency-key", "download-once", "--dir", outputDir], env);
       expect(result.code, result.err).toBe(0);
       const data = JSON.parse(result.out).data;
       expect(data).toMatchObject({ taskId: "image-job", status: "succeeded" });
@@ -132,7 +132,7 @@ describe("CLI gates with a mock website", () => {
     const dir = await mkdtemp(join(tmpdir(), "wowidea-delayed-result-")); dirs.push(dir);
     const env = { EASYAI_CONFIG_DIR: join(dir, "config"), EASYAI_API_KEY: "mock-account-key", EASYAI_BASE_URL: `http://127.0.0.1:${(server.address() as any).port}` };
     try {
-      const result = await run(["--json", "image", "generate", "--data", '{"prompt":"poster"}', "--idempotency-key", "delayed-result", "--dir", join(dir, "out")], env);
+      const result = await run(["--json", "image", "generate", "--direct", "--data", '{"prompt":"poster"}', "--idempotency-key", "delayed-result", "--dir", join(dir, "out")], env);
       expect(result.code, result.err).toBe(0); expect(JSON.parse(result.out).data.paths).toHaveLength(1);
       expect(posts).toBe(1); expect(taskReads).toBe(2);
     } finally { await new Promise<void>(r => server.close(() => r())); }

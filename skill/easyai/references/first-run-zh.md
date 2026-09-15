@@ -1,3 +1,3 @@
 # First run
 
-Reply in the user's language. Verify wowidea --help, auth status, models route --kind image, balance and tasks list. Do not generate paid media to verify installation. Use hidden local key input when needed. See [execution](../../wowidea/references/workflow.md).
+Reply in the user's language. Verify both `wowidea --help` and `easyai-canvas --version`. Configure the API key, complete Canvas OAuth login, then run `wowidea project setup --dir <dir> --name <name>`. Verify the binding and read-only Canvas state without generating paid media. See [execution](../../wowidea/references/workflow.md).

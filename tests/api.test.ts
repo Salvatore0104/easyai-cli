@@ -7,6 +7,7 @@ import { EasyAiApi, downloadUrls, findUrls } from "../src/api.js";
 describe("API client", () => {
   it("downloads only output media, never input references or arbitrary URLs", () => {
     expect(findUrls({ input: { image_urls: ["https://input.test/a.png"] }, reference: "https://input.test/b.png", data: { task: { result: { images: [{ url: "https://output.test/a.png" }], last_frame_url: "https://output.test/tail.png" } } } })).toEqual(["https://output.test/a.png", "https://output.test/tail.png"]);
+    expect(findUrls({ nodeDataPatch: { imageResultUrls: ["https://output.test/canvas.png"] }, outputs: { out: { payload: { items: [{ url: "https://output.test/canvas-2.png" }] } } } })).toEqual(["https://output.test/canvas.png", "https://output.test/canvas-2.png"]);
   });
   afterEach(() => vi.unstubAllGlobals());
 

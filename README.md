@@ -1,6 +1,6 @@
 # Wowidea：Codex 驱动的视觉创作 Agent
 
-通过网站账号生成图片和视频，默认自动等待并下载。安装 Skill 后可直接描述需求；需要固定项目规则时再初始化项目。命令名 `wowidea`，兼容 `easyai` 与 `easyai-canvas`。
+通过网站账号在无限画布中生成图片和视频，默认保留节点链、等待完成并下载。`wowidea` 与 `easyai` 是创作入口，`easyai-canvas` 是官方完整画布控制入口。
 
 ## 日常使用
 
@@ -10,7 +10,7 @@ wowidea image edit --prompt "只把背景改成绿色" --reference ./product.png
 wowidea video generate --prompt "镜头缓慢靠近陶瓷杯" --model "Wan3.0-Video" --duration 5 --resolution 480p --ratio 16:9 --no-audio
 ```
 
-默认自动保存请求标识、等待完成并下载。无需初始化项目、手写请求文件或分镜；网站负责平台冗余。直接参数与 `--file` 二选一。中断后使用 `wowidea tasks resume <返回的key> --wait`，明确需要再生成一份时添加 `--allow-reroll`。连接诊断使用 `wowidea doctor`。
+生成前先运行一次 `wowidea project setup --dir <项目目录> --name <画布名称>`，创建并绑定同名远端画布。以后生成会创建新的非破坏式节点链、自动保存请求标识、等待并下载；网站负责平台冗余。直接参数与 `--file` 二选一。只有明确需要旧接口时才添加 `--direct`。完整画布操作使用 `easyai-canvas`。
 
 ## 安装
 
@@ -40,11 +40,12 @@ Windows PowerShell：
 irm https://raw.githubusercontent.com/Salvatore0104/wowidea-cli/master/scripts/install-windows.ps1 | iex
 ```
 
-安装后在自己的交互终端输入账号 API Key（隐藏输入，保存到系统凭据库）：
+普通模型目录和估价使用账号 API Key；无限画布另用 scoped OAuth，会话令牌只存系统凭据库：
 
 ```text
 wowidea auth use-key --prompt
 wowidea --json auth status
+easyai-canvas auth login --base-url https://wowidea.top/api --method password --account <账号> --password-stdin
 ```
 
 手动安装、密钥与安全规则、服务地址、安装内容、更新、卸载、开发验证和退出码见 **[安装与维护](docs/install.md)**。
@@ -53,9 +54,9 @@ wowidea --json auth status
 
 第一次在新项目中使用时，把下面这段发给 Codex：
 
-> 请将当前文件夹初始化为 Wowidea 创作项目，将所需的 CLI、Skill 和项目规则保存到当前项目。以后本项目的图片、视频生成、修改和生成任务提交默认使用 Wowidea，无需我重复调用 /wowidea。根据用途、模型能力和网站定价自动选择合适方案，兼顾质量、经济性与效率。用途或测试、成片阶段不明确时先简短询问，我明确指定的模型和规格优先。图片优先高质量，正式输出默认 4K；视频先按需要测试，确定方向后再出高清成片。所有模型自动审查参数后继续；Seedance 可直接生成，分镜和 manifest 仅为可选工具，并固定 watermark:false。每轮默认一个候选，保留原版和修改记录，不自动重复付费生成。
+> 请将当前文件夹初始化为 Wowidea 创作项目并绑定同名无限画布。以后图片、视频生成和修改默认在该画布创建节点链，结果保留在画布并下载；只有我明确指定 --direct 时才走旧接口。Seedance 继续遵守本项目的分镜审批和 watermark:false 门禁。每轮一个候选，不自动重复付费生成。
 
-Codex 会执行 `wowidea project setup --dir <项目目录>`：把固定版本的 CLI 写入 `.wowidea/runtime`，把 Wowidea 与 GPT Image 2.5 提示词润色 Skill 写入 `.agents/skills`，并在 `AGENTS.md`（已存在 `AGENTS.override.md` 时用后者）维护一段可重复更新的 Wowidea 规则。重复初始化不会覆盖你的文件、偏好和历史记录。
+Codex 会执行 `wowidea project setup --dir <项目目录>`：创建 `.wowidea/canvas.json` 绑定，写入两个固定运行时入口，并安装 Wowidea、EasyAI、GPT Image 2.5 和官方 Canvas Operator Skill。绑定只保存项目 ID 和 profile 等非敏感信息。
 
 之后从该项目启动的任务会自动发现这些规则，直接用自然语言提出需求即可：
 
@@ -65,7 +66,7 @@ Codex 会执行 `wowidea project setup --dir <项目目录>`：把固定版本�
 继续查看刚才的视频任务，下载成片
 ```
 
-也可以显式写 `$wowidea ……` 或“使用 wowidea ……”。无需每次重复安装、重新提供 Key 或指定 Skill 路径；项目内生成默认记录到 `.wowidea/runs`，修改会生成新版本而不覆盖原版。
+也可以显式写 `$wowidea ……` 或“使用 wowidea ……”。项目内画布执行记录在 `.wowidea/canvas-runs`，修改会创建来源连接和新节点，不覆盖原版。
 
 ## 更多文档
 
