@@ -54,7 +54,7 @@ easyai-canvas auth login --base-url https://wowidea.top/api --method password --
 
 第一次在新项目中使用时，把下面这段发给 Codex：
 
-> 请将当前文件夹初始化为 Wowidea 创作项目并绑定同名无限画布。先检查本机 Canvas 登录：如果尚未登录，请完成一次 Canvas OAuth 登录并将会话保存到系统凭据库；如果已有有效会话，直接复用，不要重复登录。以后图片、视频生成和修改默认在该画布创建节点链，结果保留在画布并下载；交付时在 Codex 右侧打开画布并给出完整地址，不弹出外部网页。只有我明确指定 --direct 时才走旧接口。Seedance 继续遵守本项目的分镜审批和 watermark:false 门禁。每轮一个候选，不自动重复付费生成。画布修改仅通过 CLI/API 完成，不使用 Computer Use。
+> 请将当前文件夹初始化为 Wowidea 创作项目并绑定同名无限画布。先检查本机 Canvas 登录：如果尚未登录，请完成一次 Canvas OAuth 登录并将会话保存到系统凭据库；如果已有有效会话，直接复用，不要重复登录。以后本项目的图片、视频生成、修改和任务提交默认使用 Wowidea，无需我重复调用 /wowidea；内容默认在该画布创建节点链，结果保留在画布并下载。根据用途、模型实时能力和网站估价选择合适方案，兼顾质量、费用与效率；用途或测试、成片阶段不明确且会影响选择时先简短询问，我明确指定的模型和规格优先。不要为了正式成片自动增加付费测试。交付时在 Codex 右侧打开画布并给出完整地址，不弹出外部网页。只有我明确指定 --direct 时才走旧接口。Seedance 继续遵守本项目的分镜审批和 watermark:false 门禁。每轮一个候选，不自动重复付费生成。画布修改仅通过 CLI/API 完成，不使用 Computer Use。
 
 Codex 会执行 `wowidea project setup --dir <项目目录>`：创建 `.wowidea/canvas.json` 绑定，写入两个固定运行时入口，并安装 Wowidea、EasyAI、GPT Image 2.5 和官方 Canvas Operator Skill。绑定只保存项目 ID 和 profile 等非敏感信息。
 
