@@ -26,6 +26,8 @@ The CLI discovers the frontend from the server's public client-auth configuratio
 
 In the Wowidea wrapper, non-sensitive profile metadata is stored under the EasyAI user configuration directory with restrictive permissions and atomic updates. Access and refresh tokens are stored only through keytar in the operating-system credential manager. Environment token overrides are process-only and are never persisted; if keytar is unavailable, login fails instead of writing a plaintext token file.
 
+The wrapper records the most recently used profile as the active profile. Later commands reuse it automatically when `--profile` is omitted, including refresh-token rotation back into the same credential-manager entry. Login is required again only after server-side revocation or expiry that cannot be refreshed, or when the user explicitly changes accounts.
+
 ## Skill distribution
 
 ```powershell

@@ -58,6 +58,8 @@ easyai-canvas auth login --base-url https://wowidea.top/api --method password --
 
 Codex 会执行 `wowidea project setup --dir <项目目录>`：创建 `.wowidea/canvas.json` 绑定，写入两个固定运行时入口，并安装 Wowidea、EasyAI、GPT Image 2.5 和官方 Canvas Operator Skill。绑定只保存项目 ID 和 profile 等非敏感信息。
 
+Canvas OAuth 只需在首次初始化时登录。CLI 会在系统凭据库中持续保存并自动刷新会话，后续命令无需再次登录或重复指定 profile。需要在 Codex 中查看画布时，`wowidea project canvas open --dir <项目目录>` 返回画布地址，由 Codex 打开在右侧浏览器面板，不弹出外部浏览器；Agent 对画布的修改仍全部通过 CLI/API 完成。
+
 之后从该项目启动的任务会自动发现这些规则，直接用自然语言提出需求即可：
 
 ```text

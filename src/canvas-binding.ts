@@ -17,6 +17,7 @@ export interface CanvasBinding {
 }
 
 export function canvasBindingPath(directory: string): string { return join(resolve(directory), ".wowidea", "canvas.json"); }
+export function canvasProjectUrl(id: string): string { return `https://wowidea.top/ai/canvas/${encodeURIComponent(id)}`; }
 export async function readCanvasBinding(directory: string): Promise<CanvasBinding> {
   try {
     const value = JSON.parse(await readFile(canvasBindingPath(directory), "utf8"));

@@ -25,12 +25,12 @@ import { autoRoute, applyPlatformEstimates } from './routing.js';
 import { normalizeRequest } from './request-normalization.js';
 import { prepareReferences, uploadMedia, writeRun, refreshRun, referenceIdentity, runFile } from './media.js';
 import { mediaInput } from './media-input.js';
-import { bindCanvasProject, ensureCanvasBinding, readCanvasBinding, verifyCanvasBinding } from './canvas-binding.js';
+import { bindCanvasProject, canvasProjectUrl, ensureCanvasBinding, readCanvasBinding, verifyCanvasBinding } from './canvas-binding.js';
 import { generateOnCanvas } from './canvas-generation.js';
 
 interface GlobalOptions extends OutputOptions { profile?: string; canvasProfile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.7.1")
+program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.7.2")
   .option("--profile <name>", "configuration profile")
   .option("--canvas-profile <name>", "separate Canvas OAuth profile")
   .option("--base-url <url>", "EasyAI server URL")
@@ -84,8 +84,9 @@ localProject.command("validate").option("--dir <path>", "programme directory", "
 localProject.command("record").requiredOption("--file <path>", "creation JSON").option("--dir <path>", "programme directory", ".").action(async (o, c) => output(await recordCreation(o.dir, await jsonInput(o)), c));
 localProject.command('setup').option('--dir <path>', 'project directory', '.').option('--name <name>', 'local and remote Canvas project name').option('--update', 'explicitly update managed runtime and unmodified skills').option('--no-canvas', 'install files without creating a remote Canvas binding').action(async (o,c) => output(await setupProject(o.dir, o.update, undefined, o.name, globals(c).canvasProfile, o.canvas),c));
 const projectCanvas = localProject.command('canvas').description('Show, verify, or explicitly replace this directory Canvas binding');
-projectCanvas.command('show').option('--dir <path>', 'project directory', '.').action(async(o,c)=>output(await readCanvasBinding(o.dir),c));
-projectCanvas.command('verify').option('--dir <path>', 'project directory', '.').action(async(o,c)=>output(await verifyCanvasBinding(o.dir,globals(c).canvasProfile),c));
+projectCanvas.command('show').option('--dir <path>', 'project directory', '.').action(async(o,c)=>{ const binding=await readCanvasBinding(o.dir); await output({...binding,canvasUrl:canvasProjectUrl(binding.projectId)},c); });
+projectCanvas.command('verify').option('--dir <path>', 'project directory', '.').action(async(o,c)=>{ const binding=await verifyCanvasBinding(o.dir,globals(c).canvasProfile); await output({...binding,canvasUrl:canvasProjectUrl(binding.projectId)},c); });
+projectCanvas.command('open').description('Return the bound Canvas URL for a Codex side panel; never launches a browser').option('--dir <path>', 'project directory', '.').action(async(o,c)=>{ const binding=await verifyCanvasBinding(o.dir,globals(c).canvasProfile); await output({projectId:binding.projectId,projectName:binding.projectName,canvasUrl:canvasProjectUrl(binding.projectId),presentation:'codex-right-sidebar'},c); });
 for (const action of ['bind','switch'] as const) projectCanvas.command(action).argument('<projectId>').option('--dir <path>', 'project directory', '.').action(async(id,o,c)=>output(await bindCanvasProject(o.dir,id,globals(c).canvasProfile || 'default',action==='switch'),c));
 const prices = program.command('prices');
 prices.command('sync').requiredOption('--url <https-url>', 'verified public wowidea.prices/v1 snapshot URL').action(async(o,c)=>output(await syncPrices(o.url),c));

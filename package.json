@@ -1,6 +1,6 @@
 {
   "name": "@easyai/cli",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Codex-driven visual design agent for images, brands, products, illustration, video and stage visuals",
   "type": "module",
   "bin": {

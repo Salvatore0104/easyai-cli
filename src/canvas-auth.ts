@@ -15,6 +15,8 @@ type Keytar = {
   deletePassword(service: string, account: string): Promise<boolean>;
 };
 
+type StoredCanvasConfig = CanvasCliConfig & { activeProfile?: string };
+
 async function keytar(required = true): Promise<Keytar | undefined> {
   try { return (await import("keytar")).default; }
   catch {
@@ -32,51 +34,72 @@ function stripTokens(profile: CanvasCliProfile): CanvasCliProfile {
 export class SecureCanvasAuthStore extends CanvasAuthStore {
   constructor() { super(metadataPath()); }
 
-  override async read(): Promise<CanvasCliConfig> {
+  override async read(): Promise<StoredCanvasConfig> {
     try {
       const parsed = JSON.parse(await readFile(metadataPath(), "utf8"));
-      return parsed && typeof parsed === "object" && parsed.profiles && typeof parsed.profiles === "object" ? parsed : { profiles: {} };
+      if (!parsed || typeof parsed !== "object" || !parsed.profiles || typeof parsed.profiles !== "object") return { profiles: {} };
+      const profiles = Object.fromEntries(Object.entries(parsed.profiles).map(([name, profile]) => [name, stripTokens(profile as CanvasCliProfile)]));
+      return { profiles, ...(typeof parsed.activeProfile === "string" ? { activeProfile: parsed.activeProfile } : {}) };
     } catch { return { profiles: {} }; }
   }
 
+  private resolveProfile(profile: string, config: StoredCanvasConfig): string {
+    if (profile !== "default") return profile;
+    if (config.activeProfile && config.profiles[config.activeProfile]) return config.activeProfile;
+    if (config.profiles.default) return profile;
+    const names = Object.keys(config.profiles);
+    return names.length === 1 ? names[0] || profile : profile;
+  }
+
   override async get(profile = "default"): Promise<CanvasCliProfile | undefined> {
-    const stored = (await this.read()).profiles[profile];
+    const config = await this.read();
+    const effectiveProfile = this.resolveProfile(profile, config);
+    const stored = config.profiles[effectiveProfile];
+    if (stored && config.activeProfile !== effectiveProfile) {
+      config.activeProfile = effectiveProfile;
+      await mkdir(configDir(), { recursive: true });
+      await writeJson(metadataPath(), config);
+    }
     const accessToken = process.env.EASYAI_CANVAS_ACCESS_TOKEN;
     const refreshToken = process.env.EASYAI_CANVAS_REFRESH_TOKEN;
     if (accessToken || refreshToken) return { baseUrl: canvasBaseUrl, ...stored, ...(accessToken ? { accessToken } : {}), ...(refreshToken ? { refreshToken } : {}) };
     const vault = await keytar(false);
     if (!stored && !vault) return undefined;
     const [access, refresh] = vault ? await Promise.all([
-      vault.getPassword(service, secretAccount(profile, "access")),
-      vault.getPassword(service, secretAccount(profile, "refresh")),
+      vault.getPassword(service, secretAccount(effectiveProfile, "access")),
+      vault.getPassword(service, secretAccount(effectiveProfile, "refresh")),
     ]) : [null, null];
     return { baseUrl: canvasBaseUrl, ...stored, ...(access ? { accessToken: access } : {}), ...(refresh ? { refreshToken: refresh } : {}) };
   }
 
   override async set(value: CanvasCliProfile, profile = "default"): Promise<void> {
     if (value.baseUrl && value.baseUrl.replace(/\/+$/, "") !== canvasBaseUrl) throw new CliError(`Canvas BaseURL is fixed to ${canvasBaseUrl}.`, ExitCode.Usage);
+    const config = await this.read();
+    const effectiveProfile = this.resolveProfile(profile, config);
     const hasEnvironmentOverride = Boolean(process.env.EASYAI_CANVAS_ACCESS_TOKEN || process.env.EASYAI_CANVAS_REFRESH_TOKEN);
     if ((value.accessToken || value.refreshToken) && !hasEnvironmentOverride) {
       const vault = await keytar(true);
       await Promise.all([
-        value.accessToken ? vault!.setPassword(service, secretAccount(profile, "access"), value.accessToken) : Promise.resolve(),
-        value.refreshToken ? vault!.setPassword(service, secretAccount(profile, "refresh"), value.refreshToken) : Promise.resolve(),
+        value.accessToken ? vault!.setPassword(service, secretAccount(effectiveProfile, "access"), value.accessToken) : Promise.resolve(),
+        value.refreshToken ? vault!.setPassword(service, secretAccount(effectiveProfile, "refresh"), value.refreshToken) : Promise.resolve(),
       ]);
     }
-    const config = await this.read();
-    config.profiles[profile] = { ...stripTokens(value), baseUrl: canvasBaseUrl, updatedAt: new Date().toISOString() };
+    config.profiles[effectiveProfile] = { ...stripTokens(value), baseUrl: canvasBaseUrl, updatedAt: new Date().toISOString() };
+    config.activeProfile = effectiveProfile;
     await mkdir(configDir(), { recursive: true });
     await writeJson(metadataPath(), config);
   }
 
   override async delete(profile = "default"): Promise<void> {
+    const config = await this.read();
+    const effectiveProfile = this.resolveProfile(profile, config);
     const vault = await keytar(false);
     if (vault) await Promise.all([
-      vault.deletePassword(service, secretAccount(profile, "access")),
-      vault.deletePassword(service, secretAccount(profile, "refresh")),
+      vault.deletePassword(service, secretAccount(effectiveProfile, "access")),
+      vault.deletePassword(service, secretAccount(effectiveProfile, "refresh")),
     ]);
-    const config = await this.read();
-    delete config.profiles[profile];
+    delete config.profiles[effectiveProfile];
+    if (config.activeProfile === effectiveProfile) config.activeProfile = Object.keys(config.profiles)[0];
     await mkdir(configDir(), { recursive: true });
     await writeJson(metadataPath(), config);
   }

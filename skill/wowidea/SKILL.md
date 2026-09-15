@@ -19,6 +19,8 @@ Use `node <project>/.wowidea/runtime/dist/cli.js` for creation and `node <projec
 
 The API key is only for model discovery, pricing and explicit `--direct`. Canvas uses its own scoped OAuth login at `https://wowidea.top/api`; tokens belong only in the OS credential manager or process environment. Never echo credentials or put them in project files, Skill text, logs or Git. If keytar is unavailable, use process environment injection and do not create a plaintext token file.
 
+Canvas login is a one-time initialization step. The wrapper stores the active profile as non-sensitive metadata, retrieves access and refresh tokens from the OS credential manager, and refreshes the same session automatically. Do not ask the user to log in again unless the saved session was revoked or the user explicitly requests an account change.
+
 Use `models list --type image|video` and `models show <model>` for current website capabilities. When model selection is needed, `models route --kind image|video --purpose <purpose> --stage preview|final|edit|refine` returns suitable settings. Explicit settings take precedence. Image final output defaults to supported 4K; choose video specifications appropriate to the requested stage. Do not add a separate paid preview to a request for final output.
 
 Read only the selected model's prompt guide:
@@ -56,3 +58,5 @@ One candidate per request by default. Keep `watermark:false` for video. No autom
 Open actual output before judging quality; see [visual review](references/visual-review.md). Return local media, status and available task pricing. Unknown billing is “接口未提供”, not zero. Preserve the original in edits; use it as an actual reference and optionally record `--parent <taskId> --change <summary>`. Records under `.wowidea/runs` support continuity but require no manual maintenance.
 
 For complex multi-round work read [project workflow](references/project-workflow.md); for explicit stage work read [VJ recipes](references/vj-recipes.md). For graph editing, groups, templates, assets or collaboration, use the bundled `canvas-agent-operator` Skill. Account administration, publication and Git changes require their own matching user request.
+
+When the user asks to open or show the bound Canvas in Codex, run `wowidea project canvas open --dir <project>` and pass the returned `canvasUrl` to Codex's browser panel with right-side placement. Do not call `easyai-canvas project open`, because it launches an external browser. The panel is for the user's live view and manual interaction; Agent mutations still use the CLI/API and appear there through Canvas collaboration updates.

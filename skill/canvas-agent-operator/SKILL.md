@@ -9,6 +9,8 @@ Use `easyai-canvas` through the available terminal tool. The terminal working di
 
 Use only the CLI and its HTTP/WebSocket protocol for Canvas control. Never use Computer Use, browser automation, or manual website interaction to create, modify, connect, execute, or inspect Canvas state. An authentication or API failure must remain a CLI diagnostic and recovery task; it never authorizes a UI fallback. `project open` may navigate to a project for the user, but the Agent must not operate that page.
 
+In Codex, show a Wowidea-bound Canvas with `wowidea project canvas open --dir PROJECT_DIR`, then send its `canvasUrl` to the Codex browser panel with right-side placement. Do not run `easyai-canvas project open` in that flow because it launches an external browser. The user may interact with the embedded panel directly; Agent operations remain CLI-only.
+
 ## Select the runtime mode
 
 - **Desktop embedded Canvas:** injected context identifies a Desktop Canvas page. The CLI, current page, API BaseURL, and delegated login are already provided. Never install the CLI, run `auth login`, request credentials, or inspect/expose broker environment values. A project is implicitly bound only after the user has entered one.
