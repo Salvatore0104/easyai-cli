@@ -20,9 +20,9 @@ wowidea video generate --prompt "镜头缓慢靠近陶瓷杯" --model "Wan3.0-Vi
 
 将下面的 `sk-你的Key` 替换为刚复制的 Key，再把整段发给 Codex：
 
-> 帮我安装 https://github.com/Salvatore0104/wowidea-cli 的 CLI 和 wowidea Skill。我的账号 API Key 是 sk-你的Key，请直接用它完成认证（wowidea auth use-key），不要走浏览器登录。安装后运行 doctor，验证模型、余额和任务查询，并告诉我怎么在项目里持续使用。
+> 帮我安装 https://github.com/Salvatore0104/wowidea-cli 的 CLI 和随包 Skill。我的账号 API Key 是 sk-你的Key，请通过标准输入配置到 wowidea，并运行 doctor 验证模型、余额和任务查询。无限画布另需 Canvas OAuth：先检查本机是否已有有效会话；如果没有，请引导我完成一次浏览器 OAuth 授权（无法使用浏览器时可选择设备授权，或在我提供账号密码后用 --password-stdin 登录）。验证 easyai-canvas auth status 后，告诉我如何初始化项目并持续使用。不要在项目或日志中保存凭据，也不要替我打开网页操作画布。
 
-Codex 会构建并安装 CLI 与随包 Skill，接收你在聊天中提供的 Key，通过 `auth use-key --key-stdin` 直接保存到系统凭据库，随后运行 `doctor` 验证连接。后续调用自动使用已保存的 Key；换 Key 时直接发给 Codex 更新即可。
+Codex 会构建并安装 CLI 与随包 Skill，接收你在聊天中提供的 Key，通过 `auth use-key --key-stdin` 保存到系统凭据库，随后运行 `doctor` 验证普通只读接口。Canvas OAuth 独立于 API Key：首次在本机使用时完成一次授权并用 `easyai-canvas auth status` 在线验证；已有有效会话就直接复用。后续调用自动使用已保存的 Key 和 Canvas 会话；换 Key 或账号时再明确更新。
 
 ### 方式二：自己运行安装脚本
 

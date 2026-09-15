@@ -8,9 +8,9 @@
 
 把下面这段发给 Codex：
 
-> 帮我安装 https://github.com/Salvatore0104/wowidea-cli 的 CLI 和 wowidea Skill，我会在聊天中提供 API Key，请直接帮我配置并运行 doctor。
+> 帮我安装 https://github.com/Salvatore0104/wowidea-cli 的 CLI 和随包 Skill。我会在聊天中提供 API Key，请通过标准输入配置并运行 doctor。再检查 Canvas OAuth 会话；如果没有有效会话，帮助我完成一次浏览器授权（或我明确选择的设备/密码登录），用 easyai-canvas auth status 在线验证。后续复用已保存的会话，不重复登录。
 
-Codex 会构建并安装 CLI 和 Skill。你可直接在聊天中提供用于配置的 Key，Codex 通过标准输入调用 `wowidea auth use-key --key-stdin` 保存到系统凭据库，再运行 doctor；无需你额外操作终端。更换 Key 时重复此流程即可覆盖旧值。
+Codex 会构建并安装 CLI 和 Skill。你可直接在聊天中提供用于配置的 Key，Codex 通过标准输入调用 `wowidea auth use-key --key-stdin` 保存到系统凭据库，再运行 doctor；无需你额外操作终端。doctor 只验证 API Key 的只读接口；无限画布另用 Canvas OAuth，需要在线检查 `easyai-canvas auth status`。浏览器 OAuth 是首次登录的一种方式，登录后会话在系统凭据库中复用。更换 Key 时重复配置流程即可覆盖旧值。
 
 ## 环境要求
 
@@ -63,7 +63,7 @@ wowidea --json doctor
 - 无人值守时可安全注入 `EASYAI_API_KEY`，或用 `--api-key-stdin`。
 - 支持聊天提供 Key 并由 Codex 代配置；不回显 Key，不把它写进项目、Skill、记忆或 GitHub。
 - 凭据库不可用时会直接报错，不会回退到明文配置。
-- 账号 Key 是账号级自动化权限，可在网站立即撤销；CLI 不需要浏览器登录。
+- 账号 Key 是账号级自动化权限，可在网站立即撤销；使用 Key 的普通只读接口无需浏览器登录。无限画布使用独立 Canvas OAuth，首次登录可选择浏览器、设备或密码标准输入方式。
 
 ## 安装后自检
 
