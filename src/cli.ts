@@ -30,7 +30,7 @@ import { generateOnCanvas } from './canvas-generation.js';
 
 interface GlobalOptions extends OutputOptions { profile?: string; canvasProfile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.7.3")
+program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.7.4")
   .option("--profile <name>", "configuration profile")
   .option("--canvas-profile <name>", "separate Canvas OAuth profile")
   .option("--base-url <url>", "EasyAI server URL")

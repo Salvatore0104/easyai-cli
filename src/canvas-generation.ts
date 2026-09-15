@@ -5,7 +5,7 @@ import { basename, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { downloadUrls, findUrls, type EasyAiApi } from "./api.js";
 import { canvasClient, SecureCanvasAuthStore } from "./canvas-auth.js";
-import { readCanvasBinding, verifyCanvasBinding } from "./canvas-binding.js";
+import { canvasProjectUrl, readCanvasBinding, verifyCanvasBinding } from "./canvas-binding.js";
 import { creativeDefaults } from "./config.js";
 import { CliError, ExitCode } from "./errors.js";
 import { routeModel, validateCapabilities } from "./models.js";
@@ -147,8 +147,9 @@ async function waitTask(client: CanvasApiClient, projectId: string, id: string):
 }
 
 async function finishTask(client: CanvasApiClient, api: EasyAiApi, projectId: string, nodeId: string, id: string, outputDir: string, wait: boolean, expectedAspectRatio?: string): Promise<Json> {
+  const canvasUrl = canvasProjectUrl(projectId);
   const task = wait ? await waitTask(client, projectId, id) : await client.request<any>("GET", `/v1/canvas-workflow/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(id)}`);
-  if (!wait) return { projectId, nodeId, taskId: id, status: status(task), paths: [], task };
+  if (!wait) return { projectId, nodeId, taskId: id, canvasUrl, status: status(task), paths: [], task };
   const latest = await client.request<any>("GET", `/v1/canvas-workflow/projects/${encodeURIComponent(projectId)}/state`);
   const node = nodes(latest).find(row => String(row.id) === nodeId);
   const urls = [...new Set([...findUrls(task), ...findUrls(node)])];
@@ -156,7 +157,7 @@ async function finishTask(client: CanvasApiClient, api: EasyAiApi, projectId: st
   const innerId = mediaTaskId(task) || mediaTaskId(node);
   const mediaTask = innerId ? await api.get<any>(`/v1/tasks/${encodeURIComponent(innerId)}`).catch(() => undefined) : undefined;
   const accounted = await usageResult(api, mediaTask || task);
-  return { projectId, nodeId, taskId: id, mediaTaskId: innerId, status: status(task), paths, pointsUsage: accounted.pointsUsage, outputSpec: canvasOutputSpec(node, expectedAspectRatio), task, ...(mediaTask ? { mediaTask } : {}) };
+  return { projectId, nodeId, taskId: id, canvasUrl, mediaTaskId: innerId, status: status(task), paths, pointsUsage: accounted.pointsUsage, outputSpec: canvasOutputSpec(node, expectedAspectRatio), task, ...(mediaTask ? { mediaTask } : {}) };
 }
 
 export async function generateOnCanvas(input: { api: EasyAiApi; kind: MediaKind; action: "generate" | "edit"; payload: Json; projectDir: string; outputDir: string; profile?: string; wait: boolean; requestKey?: string }): Promise<Json> {
