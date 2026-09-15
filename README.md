@@ -54,11 +54,11 @@ easyai-canvas auth login --base-url https://wowidea.top/api --method password --
 
 第一次在新项目中使用时，把下面这段发给 Codex：
 
-> 请将当前文件夹初始化为 Wowidea 创作项目并绑定同名无限画布。以后图片、视频生成和修改默认在该画布创建节点链，结果保留在画布并下载；只有我明确指定 --direct 时才走旧接口。Seedance 继续遵守本项目的分镜审批和 watermark:false 门禁。每轮一个候选，不自动重复付费生成。
+> 请将当前文件夹初始化为 Wowidea 创作项目并绑定同名无限画布。先检查本机 Canvas 登录：如果尚未登录，请完成一次 Canvas OAuth 登录并将会话保存到系统凭据库；如果已有有效会话，直接复用，不要重复登录。以后图片、视频生成和修改默认在该画布创建节点链，结果保留在画布并下载；交付时在 Codex 右侧打开画布并给出完整地址，不弹出外部网页。只有我明确指定 --direct 时才走旧接口。Seedance 继续遵守本项目的分镜审批和 watermark:false 门禁。每轮一个候选，不自动重复付费生成。画布修改仅通过 CLI/API 完成，不使用 Computer Use。
 
 Codex 会执行 `wowidea project setup --dir <项目目录>`：创建 `.wowidea/canvas.json` 绑定，写入两个固定运行时入口，并安装 Wowidea、EasyAI、GPT Image 2.5 和官方 Canvas Operator Skill。绑定只保存项目 ID 和 profile 等非敏感信息。
 
-Canvas OAuth 只需在首次初始化时登录。CLI 会在系统凭据库中持续保存并自动刷新会话，后续命令无需再次登录或重复指定 profile。画布生成和编辑结果包含 `canvasUrl`；Codex Skill 在交付时默认将画布打开在右侧浏览器面板，并在最终回复给出完整画布地址。单独查看时可运行 `wowidea project canvas open --dir <项目目录>`。不会弹出外部浏览器；Agent 对画布的修改仍全部通过 CLI/API 完成。
+Canvas OAuth 是独立于账号 API Key 的画布认证，首次在本机使用时需要登录一次。CLI 将会话保存到系统凭据库并自动刷新；后续项目复用有效会话，无需再次登录或重复指定 profile。会话被撤销、刷新令牌失效或系统凭据库不可用时，CLI 会报告认证问题；前两种情况需要重新登录，凭据库不可用时只能使用进程级会话注入。画布生成和编辑结果包含 `canvasUrl`；Codex Skill 在交付时默认将画布打开在右侧浏览器面板，并在最终回复给出完整画布地址。单独查看时可运行 `wowidea project canvas open --dir <项目目录>`。不会弹出外部浏览器；Agent 对画布的修改仍全部通过 CLI/API 完成。
 
 之后从该项目启动的任务会自动发现这些规则，直接用自然语言提出需求即可：
 
