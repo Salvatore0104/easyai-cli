@@ -98,13 +98,15 @@ function referenceSlot(definition: any, type: "image" | "video" | "audio", kind:
   return found.slotId;
 }
 
-function canvasParameters(payload: Json, kind: MediaKind): Json {
+export function canvasParameters(payload: Json, kind: MediaKind): Json {
   const result: Json = { prompt: payload.prompt, model: payload.model };
   if (payload.aspect_ratio !== undefined) result.aspectRatio = payload.aspect_ratio;
   if (kind === "image") {
     if (payload.resolution !== undefined) result.size = payload.resolution;
     result.count = payload.n || payload.count || 1;
     const extras = { ...payload }; for (const key of ["prompt", "model", "aspect_ratio", "resolution", "n", "count", "image_urls", "video_urls", "audio_urls", "image"]) delete extras[key];
+    if (payload.aspect_ratio !== undefined) extras.aspect_ratio = payload.aspect_ratio;
+    if (payload.resolution !== undefined) extras.resolution = payload.resolution;
     if (Object.keys(extras).length) result.imageGenParams = extras;
   } else {
     if (payload.resolution !== undefined) result.resolution = payload.resolution;
@@ -114,6 +116,16 @@ function canvasParameters(payload: Json, kind: MediaKind): Json {
     if (Object.keys(extras).length) result.videoGenParams = extras;
   }
   return Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined));
+}
+
+export function canvasOutputSpec(node: any, expectedAspectRatio?: string): Json | undefined {
+  if (!expectedAspectRatio) return undefined;
+  const [expectedWidth, expectedHeight] = expectedAspectRatio.split(":").map(Number);
+  const expected = expectedWidth && expectedHeight ? expectedWidth / expectedHeight : undefined;
+  const sizes = Array.isArray(node?.data?.imageResultSizes) ? node.data.imageResultSizes.filter((item: any) => Number(item?.width) > 0 && Number(item?.height) > 0) : [];
+  if (!expected || !sizes.length) return { status: "unavailable", expectedAspectRatio, sizes };
+  const checked = sizes.map((item: any) => ({ width: Number(item.width), height: Number(item.height), actualAspectRatio: Number(item.width) / Number(item.height), matches: Math.abs(Number(item.width) / Number(item.height) - expected) / expected <= 0.02 }));
+  return { status: checked.every((item: any) => item.matches) ? "matched" : "mismatch", expectedAspectRatio, sizes: checked };
 }
 
 function optionValues(value: any): string[] {
@@ -134,7 +146,7 @@ async function waitTask(client: CanvasApiClient, projectId: string, id: string):
   throw new CliError(`Canvas task ${id} timed out. Resume this same task with easyai-canvas run status/events; no new execution was submitted.`, ExitCode.Service);
 }
 
-async function finishTask(client: CanvasApiClient, api: EasyAiApi, projectId: string, nodeId: string, id: string, outputDir: string, wait: boolean): Promise<Json> {
+async function finishTask(client: CanvasApiClient, api: EasyAiApi, projectId: string, nodeId: string, id: string, outputDir: string, wait: boolean, expectedAspectRatio?: string): Promise<Json> {
   const task = wait ? await waitTask(client, projectId, id) : await client.request<any>("GET", `/v1/canvas-workflow/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(id)}`);
   if (!wait) return { projectId, nodeId, taskId: id, status: status(task), paths: [], task };
   const latest = await client.request<any>("GET", `/v1/canvas-workflow/projects/${encodeURIComponent(projectId)}/state`);
@@ -144,7 +156,7 @@ async function finishTask(client: CanvasApiClient, api: EasyAiApi, projectId: st
   const innerId = mediaTaskId(task) || mediaTaskId(node);
   const mediaTask = innerId ? await api.get<any>(`/v1/tasks/${encodeURIComponent(innerId)}`).catch(() => undefined) : undefined;
   const accounted = await usageResult(api, mediaTask || task);
-  return { projectId, nodeId, taskId: id, mediaTaskId: innerId, status: status(task), paths, pointsUsage: accounted.pointsUsage, task, ...(mediaTask ? { mediaTask } : {}) };
+  return { projectId, nodeId, taskId: id, mediaTaskId: innerId, status: status(task), paths, pointsUsage: accounted.pointsUsage, outputSpec: canvasOutputSpec(node, expectedAspectRatio), task, ...(mediaTask ? { mediaTask } : {}) };
 }
 
 export async function generateOnCanvas(input: { api: EasyAiApi; kind: MediaKind; action: "generate" | "edit"; payload: Json; projectDir: string; outputDir: string; profile?: string; wait: boolean; requestKey?: string }): Promise<Json> {
@@ -176,7 +188,7 @@ export async function generateOnCanvas(input: { api: EasyAiApi; kind: MediaKind;
       if (exact.length === 1) { existing.taskId = taskId(exact[0]); await writeJson(recordPath, { ...existing, state: "recovered", updatedAt: new Date().toISOString() }); }
     }
     if (!existing.taskId || !existing.nodeId) throw new CliError(`Canvas request ${requestKey} has no confirmed task ID. Inspect request ${existing.requestId || "unknown"}; no new paid execution was submitted.`, ExitCode.Service);
-    const resumed = await finishTask(client, input.api, projectId, existing.nodeId, existing.taskId, input.outputDir, input.wait);
+    const resumed = await finishTask(client, input.api, projectId, existing.nodeId, existing.taskId, input.outputDir, input.wait, input.kind === "image" ? payload.aspect_ratio : undefined);
     await writeJson(recordPath, { ...existing, state: resumed.status, result: resumed, updatedAt: new Date().toISOString() });
     return { ...resumed, requestId: existing.requestId, requestKey, recordPath, resumed: true };
   }
@@ -215,7 +227,7 @@ export async function generateOnCanvas(input: { api: EasyAiApi; kind: MediaKind;
   const id = taskId(submitted);
   if (!id) throw new CliError("Canvas execution returned no task ID. Do not submit again; inspect the request ID.", ExitCode.Service);
   await writeJson(recordPath, { schemaVersion: "wowidea.canvas-run/v1", requestKey, requestHash, projectId, nodeId, sourceNodeIds: bindings.map(binding => binding.sourceNodeId), kind: input.kind, action: input.action, requestId, taskId: id, state: "submitted", createdAt: new Date().toISOString() });
-  const result = await finishTask(client, input.api, projectId, nodeId, id, input.outputDir, input.wait);
+  const result = await finishTask(client, input.api, projectId, nodeId, id, input.outputDir, input.wait, input.kind === "image" ? payload.aspect_ratio : undefined);
   const pricing = await platformEstimate(input.api, payload);
   await writeJson(recordPath, { schemaVersion: "wowidea.canvas-run/v1", requestKey, requestHash, projectId, nodeId, sourceNodeIds: bindings.map(binding => binding.sourceNodeId), kind: input.kind, action: input.action, requestId, taskId: id, state: result.status, result, pricing, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
   return { ...result, requestId, requestKey, recordPath, pricing, inputs };

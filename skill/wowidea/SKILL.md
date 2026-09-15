@@ -51,6 +51,8 @@ Use direct generation options OR `--file request.json`, never both. Other suppor
 
 The default flow reads the binding, queries `node-types describe`, `node options` and `node inputs`, creates visible local-reference nodes, binds the declared slots, configures a new generation node, and executes that node once. Results remain attached to the node and are also downloaded. Edits are non-destructive chains. Use `--direct` only when the user explicitly requests the legacy non-Canvas interface.
 
+For image nodes, preserve both Canvas UI fields (`aspectRatio`, `size`) and canonical media fields (`imageGenParams.aspect_ratio`, `imageGenParams.resolution`). After execution, compare `imageResultSizes` with the requested ratio. Treat `outputSpec.status: "mismatch"` as a specification failure, report it, and never claim that the requested ratio was delivered or submit an automatic retry.
+
 One candidate per request by default. Keep `watermark:false` for video. No automatic reroll, model switch or second generation after a failure. Canvas request records preserve the exact project, node, request and task IDs; resume only that task through `easyai-canvas run status|events PROJECT TASK`. An explicitly requested new identical generation uses `--allow-reroll`. See [recovery](references/workflow.md) when needed.
 
 ## Deliver

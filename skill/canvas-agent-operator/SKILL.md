@@ -91,6 +91,7 @@ easyai-canvas run canvas
   - `director-3d` → `media.director-3d`; `file` → `media.file`.
   - `canvas.asset-library` is managed only through `asset` and `portrait-asset`; never create it with `node add`.
 - Before the first write involving a non-media generation preset, call `node-types describe KIND` once and follow its current writable paths, options, ports, and reference protocol. Use `node-types list --compact` for plugin or unfamiliar node discovery.
+- For `media.image`, write requested output specifications in both protocol layers: `/aspectRatio` and `/size` for Canvas UI state, plus `/imageGenParams/aspect_ratio` and `/imageGenParams/resolution` for the media task. After execution, inspect `imageResultSizes`; a mismatched ratio is a failed specification and must not be reported as delivered or retried automatically.
 - A request for a storyboard script means `media.storyboard`, not a generic `media.text` generation node. Use `media.storyboard-preview` only to generate storyboard images, `media.storyboard-video-preview` for storyboard videos, and `media.storyboard-compose` for grid composition.
 - Use either `--preset` or `--kind`, never both.
 - Combine `--file`, `--stdin`, repeated `--set`, `--position`, and `--bind` when needed.
