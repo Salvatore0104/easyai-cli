@@ -18,9 +18,9 @@ wowidea video generate --prompt "镜头缓慢靠近陶瓷杯" --model "Wan3.0-Vi
 
 先在网站获取账号 Key：登录 [wowidea.top](https://wowidea.top) → 用户中心 → **API Key**（[wowidea.top/user/api-key](https://wowidea.top/user/api-key)）→ 新建并复制。
 
-然后让 Codex 安装 CLI，完成后在终端隐藏输入 Key：
+将下面的 `sk-你的Key` 替换为刚复制的 Key，再把整段发给 Codex：
 
-> 帮我安装 https://github.com/Salvatore0104/wowidea-cli 的 CLI 和 wowidea Skill。我会在聊天中提供 API Key，请直接帮我配置并运行 doctor 验证连接。
+> 帮我安装 https://github.com/Salvatore0104/wowidea-cli 的 CLI 和 wowidea Skill。我的账号 API Key 是 sk-你的Key，请直接用它完成认证（wowidea auth use-key），不要走浏览器登录。安装后运行 doctor，验证模型、余额和任务查询，并告诉我怎么在项目里持续使用。
 
 Codex 会构建并安装 CLI 与随包 Skill，接收你在聊天中提供的 Key，通过 `auth use-key --key-stdin` 直接保存到系统凭据库，随后运行 `doctor` 验证连接。后续调用自动使用已保存的 Key；换 Key 时直接发给 Codex 更新即可。
 
