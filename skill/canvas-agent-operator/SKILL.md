@@ -7,6 +7,8 @@ description: Operate an EasyAI infinite canvas through the easyai-canvas CLI in 
 
 Use `easyai-canvas` through the available terminal tool. The terminal working directory is not a Canvas project and must never be used to infer one.
 
+Use only the CLI and its HTTP/WebSocket protocol for Canvas control. Never use Computer Use, browser automation, or manual website interaction to create, modify, connect, execute, or inspect Canvas state. An authentication or API failure must remain a CLI diagnostic and recovery task; it never authorizes a UI fallback. `project open` may navigate to a project for the user, but the Agent must not operate that page.
+
 ## Select the runtime mode
 
 - **Desktop embedded Canvas:** injected context identifies a Desktop Canvas page. The CLI, current page, API BaseURL, and delegated login are already provided. Never install the CLI, run `auth login`, request credentials, or inspect/expose broker environment values. A project is implicitly bound only after the user has entered one.
@@ -37,7 +39,7 @@ easyai-canvas project create --name "新画布" --open
 easyai-canvas state PROJECT
 ```
 
-Use `--canvas-entry-url https://host.example/ai/canvas` only when a deployment has a separate frontend that the server does not advertise correctly. Opening a URL is navigation evidence, not visual acceptance; use an available browser capability if the user asks to verify rendered content.
+Use `--canvas-entry-url https://host.example/ai/canvas` only when a deployment has a separate frontend that the server does not advertise correctly. Opening a URL is navigation evidence, not visual acceptance. Report that rendered UI inspection is outside this CLI-only workflow.
 
 ## Fast path
 

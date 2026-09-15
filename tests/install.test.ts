@@ -16,6 +16,8 @@ describe("bundled Skill installer", () => {
       for (const name of first.installedSkills) {
         expect(await readFile(join(dir, "skills", name, "SKILL.md"), "utf8")).toBe(await readFile(resolve("skill", name, "SKILL.md"), "utf8"));
       }
+      expect(await readFile(join(dir, "skills", "wowidea", "SKILL.md"), "utf8")).toContain("Never use Computer Use");
+      expect(await readFile(join(dir, "skills", "canvas-agent-operator", "SKILL.md"), "utf8")).toContain("never authorizes a UI fallback");
       const config = join(dir, "config", "config.json"), skill = join(dir, "skills", "wowidea", "SKILL.md");
       await writeFile(config, '{"profiles":{"private":"keep unchanged"}}');
       const before = await readFile(config, "utf8");

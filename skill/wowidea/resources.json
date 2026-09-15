@@ -1,9 +1,9 @@
 {
   "schemaVersion": "wowidea.resources/v1",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "textNormalization": "UTF-8 with LF line endings; binary files hashed verbatim",
   "files": {
-    "canvas-agent-operator/SKILL.md": "29d9dc7813f15746e5d83228b70a26329a0528c6be32bd8d3f8d9b6b4c5d95f3",
+    "canvas-agent-operator/SKILL.md": "ced954d4886ac01743aa81e22057ce62b32affb4abccc8a19dce414cd4d1b184",
     "canvas-agent-operator/agents/openai.yaml": "4e33d14bd765398432ea9464d69ee3e19ef747b7af993efe8c2a87683920945b",
     "canvas-agent-operator/references/assets-and-portraits.md": "f516f7e2de4b5671904d3eacf3ea62382a8295fa02f4b1f1add7e08dc0e934a1",
     "canvas-agent-operator/references/authentication-and-installation.md": "3b4a1a42373e59137c9fe9659242d65aeb5b54b14cc28e6657fa6494225795b2",
@@ -18,7 +18,7 @@
     "easyai/references/seedance.md": "677c27977371f763e167552167ba9d4a29bc3bca2f75412bef6e93d898173825",
     "gpt-image-25-prompt/SKILL.md": "139ccc2f4bd046bd5accfe034b70f5f9f54c250b3dd946ad928ce0fbed80eade",
     "gpt-image-25-prompt/agents/openai.yaml": "3d672aeac3b044f7bd31c78b472a0499fa4c1774c8af649427faeb934ccf23b7",
-    "wowidea/SKILL.md": "b46ac262714df116cb9e06ec3683dad5d76341b68b63b6ce7dffd4436d7115e5",
+    "wowidea/SKILL.md": "593cde020a19ab2349ffca767d6cb11f24784227c505c21de3dfa43d25a9887f",
     "wowidea/agents/openai.yaml": "234234ee072c84bda01013083e5521d817d377d49e66234958c7c75c1ce72c7d",
     "wowidea/references/auto-routing.md": "0b6eab20cd818b62676421f67a4be00abdf2484ca63982d675ae18941a40aa74",
     "wowidea/references/creative-direction.md": "f9d34350af7750cd0d7b69a586609456e52196ab1ea23e0dc875ff8c8d91301c",

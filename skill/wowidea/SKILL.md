@@ -7,6 +7,8 @@ description: Generate and edit images and videos through the user's Wowidea webs
 
 Turn the user's request into a model node on the bound Wowidea infinite Canvas, execute it once, and return the downloaded output. Reply in the user's language. The website handles provider redundancy and failover; never call providers directly.
 
+Control Canvas only through the project CLI and its HTTP/WebSocket APIs. Never use Computer Use, browser automation, or manual website interaction as a fallback. If Canvas authentication, authorization, or an API command fails, report the exact CLI diagnostic and stop or repair the CLI session; do not continue the operation through the website UI.
+
 ## Understand the request
 
 Preserve the user's model, copy, references and output settings. Ask only when missing information materially changes the result. Prompt-only requests do not generate media. Seedance follows the active project's storyboard and approval gate; never bypass it through Canvas execution.
