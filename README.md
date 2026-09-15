@@ -20,9 +20,9 @@ wowidea video generate --prompt "镜头缓慢靠近陶瓷杯" --model "Wan3.0-Vi
 
 然后让 Codex 安装 CLI，完成后在终端隐藏输入 Key：
 
-> 帮我安装 https://github.com/Salvatore0104/easyai-cli 的 CLI 和 wowidea Skill。安装后指导我通过 `wowidea auth use-key --prompt` 隐藏输入 Key，再运行 doctor 验证连接。
+> 帮我安装 https://github.com/Salvatore0104/wowidea-cli 的 CLI 和 wowidea Skill。我会在聊天中提供 API Key，请直接帮我配置并运行 doctor 验证连接。
 
-Codex 会构建并安装 CLI 与随包 Skill。`auth use-key --prompt` 将 Key 保存到系统凭据库；`doctor` 验证网站只读接口，不进行付费生成。
+Codex 会构建并安装 CLI 与随包 Skill，接收你在聊天中提供的 Key，通过 `auth use-key --key-stdin` 直接保存到系统凭据库，随后运行 `doctor` 验证连接。后续调用自动使用已保存的 Key；换 Key 时直接发给 Codex 更新即可。
 
 ### 方式二：自己运行安装脚本
 
@@ -31,13 +31,13 @@ Codex 会构建并安装 CLI 与随包 Skill。`auth use-key --prompt` 将 Key �
 macOS：
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Salvatore0104/easyai-cli/master/scripts/install-macos.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Salvatore0104/wowidea-cli/master/scripts/install-macos.sh)"
 ```
 
 Windows PowerShell：
 
 ```powershell
-irm https://raw.githubusercontent.com/Salvatore0104/easyai-cli/master/scripts/install-windows.ps1 | iex
+irm https://raw.githubusercontent.com/Salvatore0104/wowidea-cli/master/scripts/install-windows.ps1 | iex
 ```
 
 安装后在自己的交互终端输入账号 API Key（隐藏输入，保存到系统凭据库）：

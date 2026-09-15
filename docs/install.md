@@ -8,9 +8,9 @@
 
 把下面这段发给 Codex：
 
-> 帮我安装 https://github.com/Salvatore0104/easyai-cli 的 CLI 和 wowidea Skill，随后指导我通过 `wowidea auth use-key --prompt` 隐藏输入 Key，并运行 doctor。
+> 帮我安装 https://github.com/Salvatore0104/wowidea-cli 的 CLI 和 wowidea Skill，我会在聊天中提供 API Key，请直接帮我配置并运行 doctor。
 
-Codex 会构建并安装 CLI 和 Skill。安装后通过终端隐藏输入或进程注入完成认证；不需要把 Key 写进安装消息或项目文件。
+Codex 会构建并安装 CLI 和 Skill。你可直接在聊天中提供用于配置的 Key，Codex 通过标准输入调用 `wowidea auth use-key --key-stdin` 保存到系统凭据库，再运行 doctor；无需你额外操作终端。更换 Key 时重复此流程即可覆盖旧值。
 
 ## 环境要求
 
@@ -23,19 +23,19 @@ Node.js 20+、npm 和 Git。npm 全局目录需当前用户可写，**不要**�
 macOS：
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Salvatore0104/easyai-cli/master/scripts/install-macos.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Salvatore0104/wowidea-cli/master/scripts/install-macos.sh)"
 ```
 
 Windows PowerShell：
 
 ```powershell
-irm https://raw.githubusercontent.com/Salvatore0104/easyai-cli/master/scripts/install-windows.ps1 | iex
+irm https://raw.githubusercontent.com/Salvatore0104/wowidea-cli/master/scripts/install-windows.ps1 | iex
 ```
 
 ## 手动安装（从源码）
 
 ```bash
-git clone --depth 1 --branch master https://github.com/Salvatore0104/easyai-cli.git wowidea-src
+git clone --depth 1 --branch master https://github.com/Salvatore0104/wowidea-cli.git wowidea-src
 cd wowidea-src
 npm ci
 npm run build
@@ -50,7 +50,9 @@ node "$(npm root -g)/@easyai/cli/scripts/install-skills.mjs"
 
 Key 在网站生成：登录 [wowidea.top](https://wowidea.top) → 用户中心 → **API Key**（[wowidea.top/user/api-key](https://wowidea.top/user/api-key)）→ 新建并复制。自动化测试可通过进程环境或标准输入注入临时 Key。
 
-在自己的交互终端隐藏输入并保存到系统凭据库：
+推荐直接在聊天中把 Key 交给 Codex 配置。Codex 使用 `wowidea auth use-key --key-stdin`，通过进程标准输入传入 Key，保存后验证连接。明确仅供临时测试的 Key 使用进程注入，不自动永久保存。
+
+也可自行在交互终端隐藏输入：
 
 ```text
 wowidea auth use-key --prompt
@@ -59,7 +61,7 @@ wowidea --json doctor
 ```
 
 - 无人值守时可安全注入 `EASYAI_API_KEY`，或用 `--api-key-stdin`。
-- 不要把 API Key 发进聊天、写进命令参数、Skill、记忆或 GitHub。
+- 支持聊天提供 Key 并由 Codex 代配置；不回显 Key，不把它写进项目、Skill、记忆或 GitHub。
 - 凭据库不可用时会直接报错，不会回退到明文配置。
 - 账号 Key 是账号级自动化权限，可在网站立即撤销；CLI 不需要浏览器登录。
 

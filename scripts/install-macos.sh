@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo="${EASYAI_CLI_REPO:-https://github.com/Salvatore0104/easyai-cli.git}"
+repo="${EASYAI_CLI_REPO:-https://github.com/Salvatore0104/wowidea-cli.git}"
 ref="${EASYAI_CLI_REF:-master}"
 workdir="$(mktemp -d "${TMPDIR:-/tmp}/easyai-cli-install.XXXXXX")"
 trap 'rm -rf "$workdir"' EXIT
@@ -17,4 +17,4 @@ npm run build
 package_file="$(npm pack --silent)"
 npm install --global "$workdir/$package_file"
 node "$(npm root --global)/@easyai/cli/scripts/install-skills.mjs"
-echo 'Wowidea installed. Run: wowidea --help; wowidea auth use-key --prompt. In Codex use $wowidea.'
+echo 'Wowidea installed. In Codex use $wowidea and provide your API key for automatic setup. Optional terminal input: wowidea auth use-key --prompt.'

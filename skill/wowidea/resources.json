@@ -1,6 +1,6 @@
 {
   "schemaVersion": "wowidea.resources/v1",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "textNormalization": "UTF-8 with LF line endings; binary files hashed verbatim",
   "files": {
     "easyai/SKILL.md": "cfc5c9fe1fa9479f7841ab2b2b1b1759d750e84b4b7fd5588b6908e81951ec03",
@@ -10,7 +10,7 @@
     "easyai/references/seedance.md": "677c27977371f763e167552167ba9d4a29bc3bca2f75412bef6e93d898173825",
     "gpt-image-25-prompt/SKILL.md": "139ccc2f4bd046bd5accfe034b70f5f9f54c250b3dd946ad928ce0fbed80eade",
     "gpt-image-25-prompt/agents/openai.yaml": "3d672aeac3b044f7bd31c78b472a0499fa4c1774c8af649427faeb934ccf23b7",
-    "wowidea/SKILL.md": "9da24797199064bc72ca0fc546966328b372b691c1728e28645e9248a02ace6d",
+    "wowidea/SKILL.md": "5e5267da384d816a3d5dbaffdad8b09a2e6c7d8c7b10dfb13c01ed41bc662e89",
     "wowidea/agents/openai.yaml": "234234ee072c84bda01013083e5521d817d377d49e66234958c7c75c1ce72c7d",
     "wowidea/references/auto-routing.md": "0b6eab20cd818b62676421f67a4be00abdf2484ca63982d675ae18941a40aa74",
     "wowidea/references/creative-direction.md": "f9d34350af7750cd0d7b69a586609456e52196ab1ea23e0dc875ff8c8d91301c",
