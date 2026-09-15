@@ -1,6 +1,6 @@
 {
   "schemaVersion": "wowidea.resources/v1",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "textNormalization": "UTF-8 with LF line endings; binary files hashed verbatim",
   "files": {
     "easyai/SKILL.md": "cfc5c9fe1fa9479f7841ab2b2b1b1759d750e84b4b7fd5588b6908e81951ec03",
@@ -10,7 +10,7 @@
     "easyai/references/seedance.md": "677c27977371f763e167552167ba9d4a29bc3bca2f75412bef6e93d898173825",
     "gpt-image-25-prompt/SKILL.md": "139ccc2f4bd046bd5accfe034b70f5f9f54c250b3dd946ad928ce0fbed80eade",
     "gpt-image-25-prompt/agents/openai.yaml": "3d672aeac3b044f7bd31c78b472a0499fa4c1774c8af649427faeb934ccf23b7",
-    "wowidea/SKILL.md": "6d624cc3623af26e660e8900907ef827d2e46b247ffbc43789e866640ef7a20c",
+    "wowidea/SKILL.md": "9da24797199064bc72ca0fc546966328b372b691c1728e28645e9248a02ace6d",
     "wowidea/agents/openai.yaml": "234234ee072c84bda01013083e5521d817d377d49e66234958c7c75c1ce72c7d",
     "wowidea/references/auto-routing.md": "0b6eab20cd818b62676421f67a4be00abdf2484ca63982d675ae18941a40aa74",
     "wowidea/references/creative-direction.md": "f9d34350af7750cd0d7b69a586609456e52196ab1ea23e0dc875ff8c8d91301c",
@@ -29,7 +29,7 @@
     "wowidea/references/production-rounds.md": "cdc1c8997c57ee2b0bbbdcb25df50e995b9d6c24c3f9873de0dc9bfcd8be30d0",
     "wowidea/references/project-workflow.md": "1a637824457718740506cf554e0a64a4d9448e375ec60c8340a0d8d90192fd65",
     "wowidea/references/recipe-authoring.md": "37c81e7b72b30bea0979ce4ea63306adacdef705061a21a63fad98bd3cdbc004",
-    "wowidea/references/reference-planning.md": "742d3f462bee823d090a498eeb4cd14e1175b33e8011dd8fa11ed3f80e0ae81f",
+    "wowidea/references/reference-planning.md": "3ab9abeb1282b8ec97a6f021d253cff222d8b9bd0c75a901b9752cb5c9ce2f91",
     "wowidea/references/seedance-20.md": "744df3a5dc66541b3b97d73088836bf0c4c9935dd6921ac3eaf975fa2d8cab84",
     "wowidea/references/seedance-25.md": "1c9a8620cd0989f5eace72c6d96f1bc1be901ab667b1cb2e49ab74c528b69f60",
     "wowidea/references/seedance-MIT.txt": "c84a6216f6e006b4e4a65e9d056837a61ee9c4ca79f43f386df2992bc690a7f6",
@@ -40,6 +40,6 @@
     "wowidea/references/visual-review.md": "ef9ed321f0a5eb68963ed31b22df0935fc2aa146cd7f16f686983637af7ab95c",
     "wowidea/references/vj-recipes.md": "20ac4ee7a0767af75b95f7e287e469684421e394c53f28b92e887a52c1e77e0b",
     "wowidea/references/wan.md": "1146cd0cf6c0342a41ed1225b61bcd30d0ed3c14287a445a65f37b56da0a3d88",
-    "wowidea/references/workflow.md": "c2be701d5d2fde3eeede035101b7c4b708a4faec0c23afda2310b3e73bd45b60"
+    "wowidea/references/workflow.md": "5effd35e71a030879fa3aa411470be894ff269469e3c1839ab4b6306f506090a"
   }
 }

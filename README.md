@@ -1,18 +1,28 @@
 # Wowidea：Codex 驱动的视觉创作 Agent
 
-在项目里初始化一次，之后在 Codex 中直接描述图片、视频需求即可，无需每次调用 `/wowidea`。命令名 `wowidea`，兼容 `easyai` 与 `easyai-canvas`。
+通过网站账号生成图片和视频，默认自动等待并下载。安装 Skill 后可直接描述需求；需要固定项目规则时再初始化项目。命令名 `wowidea`，兼容 `easyai` 与 `easyai-canvas`。
+
+## 日常使用
+
+```text
+wowidea image generate --prompt "浅蓝背景上的陶瓷杯产品照" --model "Nano Banana 2" --resolution 4K --ratio 3:4
+wowidea image edit --prompt "只把背景改成绿色" --reference ./product.png --model "Nano Banana 2"
+wowidea video generate --prompt "镜头缓慢靠近陶瓷杯" --model "Wan3.0-Video" --duration 5 --resolution 480p --ratio 16:9 --no-audio
+```
+
+默认自动保存请求标识、等待完成并下载。无需初始化项目、手写请求文件或分镜；网站负责平台冗余。直接参数与 `--file` 二选一。中断后使用 `wowidea tasks resume <返回的key> --wait`，明确需要再生成一份时添加 `--allow-reroll`。连接诊断使用 `wowidea doctor`。
 
 ## 安装
 
-### 方式一：让 Codex 代你安装（推荐，自动写入 Key）
+### 方式一：让 Codex 代你安装
 
 先在网站获取账号 Key：登录 [wowidea.top](https://wowidea.top) → 用户中心 → **API Key**（[wowidea.top/user/api-key](https://wowidea.top/user/api-key)）→ 新建并复制。
 
-然后把下面这段发给 Codex，把 `sk-你的Key` 换成刚复制的 Key：
+然后让 Codex 安装 CLI，完成后在终端隐藏输入 Key：
 
-> 帮我安装 https://github.com/Salvatore0104/easyai-cli 的 CLI 和 wowidea Skill。我的账号 API Key 是 `sk-你的Key`，请直接用它完成认证（`wowidea auth use-key`），不要走浏览器登录。安装后验证模型、余额和任务查询，并告诉我怎么在项目里持续使用。
+> 帮我安装 https://github.com/Salvatore0104/easyai-cli 的 CLI 和 wowidea Skill。安装后指导我通过 `wowidea auth use-key --prompt` 隐藏输入 Key，再运行 doctor 验证连接。
 
-Codex 会克隆仓库、构建并全局安装 CLI、安装随包 Skill，再用你给的 Key 写入系统凭据库完成认证——**Key 不会写进项目、Skill、请求记录或 Git**。完成后可用 `wowidea --json auth status` 确认。Key 是账号级自动化权限：聊天中发送后如不放心，可在同一页面立即吊销并重建。
+Codex 会构建并安装 CLI 与随包 Skill。`auth use-key --prompt` 将 Key 保存到系统凭据库；`doctor` 验证网站只读接口，不进行付费生成。
 
 ### 方式二：自己运行安装脚本
 

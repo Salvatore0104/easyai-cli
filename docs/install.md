@@ -6,11 +6,11 @@
 
 先取得账号 Key：登录 [wowidea.top](https://wowidea.top) → 用户中心 → **API Key**（[wowidea.top/user/api-key](https://wowidea.top/user/api-key)）→ 新建并复制。
 
-把下面这段发给 Codex（替换其中的 Key）：
+把下面这段发给 Codex：
 
-> 帮我安装 https://github.com/Salvatore0104/easyai-cli 的 CLI 和 wowidea Skill。我的账号 API Key 是 `sk-你的Key`，请直接用它完成认证（`wowidea auth use-key`），不要走浏览器登录。安装后验证模型、余额和任务查询，并告诉我怎么在项目里持续使用。
+> 帮我安装 https://github.com/Salvatore0104/easyai-cli 的 CLI 和 wowidea Skill，随后指导我通过 `wowidea auth use-key --prompt` 隐藏输入 Key，并运行 doctor。
 
-Codex 会克隆仓库、构建并全局安装 CLI、安装随包 Skill，再用你给的 Key 写入系统凭据库。Key 不会写进项目、Skill、请求记录或 Git；如担心聊天泄露，可在同一页面立即吊销并重建。
+Codex 会构建并安装 CLI 和 Skill。安装后通过终端隐藏输入或进程注入完成认证；不需要把 Key 写进安装消息或项目文件。
 
 ## 环境要求
 
@@ -48,13 +48,14 @@ node "$(npm root -g)/@easyai/cli/scripts/install-skills.mjs"
 
 ## 账号密钥
 
-Key 在网站生成：登录 [wowidea.top](https://wowidea.top) → 用户中心 → **API Key**（[wowidea.top/user/api-key](https://wowidea.top/user/api-key)）→ 新建并复制。也可以让 Codex 直接用你提供的 Key 完成认证。
+Key 在网站生成：登录 [wowidea.top](https://wowidea.top) → 用户中心 → **API Key**（[wowidea.top/user/api-key](https://wowidea.top/user/api-key)）→ 新建并复制。自动化测试可通过进程环境或标准输入注入临时 Key。
 
 在自己的交互终端隐藏输入并保存到系统凭据库：
 
 ```text
 wowidea auth use-key --prompt
 wowidea --json auth status
+wowidea --json doctor
 ```
 
 - 无人值守时可安全注入 `EASYAI_API_KEY`，或用 `--api-key-stdin`。
@@ -79,7 +80,7 @@ wowidea --json tasks remote --page 1 --page-size 20
 
 ## 服务地址
 
-默认服务地址是 `https://wowidea.top`。旧的 `ai.wowidea.top` 会 301 跳转，普通 HTTP 客户端在跨站跳转时会丢掉 `Authorization` 头并表现为 401；CLI 已改为手动跟随跳转并保留凭据，但仍建议使用默认地址或显式 `--base-url https://wowidea.top`。
+默认服务地址是 `https://wowidea.top`。旧的 `ai.wowidea.top` 会 301 跳转，普通 HTTP 客户端在跨站跳转时会丢掉 `Authorization` 头并表现为 401；CLI 将旧别名规范化到默认地址；只读请求仅允许同源或明确可信别名跳转，不允许 HTTPS 降级，也不通过重定向重发生成请求。
 
 ## 安装保存了什么
 
@@ -116,3 +117,9 @@ npm run package:smoke -- easyai-cli-<版本>.tgz
 ## Skill 来源与许可
 
 来源与许可证见 [来源记录](../skill/wowidea/references/sources.md)。社区 Seedance 创作指南固定提交并保留 MIT；MiniMax H3 已依据官方 h3-prompt-writing 结构更新，适配文档不伪称官方原包；Seedance 2.5 官方 sd25-pe 分发端点本次未能取得，采用可核验的官方文档原创总结。生成过程中不临时下载任何上游代码。
+
+## 项目内独立运行
+
+`project setup` 会携带当前系统的 keytar 原生运行文件，并返回 credentialRuntime 的可用性和平台信息；更换操作系统或架构后重新执行 setup --update。凭据模块缺失时使用 EASYAI_API_KEY 或 --api-key-stdin，不回退到明文文件。auth status 表示本地凭据存在；doctor 才验证网站连接。
+
+生成 POST 默认最多等待 15 分钟，为网站的平台冗余留出时间；这不是重试次数。拿到任务 ID 后只查询同一任务，最多观察 30 分钟。已拒绝、失败或归属不明的任务不会自动重新生成。

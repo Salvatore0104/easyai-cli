@@ -83,6 +83,9 @@ export function normalizeRequest(payload: Record<string, any>, kind: MediaKind):
   if (kind === "image") {
     if (result.n === undefined) result.n = 1;
     if (!Number.isInteger(result.n) || result.n < 1) throw new CliError("n must be a positive integer.", ExitCode.Usage);
+  } else {
+    if (result.watermark !== undefined && result.watermark !== false) throw new CliError('Video watermark must be false.', ExitCode.Usage);
+    result.watermark = false;
   }
   return result;
 }

@@ -13,22 +13,23 @@ import { CliError, ExitCode, isNotFound, redact } from "./errors.js";
 import { emit, OutputOptions } from "./output.js";
 import { localQuote, payloadHash, Quote, saveQuote } from "./preflight.js";
 import { approveManifest, creativeHash, readManifest, seedancePayload, uploadReferences, validateManifest, validateStoryboardQc } from "./seedance.js";
-import { submitAsyncWithRecovery, submitImageWithRecovery, listSubmissions, recoverSubmission, taskStatus, taskRows } from "./submission.js";
+import { submitAsyncWithRecovery, submitImageWithRecovery, listSubmissions, recoverSubmission, taskStatus, taskRows, generationSubmitTimeoutMs } from "./submission.js";
 import { findModel, matchesModelType, registryEntry, routeModel, validateCapabilities } from "./models.js";
 import { initProject, readProject, recordCreation } from "./project.js";
 import { guideRegistry, guideInfo, showGuide } from "./guides.js";
-import { prepareVideoPayload, videoSubmitTimeout, withOmniContent } from "./video-payload.js";
+import { prepareVideoPayload, withOmniContent } from "./video-payload.js";
 
 import { setupProject } from './setup.js';
 import { usageResult } from './usage.js';
 import { loadPrices, importPrices, estimate, syncPrices, platformEstimate } from './pricing.js';
 import { autoRoute, applyPlatformEstimates } from './routing.js';
 import { normalizeRequest } from './request-normalization.js';
-import { prepareReferences, uploadMedia, writeRun } from './media.js';
+import { prepareReferences, uploadMedia, writeRun, refreshRun, referenceIdentity, runFile } from './media.js';
+import { mediaInput } from './media-input.js';
 
 interface GlobalOptions extends OutputOptions { profile?: string; baseUrl?: string; timeout: string; noColor?: boolean; apiKey?: string; apiKeyStdin?: boolean }
 const program = new Command();
-program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.6.2")
+program.name("wowidea").description("Codex visual design agent for images, brands, products and video (easyai compatible)").version("0.6.3")
   .option("--profile <name>", "configuration profile")
   .option("--base-url <url>", "EasyAI server URL")
   .option("--json", "stable JSON output")
@@ -50,12 +51,30 @@ async function apiFor(cmd: Command): Promise<EasyAiApi> {
 }
 async function jsonInput(opts: { data?: string; file?: string }): Promise<Record<string, unknown>> {
   if (opts.data && opts.file) throw new CliError("Use either --data or --file, not both.", ExitCode.Usage);
-  try { return JSON.parse(opts.data ?? (opts.file ? await readFile(resolve(opts.file), "utf8") : "{}")) as Record<string, unknown>; }
+  try { const value = JSON.parse(opts.data ?? (opts.file ? await readFile(resolve(opts.file), "utf8") : "{}")); if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('object required'); return value; }
   catch { throw new CliError("Input must be valid JSON.", ExitCode.Usage); }
 }
 function dataOptions(command: Command): Command { return command.option("--data <json>", "JSON request body").option("--file <path>", "JSON request body file"); }
 function mutationOptions(command: Command): Command { return dataOptions(command).option("--base-version <n>", "known canvas version", Number); }
 const enc = encodeURIComponent;
+
+program.command('doctor').description('Check authentication and website read-only interfaces; no generation').action(async (_o, c) => {
+  const checks: Record<string, unknown> = {};
+  try {
+    const api = await apiFor(c);
+    for (const [name, path] of [['models', '/v1/models'], ['balance', '/v1/balance'], ['tasks', '/v1/tasks?page=1&page_size=1']]) {
+      try {
+        const value = await api.get<any>(path!);
+        const body = value?.data ?? value;
+        const valid = name === 'balance' ? typeof body?.total === 'number' : Array.isArray(body) || ['items','tasks','results'].some(field => Array.isArray(body?.[field]));
+        if (!valid) throw new CliError(`Unexpected ${name} response; HTTP success did not establish interface compatibility.`, ExitCode.Service);
+        checks[name!] = { ok: true, ...(name === 'models' ? { count: taskRows(value).length } : {}) };
+      } catch (error) { checks[name!] = { ok: false, error: String((error as Error).message) }; }
+    }
+  } catch (error) { checks.authentication = { ok: false, error: String((error as Error).message) }; }
+  const ok = Object.values(checks).every((check: any) => check.ok);
+  await output({ ok, checks }, c); if (!ok) process.exitCode = ExitCode.Service;
+});
 
 const localProject = program.command("project").description("Local programme preferences and creation records; no API calls");
 localProject.command("init").option("--dir <path>", "programme directory", ".").option("--name <name>", "programme name", "").action(async (o, c) => output(await initProject(o.dir, o.name), c));
@@ -113,7 +132,13 @@ tasks.command("remote").description("List this account's tasks from the server (
   if (!Number.isInteger(page) || page < 1 || !Number.isInteger(size) || size < 1 || size > 200) throw new CliError("--page must be a positive integer and --page-size must be between 1 and 200.", ExitCode.Usage);
   await output(await (await apiFor(c)).get(`/v1/tasks?page=${page}&page_size=${size}`), c);
 });
-tasks.command("resume").argument("<idempotencyKey>").action(async (key, _o, c) => (async()=>{const api=await apiFor(c);await output(await usageResult(api,await recoverSubmission(api,key)),c)})());
+tasks.command("resume").argument("<idempotencyKey>").option('--wait', 'wait and download the existing task').option('--dir <path>', 'download directory', 'wowidea-output').action(async (key, o, c) => {
+  const api = await apiFor(c), prior = (await listSubmissions(api)).find(row => row.idempotencyKey === key);
+  if (!prior) throw new CliError('Unknown local request key. Use image/video status with a known task ID.', ExitCode.Usage);
+  const recovered = await recoverSubmission(api, key);
+  const result = await usageResult(api, o.wait ? await completeGeneration(api, recovered, prior.kind, o.dir) : recovered);
+  await refreshRun(prior.runPath, result); await output({ ...result, idempotencyKey: key }, c);
+});
 program.command("balance").action(async (_o, c) => output(await (await apiFor(c)).get("/v1/balance"), c));
 
 function taskCommands(parent: Command, media: "image" | "video") {
@@ -150,12 +175,12 @@ async function preflight(api: EasyAiApi, kind: Quote["kind"], path: string, payl
 }
 async function submitOnce(api: EasyAiApi, path: string, payload: Record<string, unknown>, key: string, allowDuplicatePayload = false): Promise<unknown> {
   const kind = path.includes("video") ? "video" : "image";
-  return submitAsyncWithRecovery(api, path, payload, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : videoSubmitTimeout(payload), recoveryWaitMs: 90_000, allowDuplicatePayload });
+  return submitAsyncWithRecovery(api, path, payload, key, kind, { submitTimeoutMs: generationSubmitTimeoutMs, recoveryWaitMs: 90_000, allowDuplicatePayload });
 }
-async function submitDirect(api: EasyAiApi, path: string, payload: Record<string, unknown>, opts: { idempotencyKey?: string; allowReroll?: boolean }): Promise<unknown> {
+async function submitDirect(api: EasyAiApi, path: string, payload: Record<string, unknown>, opts: { idempotencyKey?: string; allowReroll?: boolean; requestHash?: string; runPath?: string; onPrepared?: () => Promise<void> }): Promise<unknown> {
   const key = opts.idempotencyKey || randomUUID();
   const kind = path.includes("video") ? "video" : "image";
-  return submitAsyncWithRecovery(api, path, payload, key, kind, { submitTimeoutMs: kind === "image" ? 120_000 : videoSubmitTimeout(payload), recoveryWaitMs: 90_000, allowDuplicatePayload: opts.allowReroll });
+  return submitAsyncWithRecovery(api, path, payload, key, kind, { submitTimeoutMs: generationSubmitTimeoutMs, recoveryWaitMs: 90_000, allowDuplicatePayload: opts.allowReroll, requestHash: opts.requestHash, runPath: opts.runPath, onPrepared: opts.onPrepared });
 }
 const video = program.command('video');
 dataOptions(video.command('preflight')).action(async(o,c)=>output(await preflight(await apiFor(c),'video','/v1/video/preflight',await jsonInput(o)),c));
@@ -163,12 +188,26 @@ registerMedia(video, 'video');
 taskCommands(video,'video');
 
 function registerMedia(parent: Command, kind: 'image'|'video') {
-  for (const action of ['generate','edit']) dataOptions(parent.command(action)).requiredOption('--idempotency-key <key>').option('--manifest <path>').option('--dir <path>', 'download directory','wowidea-output').option('--project-dir <path>', 'record directory','.').option('--parent <taskId>', 'source version task ID').option('--change <text>', 'revision summary').option('--purpose <text>').option('--stage <preview|final|edit|refine>').option('--prices <file>').option('--no-wait').option('--allow-reroll').action(async(o,c) => {
+  const collect = (value: string, prior: string[]) => [...prior, value];
+  for (const action of ['generate','edit']) dataOptions(parent.command(action)).option('--idempotency-key <key>', 'optional request key; automatically persisted when omitted').option('--manifest <path>')
+    .option('--prompt <text>').option('--model <name>').option('--resolution <value>').option('--ratio <value>').option('--duration <seconds>', 'video duration', Number).option('--mode <value>', 'website generation mode')
+    .option('--audio', 'enable video audio').option('--no-audio', 'disable video audio').option('--quality <value>').option('--format <value>')
+    .option('--reference <path-or-url>', 'image reference; repeat for multiple images', collect, []).option('--video-reference <path-or-url>', 'video reference', collect, []).option('--audio-reference <path-or-url>', 'audio reference', collect, [])
+    .option('--dir <path>', 'download directory','wowidea-output').option('--project-dir <path>', 'record directory','.').option('--parent <taskId>', 'source version task ID').option('--change <text>', 'revision summary').option('--purpose <text>').option('--stage <preview|final|edit|refine>').option('--prices <file>').option('--no-wait').option('--allow-reroll').action(async(o,c) => {
     const api = await apiFor(c), startedAt = new Date().toISOString();
-    const prior = (await listSubmissions(api)).find(r=>r.idempotencyKey===o.idempotencyKey);
-    if(prior) { const recovered=await recoverSubmission(api,o.idempotencyKey); await output(await usageResult(api,o.wait?await completeGeneration(api,recovered,kind,o.dir):recovered),c); return; }
     let payload = await jsonInput(o);
     if(o.manifest) { if(o.file || o.data) throw new CliError('Use manifest or request JSON, not both.',ExitCode.Usage); const m = await readManifest(resolve(o.manifest)); payload = seedancePayload(m); }
+    payload = mediaInput(o, payload, kind);
+    const requestHash = payloadHash({ kind, action, purpose: o.purpose, stage: o.stage, payload: await referenceIdentity(payload, o.projectDir) });
+    o.idempotencyKey ||= o.allowReroll ? randomUUID() : `auto-${requestHash}`;
+    const prior = (await listSubmissions(api)).find(r => r.idempotencyKey === o.idempotencyKey);
+    if (prior?.requestHash) {
+      if (prior.requestHash !== requestHash || prior.kind !== kind) throw new CliError('Idempotency key already belongs to a different request.', ExitCode.Conflict);
+      const recovered = await recoverSubmission(api, o.idempotencyKey);
+      const result = await usageResult(api, o.wait ? await completeGeneration(api, recovered, kind, o.dir) : recovered);
+      await refreshRun(prior.runPath, result);
+      await output({ ...result, idempotencyKey: o.idempotencyKey, recordPath: prior.runPath }, c); return;
+    }
     const prepared = await prepareReferences(api,payload,o.projectDir); payload=prepared.payload;
     if(action==='edit') {
       if(kind==='image' && !Array.isArray(payload.image_urls)) throw new CliError('Image editing requires image/image_urls references.',ExitCode.Usage);
@@ -183,21 +222,40 @@ function registerMedia(parent: Command, kind: 'image'|'video') {
     }
     const selected=routeModel(catalog,kind,payload.model ? String(payload.model) : (await creativeDefaults())[kind]);
     payload.model=selected.model;
-    if(kind==='video') { const caps=selected.capabilities.capabilities?.omni_video; if(action==='edit' && caps?.omni_reference_task_type?.constraints?.edit) { const rule=caps.omni_reference_task_type.constraints.edit; payload.omni_reference_task_type='edit'; if(rule.forced_duration!==undefined && payload.duration===undefined)payload.duration=rule.forced_duration; if(rule.forced_aspect_ratio && payload.aspect_ratio===undefined)payload.aspect_ratio=rule.forced_aspect_ratio; } payload=prepareVideoPayload(payload); if(caps) payload=withOmniContent(payload); }
+    if (kind === 'video') {
+      const has = (field: string) => Array.isArray(payload[field]) && (payload[field] as unknown[]).length > 0;
+      payload.mode ??= has('video_urls') ? 'video_reference' : has('image_urls') ? 'image_reference' : has('audio_urls') ? 'audio_reference' : 'text_to_video';
+    }
+    const allCapabilities = selected.capabilities.capabilities || {};
+    const baseCapability = kind === 'image' ? allCapabilities[payload.image_urls ? 'image_edit' : 'image_generate'] || {} : allCapabilities.omni_video || allCapabilities[payload.mode === 'text_to_video' ? 'video_generate' : 'image_to_video'] || {};
+    if (kind === 'video' && action === 'edit' && baseCapability.omni_reference_task_type?.constraints?.edit) payload.omni_reference_task_type = 'edit';
+    const capability = { ...baseCapability, ...baseCapability.mode_constraints?.[String(payload.mode)], ...baseCapability.omni_reference_task_type?.constraints?.[String(payload.omni_reference_task_type)] };
+    if (!payload.resolution) payload.resolution = (kind === 'image' ? ['4K','2K','1K'] : ['480p','720p','1080p','1440p']).find(r => capability.output_resolutions?.includes(r));
+    payload.aspect_ratio ??= capability.forced_aspect_ratio || (capability.aspect_ratio_allowed?.includes('1:1') && kind === 'image' ? '1:1' : '16:9');
+    if (kind === 'video') {
+      payload.duration ??= capability.forced_duration ?? (capability.duration_options?.includes(5) ? 5 : capability.duration_options?.[0] ?? Math.max(5, capability.duration_range?.[0] || 5));
+      payload.audio ??= capability.output_audio_mode === 'always';
+    }
+    if(kind==='video') { payload=prepareVideoPayload(payload); if(allCapabilities.omni_video) payload=withOmniContent(payload); }
     payload=normalizeRequest(payload,kind); validateCapabilities(selected,payload);
     if(kind==='image' && payload.image_urls) { payload.image=payload.image_urls; delete payload.image_urls; }
     const offlinePricing=estimate(book,selected.model,kind,payload);
     const livePricing=await platformEstimate(api,payload);
     const pricing=livePricing?{...offlinePricing,estimatedPoints:livePricing.estimatedPoints,rawEstimatedPoints:livePricing.raw,reason:livePricing.reason,source:livePricing.source,discount:livePricing.discount}:offlinePricing;
-    const record:any={schemaVersion:'wowidea.run/v1',kind,action,startedAt,parentTaskId:o.parent||null,change:o.change||null,stage:o.stage||action,purpose:o.purpose||null,routing,model:selected.model,payload,references:prepared.sources,pricing,qc:{verdict:'not_reviewed'},state:'prepared'};
-    const recordPath=await writeRun(o.projectDir,o.idempotencyKey,record);
+    const record:any={schemaVersion:'wowidea.run/v1',idempotencyKey:o.idempotencyKey,kind,action,startedAt,parentTaskId:o.parent||null,change:o.change||null,stage:o.stage||action,purpose:o.purpose||null,routing,model:selected.model,payload,references:prepared.sources,pricing,qc:{verdict:'not_reviewed'},state:'prepared'};
+    // Only the process that atomically claims submission may initialize its log.
+    const runKey = `${api.scope}:${o.idempotencyKey}`;
+    const recordPath = prior?.runPath || runFile(o.projectDir, runKey);
+    let ownsSubmission = false;
     try {
-      const submitted=await submitDirect(api,kind==='image'?'/v1/images/generations':'/v1/video/generations',payload,o);
-      record.taskId=findTaskId(submitted);record.state='submitted';await writeRun(o.projectDir,o.idempotencyKey,record);
+      if (!globals(c).json && !globals(c).jsonl) process.stderr.write(`Request ${o.idempotencyKey}: submitting to website; provider failover is handled by the website.\n`);
+      const submitted=await submitDirect(api,kind==='image'?'/v1/images/generations':'/v1/video/generations',payload,{...o,requestHash:prior && !prior.requestHash ? undefined : requestHash,runPath:recordPath,onPrepared:async()=>{ ownsSubmission = true; await writeRun(o.projectDir,runKey,record); }});
+      record.taskId=findTaskId(submitted);record.state='submitted';if (ownsSubmission) await writeRun(o.projectDir,runKey,record);
       const result=await usageResult(api,o.wait?await completeGeneration(api,submitted,kind,o.dir):submitted);
-      Object.assign(record,{state:taskStatus(result),result,elapsedMs:Date.now()-Date.parse(startedAt)});await writeRun(o.projectDir,o.idempotencyKey,record);
-      await output({...result,pricing,recordPath},c);
-    } catch(error) { record.state='interrupted';record.error=String((error as Error).message);await writeRun(o.projectDir,o.idempotencyKey,record).catch(()=>{});throw error; }
+      Object.assign(record,{state:taskStatus(result),result,elapsedMs:Date.now()-Date.parse(startedAt)});
+      if (ownsSubmission) await writeRun(o.projectDir,runKey,record); else if (prior?.runPath) await refreshRun(prior.runPath,result);
+      await output({...result,pricing,recordPath,idempotencyKey:o.idempotencyKey},c);
+    } catch(error) { record.state='interrupted';record.error=String((error as Error).message);if (ownsSubmission) await writeRun(o.projectDir,runKey,record).catch(()=>{});throw error; }
   });
 }
 

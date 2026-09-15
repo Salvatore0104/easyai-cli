@@ -10,10 +10,10 @@ describe("API client", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("does not retry failed requests", async () => {
+  it("does not retry failed generation requests", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: "down" }), { status: 503 }));
     vi.stubGlobal("fetch", fetchMock);
-    await expect(new EasyAiApi({ baseUrl: "https://example.test", timeoutMs: 1000 }).get("/v1/models")).rejects.toMatchObject({ exitCode: 5 });
+    await expect(new EasyAiApi({ baseUrl: "https://example.test", timeoutMs: 1000 }).post("/v1/images/generations", {})).rejects.toMatchObject({ exitCode: 5 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -37,14 +37,14 @@ describe("API client", () => {
   // Platform host aliases (ai.wowidea.top -> wowidea.top) answer with a
   // cross-origin redirect. Native fetch strips the auth header there, so the
   // client follows the hop itself and keeps its credentials.
-  it("keeps credentials across a same-site host redirect", async () => {
+  it("keeps credentials only across explicit website aliases", async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(null, { status: 301, headers: { location: "https://www.example.test/api/v1/models" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 301, headers: { location: "https://wowidea.top/api/v1/models" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    await expect(new EasyAiApi({ baseUrl: "https://example.test", token: "secret", timeoutMs: 1000 }).get("/v1/models")).resolves.toEqual({ data: [] });
-    expect(fetchMock.mock.calls[0]![0]).toBe("https://example.test/api/v1/models");
-    expect(fetchMock.mock.calls[1]![0]).toBe("https://www.example.test/api/v1/models");
+    await expect(new EasyAiApi({ baseUrl: "https://ai.wowidea.top", token: "secret", timeoutMs: 1000 }).get("/v1/models")).resolves.toEqual({ data: [] });
+    expect(fetchMock.mock.calls[0]![0]).toBe("https://ai.wowidea.top/api/v1/models");
+    expect(fetchMock.mock.calls[1]![0]).toBe("https://wowidea.top/api/v1/models");
     expect((fetchMock.mock.calls[1]![1] as RequestInit).headers).toMatchObject({ Authorization: "Bearer secret" });
   });
 

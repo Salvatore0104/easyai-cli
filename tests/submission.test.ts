@@ -46,10 +46,10 @@ describe("durable async lifecycle", () => {
     await expect(submitAsyncWithRecovery(api, "/v1/video/generations", { prompt: "hello" }, "video-key", "video")).rejects.toThrow(/new-video\(image\/running\)/);
     expect(api.post).toHaveBeenCalledTimes(1);
   });
-  it("adopts a same-kind new task only when the execution chain names the requested model", async () => {
+  it("does not adopt a nearby task even when its model matches", async () => {
     const withRow = (row: unknown) => { const api = mock(); api.get.mockResolvedValueOnce({ items: [] }).mockResolvedValueOnce({ items: [row] }); return api; };
     const chain = (model: string) => ({ id: model, task_type: "generation", status: "succeeded", created: Date.now(), execution_chain: [{ model }], output: ["https://cdn.test/a.mp4"] });
-    expect(await submitAsyncWithRecovery(withRow(chain("Google Omni")), "/v1/video/generations", { model: "Google Omni", prompt: "mine" }, "video-mine", "video")).toMatchObject({ id: "Google Omni" });
+    await expect(submitAsyncWithRecovery(withRow(chain("Google Omni")), "/v1/video/generations", { model: "Google Omni", prompt: "mine" }, "video-mine", "video")).rejects.toThrow(/uncertain/);
     await expect(submitAsyncWithRecovery(withRow(chain("MiniMax-H3")), "/v1/video/generations", { model: "Google Omni", prompt: "other" }, "video-other", "video")).rejects.toThrow(/uncertain/);
   });
   it("prevents concurrent consumption of a Seedance approval", async () => {
@@ -67,7 +67,8 @@ describe("durable async lifecycle", () => {
     const rows = await listSubmissions(api);
     expect(rows[0]).toMatchObject({ state: "rejected", errorDetails: { code: "VIDEO_INPUT_CONTENT_EMPTY" } });
     const corrected = mock(); corrected.post.mockResolvedValue({ taskId: "new-task" });
-    await expect(submitAsyncWithRecovery(corrected, "/v1/video/generations", { content: [{ type: "text", text: "fixed" }] }, "seedance-validation", "video")).resolves.toMatchObject({ taskId: "new-task" });
+    await expect(submitAsyncWithRecovery(corrected, "/v1/video/generations", { content: [{ type: "text", text: "fixed" }] }, "seedance-validation", "video")).rejects.toMatchObject({ exitCode: 4 });
+    await expect(submitAsyncWithRecovery(corrected, "/v1/video/generations", { content: [{ type: "text", text: "fixed" }] }, "seedance-corrected", "video")).resolves.toMatchObject({ taskId: "new-task" });
   });
   it("does not retry validation errors or a changed payload", async () => {
     const api = mock(); api.post.mockRejectedValue(new CliError("bad input", ExitCode.Usage));
@@ -88,14 +89,15 @@ describe("durable async lifecycle", () => {
   });
   it("reads nested terminal states", () => expect(taskStatus({ data: { result: { task_status: "SUCCESS" } } })).toBe("success"));
   it("reads nested task IDs", () => expect(taskId({ data: { task: { task_id: "nested" } } })).toBe("nested"));
-  it("recovers a unique new image when the server ignores the idempotency filter", async () => {
+  it("keeps a unique new image unassociated when the server ignores the idempotency filter", async () => {
     const now = new Date().toISOString();
     const api = mock();
     api.get.mockResolvedValueOnce({ items: [{ id: "old", task_type: "image", createdAt: now }] })
       .mockResolvedValueOnce({ items: [{ id: "new", task_type: "image_generation", createdAt: now }, { id: "old", task_type: "image", createdAt: now }] });
-    await expect(submitImageWithRecovery(api, {}, "key")).resolves.toMatchObject({ id: "new" });
+    await expect(submitImageWithRecovery(api, {}, "key")).rejects.toThrow(/uncertain/);
     expect(api.post).toHaveBeenCalledTimes(1);
-    expect(await listSubmissions(api)).toEqual([expect.objectContaining({ taskId: "new", recoveredBy: "unique-task-snapshot-delta" })]);
+    expect(await listSubmissions(api)).toEqual([expect.objectContaining({ state: 'uncertain' })]);
+    expect((await listSubmissions(api))[0].taskId).toBeUndefined();
   });
   it.each([
     { name: "multiple new image tasks", after: [{ id: "a", task_type: "image", createdAt: new Date().toISOString() }, { id: "b", task_type: "image", createdAt: new Date().toISOString() }] },

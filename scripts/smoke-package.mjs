@@ -17,6 +17,10 @@ try {
   const pkg = join(temp, 'node_modules/@easyai/cli');
   const work = join(temp, 'programme'); await mkdir(work);
   const run = (...args) => JSON.parse(execFileSync(process.execPath, [join(pkg, 'dist/cli.js'), '--json', ...args], { cwd: work, encoding: 'utf8' })).data;
+  const setup = run('project', 'setup', '--dir', work);
+  const standalone = (...args) => JSON.parse(execFileSync(process.execPath, [join(work, '.wowidea/runtime/dist/cli.js'), '--json', ...args], { cwd: work, encoding: 'utf8' })).data;
+  assert.equal(standalone('guides', 'list').length, 23);
+  assert.equal(setup.credentialRuntime.available, false); // optional deps intentionally omitted
   assert.equal(run('guides', 'list').length, 23);
   assert.equal(run('guides', 'show', 'minimax-h3').version, version);
   for (const id of ['design-tasks', 'production-rounds', 'recipe-authoring']) {
@@ -24,7 +28,7 @@ try {
     assert.equal(guide.content, await readFile(guide.path, 'utf8'));
     assert.equal(guide.version, version);
   }
-  assert.equal(run('project', 'init', '--name', '演示节目').project.name, '演示节目');
+  assert.equal(run('project', 'show').project.name, '');
   assert.equal(run('project', 'validate').valid, true);
   const path = join(work, '.wowidea/project.json'), before = await readFile(path, 'utf8');
   assert.equal(run('project', 'record', '--file', join(pkg, 'docs/examples/vj-programme/creation-draft.json')).record.taskId, null);

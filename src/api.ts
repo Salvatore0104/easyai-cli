@@ -1,19 +1,23 @@
 import { createWriteStream } from "node:fs";
-import { mkdir } from "node:fs/promises";
+import { mkdir, stat, unlink } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { classifyHttpError, CliError, ExitCode } from "./errors.js";
+import { atomicRename } from './storage.js';
 
 export interface ApiOptions { baseUrl: string; token?: string; timeoutMs: number; }
 const redirectStatuses = new Set([301, 302, 303, 307, 308]);
-// Compare registrable-ish sites so a platform host alias may keep its credentials,
-// while a redirect to an unrelated operator is refused.
-function sameSite(from: string, to: string): boolean {
-  const site = (value: string) => new URL(value).hostname.toLowerCase().split(".").slice(-2).join(".");
-  try { return site(from) === site(to); } catch { return false; }
+function trustedRedirect(from: string, to: string): boolean {
+  const a = new URL(from), b = new URL(to);
+  if (b.username || b.password || !['http:', 'https:'].includes(b.protocol)) return false;
+  if (a.protocol === 'https:' && b.protocol !== 'https:') return false;
+  const aliases = ['https://wowidea.top', 'https://ai.wowidea.top'];
+  return a.origin === b.origin || (aliases.includes(a.origin) && aliases.includes(b.origin));
 }
+const retryable = new Set([408, 429, 500, 502, 503, 504]);
+const sleep = (ms: number) => new Promise(done => setTimeout(done, ms));
 export class EasyAiApi {
   constructor(private readonly options: ApiOptions) {}
   get scope(): string { return createHash("sha256").update(this.options.baseUrl + "\n" + (this.options.token || "")).digest("hex"); }
@@ -22,6 +26,19 @@ export class EasyAiApi {
     return `${root}${path.startsWith("/") ? path : `/${path}`}`;
   }
   async request<T = unknown>(method: string, path: string, body?: unknown, headers: Record<string, string> = {}, timeoutMs = this.options.timeoutMs): Promise<T> {
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new CliError('Timeout must be a positive number.', ExitCode.Usage);
+    // Only observations may be retried. Mutating calls, including generation,
+    // always make one attempt; the website owns provider failover.
+    for (let attempt = 0; ; attempt++) {
+      try { return await this.requestOnce<T>(method, path, body, headers, timeoutMs); }
+      catch (error) {
+        const transient = error instanceof CliError && error.exitCode === ExitCode.Service && (!error.httpStatus || retryable.has(error.httpStatus));
+        if (method !== 'GET' || !transient || attempt >= 2) throw error;
+        await sleep(250 * (attempt + 1));
+      }
+    }
+  }
+  private async requestOnce<T>(method: string, path: string, body: unknown, headers: Record<string, string>, timeoutMs: number): Promise<T> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -42,7 +59,10 @@ export class EasyAiApi {
         const location = response.headers.get("location");
         if (!redirectStatuses.has(response.status) || !location) break;
         const next = new URL(location, target);
-        if (!sameSite(target, next.toString())) throw new CliError(`Refusing to follow a credential-bearing redirect to ${next.origin}; point --base-url at the canonical host instead.`, ExitCode.Auth);
+        if (!trustedRedirect(target, next.toString())) throw new CliError(`Refusing to follow a credential-bearing redirect to ${next.origin}; point --base-url at the canonical host instead.`, ExitCode.Auth);
+        // Do not replay POST/DELETE/PATCH through redirects.
+        if (method !== 'GET' && method !== 'HEAD') throw new CliError('Mutation redirected; use the canonical base URL. No request was replayed.', ExitCode.Conflict);
+        await response.body?.cancel();
         target = next.toString();
       }
       if (!response) throw new CliError("No response was received.", ExitCode.Service);
@@ -87,21 +107,31 @@ export async function downloadUrls(urls: string[], outputDir: string): Promise<s
   await mkdir(outputDir, { recursive: true });
   const paths: string[] = [];
   for (const [index, url] of urls.entries()) {
-    let response: Response | undefined;
     let lastError: unknown;
+    const filename = `${index + 1}-${basename(new URL(url).pathname).replace(/[^a-zA-Z0-9._-]/g, "_") || "output"}`;
+    const path = resolve(outputDir, filename);
+    let downloaded = false;
     for (let attempt = 1; attempt <= 3; attempt++) {
+      const temporary = `${path}.${randomUUID()}.part`;
       try {
-        response = await fetch(url, { signal: AbortSignal.timeout(120000) });
-        if (response.ok && response.body) break;
-        lastError = new Error(`HTTP ${response.status}`);
+        const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
+        if (!response.ok || !response.body) {
+          await response.body?.cancel();
+          if (!retryable.has(response.status)) throw new CliError(`Download HTTP ${response.status}`, ExitCode.Service, undefined, response.status);
+          throw new Error(`HTTP ${response.status}`);
+        }
+        await pipeline(Readable.fromWeb(response.body as never), createWriteStream(temporary, { flags: 'wx', mode: 0o600 }));
+        const size = (await stat(temporary)).size;
+        const expected = response.headers.get('content-length');
+        if (!size || (!response.headers.get('content-encoding') && expected !== null && size !== Number(expected))) throw new Error('Incomplete download');
+        await atomicRename(temporary, path);
+        paths.push(path); downloaded = true; break;
       } catch (error) { lastError = error; }
+      finally { await unlink(temporary).catch(() => undefined); }
+      if (lastError instanceof CliError && lastError.httpStatus && !retryable.has(lastError.httpStatus)) break;
       if (attempt < 3) await new Promise(done => setTimeout(done, attempt * 500));
     }
-    if (!response?.ok || !response.body) throw new CliError(`Download failed after 3 attempts: ${lastError instanceof Error ? lastError.message : "unknown error"}`, ExitCode.Service);
-    const pathname = new URL(url).pathname;
-    const filename = `${index + 1}-${basename(pathname).replace(/[^a-zA-Z0-9._-]/g, "_") || "output"}`;
-    const path = resolve(outputDir, filename);
-    await pipeline(Readable.fromWeb(response.body as never), createWriteStream(path)); paths.push(path);
+    if (!downloaded) throw new CliError(`Download failed: ${lastError instanceof Error ? lastError.message : "unknown error"}. Retry download for the same task.`, ExitCode.Service);
   }
   return paths;
 }

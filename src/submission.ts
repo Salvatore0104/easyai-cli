@@ -1,9 +1,10 @@
 import { EasyAiApi, findUrls } from "./api.js";
 import { CliError, ExitCode, redact } from "./errors.js";
-import { mkdir, readFile, writeFile, readdir, unlink } from "node:fs/promises";
+import { mkdir, readFile, readdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { configDir } from "./config.js";
 import { payloadHash } from "./preflight.js";
+import { writeJson } from './storage.js';
 
 export function taskId(value: any): string | undefined {
   if (!value || typeof value !== "object") return;
@@ -32,12 +33,6 @@ function createdMs(value: any): number | undefined {
   if (typeof raw === "number") return raw < 10_000_000_000 ? raw * 1000 : raw;
   if (typeof raw === "string") { const parsed = Date.parse(raw); return Number.isFinite(parsed) ? parsed : undefined; }
 }
-function matchesKind(value: any, kind: "image" | "video"): boolean {
-  const declared = String(value?.task_type || value?.type || value?.kind || "").toLowerCase();
-  if (declared === kind || declared.includes(kind)) return true;
-  const urls = findUrls(value);
-  return kind === "image" ? urls.some(url => /\.(png|jpe?g|webp|gif)(?:\?|$)/i.test(url)) : urls.some(url => /\.(mp4|mov|webm)(?:\?|$)/i.test(url));
-}
 export async function listSubmissions(api: EasyAiApi) {
   const dir = recordDir(api); await mkdir(dir, { recursive: true });
   return Promise.all((await readdir(dir)).filter(f => f.endsWith(".json")).map(async f => JSON.parse(await readFile(join(dir, f), "utf8"))));
@@ -47,6 +42,7 @@ export async function recoverSubmission(api: EasyAiApi, key: string): Promise<un
   const record = JSON.parse(await readFile(file, "utf8"));
   if (record.state === "rejected") throw new CliError(`Submission ${key} was rejected before acceptance: ${record.error || "validation failure"}. No recovery or resubmission was attempted.`, ExitCode.Usage);
   if (record.taskId) return api.get(`/v1/tasks/${encodeURIComponent(record.taskId)}`);
+  if (record.state === 'completed' && record.result && findUrls(record.result).length) return record.result;
   const found = await api.get(`/v1/tasks?idempotencyKey=${encodeURIComponent(key)}`);
   const rows = taskRows(found);
   const exact = rows.filter((r: any) => (r.idempotencyKey || r.idempotency_key || r.clientMutationId) === key && rowId(r));
@@ -69,8 +65,7 @@ export async function recoverSubmission(api: EasyAiApi, key: string): Promise<un
       const chainModels = Array.isArray(r.execution_chain) ? r.execution_chain.map((c: any) => c?.model).filter(Boolean) : [];
       return !(record.model && chainModels.length && !chainModels.includes(record.model));
     });
-    matches = candidates.filter((r: any) => matchesKind(r, record.kind));
-    recovery = "unique-task-snapshot-delta";
+    // Candidates are informational only. A nearby task is not proof of ownership.
   }
   if (matches.length !== 1) {
     // Some platforms label an in-flight video task with a different task_type
@@ -80,7 +75,7 @@ export async function recoverSubmission(api: EasyAiApi, key: string): Promise<un
     throw new CliError(`Submission ${key} is uncertain; lookup did not identify exactly one matching task. Do not resubmit.${seen.length ? ` New tasks in the submission window: ${seen.join(", ")}. Confirm which one belongs to this request, then download it by task ID.` : ""}`, ExitCode.Service);
   }
   const id = rowId(matches[0]);
-  await writeFile(file, JSON.stringify({ ...record, state: "accepted", taskId: id, recoveredBy: recovery }), { mode: 0o600 });
+  await writeJson(file, { ...record, state: "accepted", taskId: id, recoveredBy: recovery });
   return matches[0];
 }
 
@@ -96,13 +91,15 @@ export function taskRows(value: unknown): unknown[] {
   return [];
 }
 
-export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payload: Record<string, unknown>, idempotencyKey: string, kind: "image" | "video" = "image", options: { submitTimeoutMs?: number; recoveryWaitMs?: number; allowDuplicatePayload?: boolean } = {}): Promise<unknown> {
+export const generationSubmitTimeoutMs = 15 * 60_000;
+export interface SubmissionOptions { submitTimeoutMs?: number; recoveryWaitMs?: number; allowDuplicatePayload?: boolean; requestHash?: string; runPath?: string; onPrepared?: () => Promise<void>; }
+export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payload: Record<string, unknown>, idempotencyKey: string, kind: "image" | "video" = "image", options: SubmissionOptions = {}): Promise<unknown> {
   let claimPath: string | undefined;
   if (idempotencyKey.startsWith("seedance-")) {
     const claims = join(configDir(), "approvals"); await mkdir(claims, { recursive: true });
     claimPath = join(claims, `${payloadHash(idempotencyKey)}.json`);
     const claim = { scope: api.scope || "test", payloadHash: payloadHash(payload) };
-    try { await writeFile(claimPath, JSON.stringify(claim), { flag: "wx", mode: 0o600 }); }
+    try { if (!await writeJson(claimPath, claim, true)) throw Object.assign(new Error('exists'), { code: 'EEXIST' }); }
     catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
       const prior = JSON.parse(await readFile(claimPath, "utf8"));
@@ -111,37 +108,48 @@ export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payl
   }
   await mkdir(recordDir(api), { recursive: true });
   const file = recordPath(api, idempotencyKey);
-  const requestHash = payloadHash(payload);
+  const requestHash = options.requestHash || payloadHash(payload);
+  let payloadClaim: string | undefined;
+  let ownsClaim = false;
   if (!options.allowDuplicatePayload) {
-    const duplicate = (await listSubmissions(api)).find(row => row.idempotencyKey !== idempotencyKey && row.path === path && row.payloadHash === requestHash);
+    const duplicate = (await listSubmissions(api)).find(row => row.idempotencyKey !== idempotencyKey && row.path === path && (row.requestHash || row.payloadHash) === requestHash && row.state !== 'rejected');
     if (duplicate) throw new CliError(`An identical request already exists under idempotency key ${duplicate.idempotencyKey}${duplicate.taskId ? ` (task ${duplicate.taskId})` : ""}. Resume it instead of submitting again; use --allow-reroll only after the user explicitly requests another generation.`, ExitCode.Conflict);
+    const claims = join(recordDir(api), '.payloads'); await mkdir(claims, { recursive: true });
+    payloadClaim = join(claims, `${payloadHash({ path, requestHash })}.json`);
+    ownsClaim = await writeJson(payloadClaim, { idempotencyKey }, true);
+    if (!ownsClaim) {
+      const owner = JSON.parse(await readFile(payloadClaim, 'utf8'));
+      if (owner.idempotencyKey !== idempotencyKey) throw new CliError(`Identical request already claimed by ${owner.idempotencyKey}. Resume it; no duplicate was submitted.`, ExitCode.Conflict);
+    }
   }
-  const record = { idempotencyKey, path, kind, model: typeof payload.model === "string" ? payload.model : undefined, submitTimeoutMs: options.submitTimeoutMs, payloadHash: requestHash, state: "preparing", createdAt: new Date().toISOString(), baselineCaptured: false, baselineTaskIds: [] as string[] };
-  try { await writeFile(file, JSON.stringify(record), { flag: "wx", mode: 0o600 }); }
+  const record = { idempotencyKey, path, kind, model: typeof payload.model === "string" ? payload.model : undefined, submitTimeoutMs: options.submitTimeoutMs, payloadHash: payloadHash(payload), requestHash, runPath: options.runPath, state: "preparing", createdAt: new Date().toISOString(), baselineCaptured: false, baselineTaskIds: [] as string[] };
+  try { if (!await writeJson(file, record, true)) throw Object.assign(new Error('exists'), { code: 'EEXIST' }); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     const previous = JSON.parse(await readFile(file, "utf8"));
-    if (idempotencyKey.startsWith("seedance-") && previous.state === "rejected") {
-      await writeFile(file, JSON.stringify(record), { mode: 0o600 });
-    } else {
-    if (previous.payloadHash !== record.payloadHash || previous.path !== path) throw new CliError("Idempotency key already belongs to a different request.", ExitCode.Conflict);
-    return recoverSubmission(api, idempotencyKey);
+    if ((previous.requestHash || previous.payloadHash) !== requestHash || previous.path !== path) {
+      if (ownsClaim && payloadClaim) await unlink(payloadClaim);
+      throw new CliError("Idempotency key already belongs to a different request.", ExitCode.Conflict);
     }
+    return recoverSubmission(api, idempotencyKey);
   }
   try {
+    await options.onPrepared?.();
     try {
       const before = taskRows(await api.get("/v1/tasks"));
       record.baselineTaskIds = before.map(rowId).filter((id): id is string => Boolean(id));
       record.baselineCaptured = true;
     } catch { /* idempotency-key recovery remains available */ }
     record.state = "uncertain";
-    await writeFile(file, JSON.stringify(record), { mode: 0o600 });
+    await writeJson(file, record);
     const headers = { "Idempotency-Key": idempotencyKey };
     const result = options.submitTimeoutMs && "postWithTimeout" in api ? await api.postWithTimeout(path, payload, headers, options.submitTimeoutMs) : await api.post(path, payload, headers);
     const id = taskId(result);
     if (!id && !path.includes("images")) throw new CliError("Submission returned no task ID", ExitCode.Service);
     if (!id && !findUrls(result).length) throw new CliError("Submission returned no task ID or output", ExitCode.Service);
-    await writeFile(file, JSON.stringify({ ...record, state: id ? "accepted" : "completed", taskId: id }), { mode: 0o600 });
+    // Private state retains signed output URLs for exact recovery; user-facing
+    // run records and output are separately redacted.
+    await writeJson(file, { ...record, state: id ? "accepted" : "completed", taskId: id, ...(!id ? { result } : {}) });
     return result;
   }
   catch (error) {
@@ -150,7 +158,8 @@ export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payl
       // diagnostic and release the creative claim so a corrected payload can
       // reuse the same approved manifest without another approval ceremony.
       if (claimPath) await unlink(claimPath).catch(() => undefined);
-      await writeFile(file, JSON.stringify({ ...record, state: "rejected", error: redact(error.message), errorDetails: redact(error.details), rejectedAt: new Date().toISOString() }), { mode: 0o600 });
+      if (payloadClaim) await unlink(payloadClaim).catch(() => undefined);
+      await writeJson(file, { ...record, state: "rejected", error: redact(error.message), errorDetails: redact(error.details), rejectedAt: new Date().toISOString() });
       throw error;
     }
     if (!(error instanceof CliError) || error.exitCode !== ExitCode.Service) throw error;
@@ -167,7 +176,7 @@ export async function submitAsyncWithRecovery(api: EasyAiApi, path: string, payl
   }
 }
 
-export async function submitImageWithRecovery(api: EasyAiApi, payload: Record<string, unknown>, idempotencyKey: string, options?: { submitTimeoutMs?: number; recoveryWaitMs?: number; allowDuplicatePayload?: boolean }): Promise<unknown> {
+export async function submitImageWithRecovery(api: EasyAiApi, payload: Record<string, unknown>, idempotencyKey: string, options?: SubmissionOptions): Promise<unknown> {
   return submitAsyncWithRecovery(api, "/v1/images/generations", payload, idempotencyKey, "image", options);
 }
 

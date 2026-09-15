@@ -1,58 +1,52 @@
 ---
 name: wowidea
-description: Create and review images and videos through the Wowidea CLI for posters, branding, products, illustration, spatial concepts and stage visuals. Use for Wowidea creation, editing, reference planning, project continuity and delivery; stage workflows apply only to stage requests.
+description: Generate and edit images and videos through the user's Wowidea website account. Use for media creation, reference-based edits, and retrieving generated results.
 ---
 
-# Wowidea Visual Agent
+# Wowidea
 
-Codex makes creative decisions; the installed wowidea CLI executes through the user's website account. easyai and easyai-canvas remain compatible. Reply in the user's language. English instructions do not require English conversation or translation of supplied text/dialogue.
+Turn the user's request into a website model call, then return the actual output. Reply in the user's language. The website handles provider redundancy and failover; never call providers directly.
 
-## Initialize once per project
+## Understand the request
 
-When asked to initialize, run wowidea project setup --dir <project>. Read the returned project instructions immediately. Subsequent media work uses node <project>/.wowidea/runtime/dist/cli.js and this project's skill, without requiring another /wowidea invocation. Use project setup --update only for an explicitly requested update. Keep keys in OS credentials or environment, never in project files. No Git commit or publication is implied.
+Preserve the user's model, copy, references and output settings. Ask only when missing information materially changes the result. Prompt-only requests do not generate media. Simple generation needs no project archive, storyboard or manifest. These are optional for all models, including Seedance; respect additional user constraints.
 
-## Choose the next creative decision
+## Prepare parameters and references
 
-Use [task routing](references/design-tasks.md) to infer purpose, audience, deliverable and change scope. A one-off image or local edit needs no archive or full storyboard. Complex work may need [direction](references/creative-direction.md) and [bounded rounds](references/production-rounds.md). Stage is optional: load [VJ recipes](references/vj-recipes.md) only for explicit performance/stage work. Space, loop or key visual alone is insufficient.
+Use `node <project>/.wowidea/runtime/dist/cli.js` in an initialized project, otherwise `wowidea`. Initialize with `project setup --dir <project>` only when requested; initialization is not required for generation. Use `doctor` for connection problems, not before every request. Keys belong in OS credentials or process injection, never project files.
 
-Ongoing projects use accepted [preferences and records](references/project-workflow.md). Trials do not overwrite accepted directions or other projects. For reusable external methods read [recipe authoring](references/recipe-authoring.md).
+Use `models list --type image|video` and `models show <model>` for current website capabilities. When model selection is needed, `models route --kind image|video --purpose <purpose> --stage preview|final|edit|refine` returns suitable settings. Explicit settings take precedence. Image final output defaults to supported 4K; choose video specifications appropriate to the requested stage. Do not add a separate paid preview to a request for final output.
 
-## Select model and prompt guide
-
-Read [automatic selection](references/auto-routing.md). Before generating, establish purpose and stage from the conversation; ask briefly only when unclear. Run models route --kind image|video --purpose <purpose> --stage preview|final|edit|refine --file <constraints.json>, with --model when specified. Use its payload, retaining prompt and reference order. Explicit user settings override automatic choices. One candidate by default. Images prioritize quality and final 4K; do not downscale to save money when price is unchanged. Videos preview at economical supported settings, then generate final only when the user requests final delivery. No automatic model switch after a failed submission.
-
-Read only the relevant guide. Model prompt methods are bundled as internal Wowidea references and are selected by the single `$wowidea` entry:
+Read only the selected model's prompt guide:
 
 | Model | Guide |
 | --- | --- |
-| MiniMax H3 / H3-Max | [H3](references/minimax-h3.md) |
-| Seedance 2.0 family | [2.0](references/seedance-20.md) |
-| Seedance 2.5 | [2.5](references/seedance-25.md) |
 | GPT Image 2 | [GPT Image](references/gpt-image.md) |
-| GPT Image 2.5 / Flare / Sunburst | [GPT Image 2.5](references/gpt-image-25.md), then `$gpt-image-25-prompt` for writing or polishing |
-| Nano Banana family | [Nano Banana](references/nano-banana.md) |
-| Midjourney v8.2 / 8.2-fast | [Midjourney](references/midjourney.md) |
+| GPT Image 2.5 / Flare / Sunburst | [GPT Image 2.5](references/gpt-image-25.md), then bundled `$gpt-image-25-prompt` for prompt writing |
+| Nano Banana | [Nano Banana](references/nano-banana.md) |
+| Midjourney | [Midjourney](references/midjourney.md) |
+| MiniMax H3 / H3-Max | [H3](references/minimax-h3.md) |
+| Seedance 2.0 / 2.5 | [2.0](references/seedance-20.md) / [2.5](references/seedance-25.md) |
+| Google Omni / Wan | [Omni](references/google-omni.md) / [Wan](references/wan.md) |
 
-Other routes: [Google Omni](references/google-omni.md), [Wan](references/wan.md). Use `wowidea guides list|show` to locate bundled references. Prompt-only requests make no paid call. Check API capability independently from official creative guidance.
+For images read [image parameters](references/image-parameters.md). Inspect local references and keep roles/order; the CLI uploads them and checks accessibility. Use `--reference` for images, `--video-reference` for videos and `--audio-reference` for audio, repeating options in order. Advanced combinations use [reference planning](references/reference-planning.md) and UTF-8 request JSON.
 
-Before an image call, read [image parameters](references/image-parameters.md). Submit the canonical `resolution` and `aspect_ratio` fields. Treat `size` only as user input shorthand: derive both canonical fields, reject conflicts or unsupported ratios, and never send `size`. Default to one output. Self-review non-Seedance payloads and proceed without an extra user gate unless the request conflicts with verified capabilities.
+## Submit once
 
-Inspect references and define [roles/order](references/reference-planning.md). Use [case methods](references/image-case-index.md) only when helpful. Keep exact copy, labels and approved constraints intact. Choose proportions from the task; choose high supported image resolution; final defaults to 4K.
+Common commands (replace values with the user's request):
 
-## Execute the authorized scope
+```text
+wowidea image generate --prompt "Product photo on a pale blue background" --model "Nano Banana 2" --resolution 4K --ratio 3:4
+wowidea image edit --prompt "Change only the background to green" --reference ./product.png --model "Nano Banana 2"
+wowidea video generate --prompt "Camera slowly approaches a ceramic cup" --model "Wan3.0-Video" --duration 5 --resolution 480p --ratio 16:9 --no-audio
+```
 
-Read [execution/recovery](references/workflow.md). Use UTF-8 request files and one key per authorized task. Default generate waits and downloads; retain its process handle until the terminal result. Existing tasks are observed/recovered, not submitted again. No duplicate polling owners, automatic paid retries or aesthetic rerolls.
+Use direct generation options OR `--file request.json`, never both. Other supported JSON parameters remain available through the file interface. Request keys and local records are automatic; default execution waits and downloads. Retain the process handle until it exits. Use `--no-wait` only when asynchronous submission is useful, then track the returned task.
 
-Seedance directly uses video generate --file; storyboard, visual QC and manifest are optional. There is no creative approval or points gate. Technical capability checks still apply and `watermark:false` remains the default. Reference arrays accept HTTPS URLs or local files; local files are uploaded through the website and refreshed after expiry. Use image edit or video edit for requested modifications, with --parent <sourceTaskId> --change <summary>. Preserve the selected version as reference; do not merely restate the prompt.
+One candidate per request by default. Keep `watermark:false` for video. No automatic reroll, model switch or second generation after a failure. If interrupted, use `tasks resume <returned-key> --wait`, or image/video status and download with a known task ID. An uncertain submission must not be guessed from nearby account tasks. An explicitly requested new identical generation uses `--allow-reroll`. See [recovery](references/workflow.md) when needed.
 
-## Review and deliver
+## Deliver
 
-Open actual outputs before [quality claims](references/visual-review.md). Judge task-specific text/hierarchy, product identity, narrative or stage readability. Distinguish intentional surreal design from defects. State uninspected motion/audio and unfinished production requirements. API success is not quality acceptance.
+Open actual output before judging quality; see [visual review](references/visual-review.md). Return local media, status and available task pricing. Unknown billing is “接口未提供”, not zero. Preserve the original in edits; use it as an actual reference and optionally record `--parent <taskId> --change <summary>`. Records under `.wowidea/runs` support continuity but require no manual maintenance.
 
-Present local output media and real task status. Save task ID, prompt, settings, ordered inputs, outputs and QC when using records. Record failures do not authorize regeneration. Report task status, media paths, estimated pricing and pointsUsage. Unknown task charges are “接口未提供”, not zero; balance changes are not task costs. Read prior .wowidea/runs records to preserve version continuity.
-
-## Credentials and canvas
-
-Use the existing account key or hidden local auth use-key --prompt. No provider credentials or browser login. Keys never enter Skills, prompts, records or Git. Keep signed requests private; redact query strings in review copies.
-
-Read current canvas state and actual CLI help. Refresh version conflicts instead of overwriting collaborators. Cancellation, deletion and key management require matching user intent. Large results support --output. [Sources](references/sources.md) are reviewed and bundled, never auto-synced at runtime.
+For complex multi-round work read [project workflow](references/project-workflow.md); for explicit stage work read [VJ recipes](references/vj-recipes.md). These are not prerequisites for ordinary requests. Canvas operations, account administration, publication and Git changes require their own matching user request.

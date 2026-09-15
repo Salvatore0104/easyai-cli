@@ -1,6 +1,6 @@
 {
   "name": "@easyai/cli",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Codex-driven visual design agent for images, brands, products, illustration, video and stage visuals",
   "type": "module",
   "bin": {
@@ -26,7 +26,7 @@
     "package:host": "npm run build && node scripts/package-host.mjs",
     "resources:check": "node scripts/check-resources.mjs",
     "resources:lock": "node scripts/check-resources.mjs --update",
-    "prepack": "npm run resources:check",
+    "prepack": "node scripts/prepack.mjs",
     "package:smoke": "node scripts/smoke-package.mjs"
   },
   "engines": {
